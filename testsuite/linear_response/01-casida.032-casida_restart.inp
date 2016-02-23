@@ -1,0 +1,36 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 01-casida.032-casida_restart.inp 14972 2016-01-05 02:57:21Z xavier $
+
+CalculationMode = casida
+ExperimentalFeatures = yes
+
+Debug = info + trace
+FromScratch = no
+
+bond_length = 2.0744
+
+%Coordinates
+"N" |  -bond_length/2 |  0.0 |  0.0 
+"N" |   bond_length/2 |  0.0 |  0.0 
+%
+
+%Species
+"N" | species_pseudo | lmax | 2 | lloc | 0 | db_file | "PSF/N.psf"
+%
+
+BoxShape = sphere
+
+Radius = 12.0
+Spacing = 0.36
+
+XCFunctional = lda_x + lda_c_vwn
+CasidaTheoryLevel = eps_diff + petersilka + lrtddft_casida + tamm_dancoff + variational
+CasidaCalcForces = yes
+
+PoissonSolver = fft
+PoissonFFTKernel = multipole_correction
+
+ParDomains = 2
+ParOther = 2
+
+MixField = density

@@ -1,0 +1,7 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 17-recipe.inp 13978 2015-05-14 16:03:03Z xavier $
+
+CalculationMode = recipe
+
+
+

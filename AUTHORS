@@ -1,0 +1,51 @@
+The main development team of this program consists of (alphabetical
+order):
+
+ * Joseba Alberdi
+ * Xavien Andrade
+ * Alberto Castro
+ * Tilman Dannert
+ * Umberto De Giovannini
+ * Alain Delgado
+ * Nicole Helbig
+ * Hannes Huebener
+ * Joaquim Jornet-Somoza
+ * Ask Larsen
+ * Irina Lebedeva
+ * Miguel A. L. Marques
+ * Fernando Nogueira
+ * Micael Oliveira
+ * Carlo Andrea Rozzi
+ * Angel Rubio
+ * Ravindra Shinde
+ * Jose R. F. Sousa
+ * David Strubbe
+ * Iris Theophilou
+ * Alejandro Varas
+ * Matthieu Verstraete
+ * Philipp Wopperer
+
+Former developers
+
+ * Heiko Appel
+ * Fulvio Berardi
+ * Johanna Fuks
+ * David Kammerlander
+ * Kevin Krieger
+ * Florian Lorenzen
+ * Danilo Nitsche
+ * Roberto Olivares-Amaya
+ * Arto Sakko
+ * Axel Thimm
+ * Jessica Walkenhorst
+ * Jan Werschnik
+
+octopus is based on a fixed-nucleus code written by:
+
+  * K. Yabana
+  * George F. Bertsch
+
+Other contributors are:
+
+  * Sebastien Hamel     - parallel version of oct-excite
+  * Eugene S. Kadantsev - linear response code

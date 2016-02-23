@@ -1,0 +1,38 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 01-carbon_atom.04-cpi.inp 14678 2015-10-19 06:40:46Z xavier $
+#
+CalculationMode = gs
+fromScratch = yes
+units = ev_angstrom
+
+%Coordinates
+"C" | 0 | 0 | 0
+%
+
+%Species
+"C" | species_pseudo | db_file | "extra/C.cpi" | lmax | 1 | lloc | 1
+%
+
+spacing = 0.19
+radius = 5.0
+
+SpinComponents = polarized
+
+ExtraStates = 2
+%Occupations
+2/3 | 2/3 | 2/3
+0 | 0 | 0
+%
+
+XCFunctional = lda_x + lda_c_pz
+
+PoissonSolver = fft
+PoissonFFTKernel = multipole_correction
+
+ConvRelDens = 4e-6
+
+FromScratch = yes
+
+FilterPotentials = filter_none
+
+MixField = density

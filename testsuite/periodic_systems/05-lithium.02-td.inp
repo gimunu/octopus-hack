@@ -1,0 +1,45 @@
+CalculationMode = td
+
+FromScratch=yes
+
+PeriodicDimensions = 3
+
+a = 6.6329387
+Lsize = a/2
+Spacing = a/10
+
+%Coordinates
+  "Li" |  0.0 | 0.0 | 0.0 
+  "Li" |  a/2 | a/2 | a/2 
+%
+
+%Species
+ 'Li' | species_pseudo | lmax | 2 | lloc | 0 | db_file | "PSF/Li.psf"
+%
+
+BoxShape = parallelepiped
+
+%KPointsGrid
+ 4   |   4 |    4
+1/2 | 1/2  |  1/2
+%
+
+KPointsUseSymmetries = no
+
+%GaugeVectorField
+10.0 | 0.0 | 0.0
+%
+
+TDPropagator = aetrs
+TDTimeStep = 0.02
+TDMaxSteps = 20
+
+ExperimentalFeatures = yes
+
+ParDomains = no
+ParKPoints = auto
+
+TDEnergyUpdateIter = 5
+
+FilterPotentials = filter_none
+

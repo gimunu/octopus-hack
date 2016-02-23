@@ -1,0 +1,40 @@
+CalculationMode = td
+ExperimentalFeatures = yes
+
+bond_length = 2.8
+
+%Coordinates
+ "C" |  -bond_length/2 |  0.0 |  0.0 
+ "C" |   bond_length/2 |  0.0 |  0.0 
+%
+
+%Velocities
+ "C" |  0.001 | 0.0 | 0.0
+ "C" | -0.001 | 0.0 | 0.0
+%
+
+MoveIons = no
+
+Spacing = 0.6
+
+Radius = 6
+
+TDTimeStep = 0.1
+
+TDMaxSteps = 20
+
+TDPropagator = caetrs
+
+ParDomains = 2
+
+ParStates = 2
+
+FromScratch = yes
+
+TDDeltaStrength = 0.2
+
+TDPolarizationDirection = 1
+
+RestartWriteInterval = 10
+
+TDEnergyUpdateIter = 5

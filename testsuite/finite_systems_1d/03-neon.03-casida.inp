@@ -1,0 +1,24 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 03-neon.03-casida.inp 14678 2015-10-19 06:40:46Z xavier $
+#
+
+FromScratch = yes
+CalculationMode = casida
+
+Dimensions = 1
+Spacing = 0.2
+Radius = 50.0
+
+%Species
+  "Neon1D" | species_user_defined | potential_formula | "-10/sqrt(0.25 + x^2)" | valence | 10
+%
+
+%Coordinates
+  "Neon1D" | 0 
+%
+
+CasidaKohnShamStates = "2-10"
+
+
+
+MixField = density

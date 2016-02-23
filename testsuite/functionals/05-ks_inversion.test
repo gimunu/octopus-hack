@@ -1,0 +1,21 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 05-ks_inversion.test 15070 2016-01-15 16:30:59Z xavier $
+
+Test       : KS Inversion
+Program    : octopus
+TestGroups : short-run, functionals
+Enabled    : Yes
+
+Processors: 1
+
+Input: 05-ks_inversion.01-target_density.inp
+match ; Density value 1                          ; LINEFIELD(static/density.y=0\,z=0,    2, 2) ; -1.68925577522562E-008
+match ; Density value 2                          ; LINEFIELD(static/density.y=0\,z=0,  301, 2) ;  8.86969280339419E-001
+
+# not implemented in parallel
+
+Input: 05-ks_inversion.02-two_particle.inp
+match ; xc potential                             ; LINEFIELD(static/vxc.y=0\,z=0, 302, 2);  -4.81973137281612E-001
+
+Input: 05-ks_inversion.03-inversion.inp
+match ; KS Inversion                             ; LINEFIELD(InvertKSconvergence,  19, 2) ; 0.0107972036297333

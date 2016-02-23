@@ -1,0 +1,58 @@
+How to build:
+  Standard ./configure; make; make install
+
+Dependencies:
+  BLAS
+  FFTW >= 3
+  GSL >= 1.9
+  LAPACK
+  libxc >= 2.0
+  perl
+  bpdn (internal)
+  ISF (internal)
+  Qshep (internal)
+  Spglib (internal)
+  yaml (internal/optional)
+  arpack (optional)
+  BerkeleyGW (optional)
+  clBLAS (optional)
+  clFFT (optional)
+  ETSF_IO (optional)
+  feast (optional)
+  FortranCL (internal/optional)
+  GD (optional)
+  libISF (internal/optional)
+  Metis (internal/optional)
+  MPI (optional)
+  NetCDF (optional)
+  Newuoa (internal/optional)
+  NFFT (optional)
+  OpenCL (optional)
+  PAPI (optional
+  PFFT-Chemnitz (optional)
+  PNFFT (optional)
+  pspio (optional)
+  ScaLAPACK/BLACS (optional)
+  Parmetis (optional)
+  Sparskit (optional)
+  
+Website:
+  http://www.tddft.org/programs/octopus/
+
+New releases:
+  2016/01/11 Version 5.0.1
+  2015/10/07 Version 5.0.0
+  2013/11/18 Version 4.1.2
+  2013/09/03 Version 4.1.1
+  2013/06/12 Version 4.1.0
+  2012/02/03 Version 4.0.1
+  2011/06/19 Version 4.0.0
+  2009/11/24 Version 3.2.0
+  2009/11/04 Version 3.1.1
+  2009/04/16 Version 3.1
+
+Bugs & Patches:
+  http://www.tddft.org/trac/octopus/report
+
+SVN server:
+  svn co http://www.tddft.org/svn/octopus/trunk

@@ -1,0 +1,47 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 13-full_potential_hydrogen.01-gs.inp 14972 2016-01-05 02:57:21Z xavier $
+
+%Coordinates
+ 'H_f' | 0 | 0 | 0
+%
+%Species 
+ 'H_f' | species_full_gaussian
+%
+
+Radius = 8.0
+Spacing = 0.4
+fromScratch = yes
+Debug = info + trace
+
+TheoryLevel = independent_particles
+
+EigenSolverMaxIter = 300
+
+ExtraStates = 1
+%Occupations
+0 | 1
+%
+
+LCAOComplexYlms = true
+%StaticMagneticField
+0.0 | 0.0 | 0.5
+%
+
+%CurrentThroughPlane
+0 | 0 | 0
+0 | 1 | 0
+0 | 0 | 1
+0.15
+0 | 130
+-130 | 130
+%
+
+CalculateSelfInducedMagneticField = yes
+
+Output = matrix_elements + potential
+OutputFormat = axis_y
+OutputMatrixElements = momentum + ang_momentum
+# + one_body + two_body + ks_multipoles
+
+FilterPotentials = filter_none
+

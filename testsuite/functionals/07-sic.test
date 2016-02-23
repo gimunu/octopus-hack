@@ -1,0 +1,26 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 07-sic.test 14208 2015-06-04 16:22:07Z dstrubbe $
+
+Test       : LDA+SIC/OEP-KLI Functional
+Program    : octopus
+TestGroups : long-run, functionals
+Enabled    : Yes
+
+# This test performs the calculation of an argon atom making
+# use of the local-density approximation (LDA) plus the self-interaction 
+# correction (SIC), treating this latter term with the Krieger-Li-Iafrate
+# approximation (KLI) to the optimized effective potential method (OEP).
+# This is the functional used in:
+# [X.-M. Tong and S.-I Chu, Phys. Rev. A 55, 3406 (1997)],
+# to the best of my knowledge for the first time.
+#
+# The calculation reproduces the result given for Ar in Table IV of this paper.
+# It is the value of the energy of the HOMO (a.k.a. ionization potential): 0.549Ha.
+#
+# The number is missed by 0.006Ha = 0.16eV. The reason is probably that we
+# use a LDA pseudopotential, whereas the results in the paper are all-electron.
+
+# this calculation seems numerically unstable!
+Precision : 0.002
+Input     : 07-sic.01-gs.inp
+match ; Ionization Potential ; GREPFIELD(static/info, '4   --', 3) ; -0.5412385

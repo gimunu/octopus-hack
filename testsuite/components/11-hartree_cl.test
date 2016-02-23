@@ -1,0 +1,15 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 11-hartree_cl.test 13244 2015-02-28 23:19:28Z dstrubbe $
+
+Test       : Hartree OpenCL
+Options    : clamdfft
+Program    : oct-test
+TestGroups : short-run, components
+Enabled    : Yes
+
+# FIXME: will this work in parallel?
+Processors: 1
+
+Precision : 0.005
+Input: 11-hartree_cl.01-fft.inp
+match ; FFT OpenCL ; GREPFIELD(hartree_results, 'Hartree test (abs.) =', 5) ; 0.0000004372307

@@ -1,0 +1,25 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 09-spinors.03-rmmdiis_extra_states.inp 14678 2015-10-19 06:40:46Z xavier $
+
+CalculationMode = gs
+fromScratch = yes
+
+Radius = 7.0
+Spacing = 0.5
+%Coordinates
+  "Na" | 0 | 0 | 0.0
+%
+SpinComponents = non_collinear
+GuessMagnetDensity = user_defined
+%AtomsMagnetDirection
+ 1 | 1 | 0
+%
+
+Eigensolver = rmmdiis
+
+ExtraStates = 5
+
+
+FilterPotentials = filter_none
+
+MixField = density

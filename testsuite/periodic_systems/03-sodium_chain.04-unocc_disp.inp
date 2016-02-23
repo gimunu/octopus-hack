@@ -1,0 +1,48 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 03-sodium_chain.04-unocc_disp.inp 14678 2015-10-19 06:40:46Z xavier $
+
+Units = ev_angstrom
+
+Dimensions = 3
+PeriodicDimensions = 1
+
+CalculationMode = unocc                     
+
+FromScratch = yes
+
+%Species
+  "Na" | species_pseudo | lmax | 2 | lloc | 2 | db_file | "PSF/Na.psf"
+%
+
+%Coordinates
+  "Na" |  -1.99932905 | 0.0 | 0.0 
+%
+
+BoxShape = parallelepiped
+
+%Lsize
+ 1.99932905 | 5.29 | 5.29
+%
+
+%Spacing
+  1.99932905/6 | 0.3 | 0.3
+%
+
+%KPoints
+0.1 | 0.000000 | 0.000000| 0.000000
+0.2 | 0.157132 | 0.000000| 0.000000
+0.2 | 0.314265 | 0.000000| 0.000000
+0.2 | 0.471397 | 0.000000| 0.000000
+0.2 | 0.628529 | 0.000000| 0.000000
+0.1 | 0.785662 | 0.000000| 0.000000
+%
+
+LCAOStart = lcao_none
+
+ExtraStates = 1
+
+ExperimentalFeatures = yes
+
+FilterPotentials = filter_none
+
+MixField = density

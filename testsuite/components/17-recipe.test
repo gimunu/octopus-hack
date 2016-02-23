@@ -1,0 +1,10 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 17-recipe.test 12993 2015-02-13 00:40:19Z dstrubbe $
+
+Test       : Recipe
+Program    : octopus
+TestGroups : short-run, components
+Enabled    : Yes
+
+Input: 17-recipe.inp
+#nothing to test, just whether the execution didn't crash

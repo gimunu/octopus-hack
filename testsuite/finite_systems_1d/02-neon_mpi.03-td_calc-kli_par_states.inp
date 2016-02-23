@@ -1,0 +1,29 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 02-neon_mpi.03-td_calc-kli_par_states.inp 14728 2015-11-01 19:46:15Z xavier $
+#
+
+FromScratch = yes
+
+CalculationMode = td
+
+ParDomains = no
+
+Dimensions = 1
+Spacing = 0.2
+Radius = 50.0
+
+XCFunctional = oep_x
+OEPLevel = oep_kli
+
+%Species
+  "Neon1D" | species_user_defined | potential_formula | "-10/sqrt(0.25 + x^2)" | valence | 10
+%
+
+%Coordinates
+  "Neon1D" | 0
+%
+
+TDMaxSteps = 10
+
+
+

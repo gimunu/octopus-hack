@@ -1,0 +1,12 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 04-hartree_3d_cg.test 13244 2015-02-28 23:19:28Z dstrubbe $
+
+Test       : Hartree CG
+Program    : oct-test
+TestGroups : short-run, components
+Enabled    : Yes
+
+Precision : 0.005
+
+Input: 04-hartree_3d_cg.01-cg_corrected.inp
+match ; CG Corrected  ; GREPFIELD(hartree_results, 'Hartree test (abs.) =', 5) ; 0.00349973

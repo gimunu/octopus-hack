@@ -1,0 +1,35 @@
+# -*- coding: utf-8 -*-
+# $Id: 20-eigensolver.05-evolution.inp 14728 2015-11-01 19:46:15Z xavier $
+
+Units = ev_angstrom
+ExperimentalFeatures = yes
+
+CalculationMode = gs
+FromScratch = yes
+
+BoxShape = sphere
+Radius = 4
+Spacing = 0.25
+
+%Coordinates
+ "C"  |  0.000 |  0.000 |  0.000 
+ "H"  | -1.213 | -0.852 |  0.000 
+ "H"  |  0.000 |  0.852 | -1.213 
+ "H"  |  0.000 |  0.852 |  1.213 
+ "H"  |  1.213 | -0.852 |  0.000 
+%
+
+EigenSolver = evolution
+EigenSolverTolerance = 1e-5
+
+ConvRelDens = 0.08
+
+TDExponentialMethod = lanczos
+TDExpOrder = 100
+
+FilterPotentials = filter_none
+
+SCFCalculatePartialCharges = yes
+
+ExperimentalFeatures = yes
+MixField = density

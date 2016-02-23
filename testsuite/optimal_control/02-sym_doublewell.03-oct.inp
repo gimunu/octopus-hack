@@ -1,0 +1,95 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 02-sym_doublewell.03-oct.inp 14662 2015-10-09 16:28:49Z xavier $
+
+
+Dimensions = 1
+fromScratch = yes
+
+CalculationMode = opt_control
+
+ExperimentalFeatures = yes
+
+# ------------------
+# Grid
+# ------------------
+BoxShape = sphere
+Spacing = 0.22
+Radius =  8.0
+
+
+# ------------------
+# System
+# ------------------
+%Species
+"doublewell" | species_user_defined | potential_formula | "1/64*(x)^4-1/4*(x)^2" | valence | 1
+%
+
+%Coordinates
+"doublewell" | 0
+%
+
+TheoryLevel = independent_particles
+
+
+# ------------------
+# TD RUN Parameters
+# ------------------
+
+# To obtain perfect overlap at the end of the QOCT run, one should put here a longer time (i.e. 500)
+stime  = 100.0
+dt = 0.05
+TDPropagator = exp_mid
+TDExponentialMethod = lanczos
+TDExpOrder = 20
+TDLanczosTol = 1.0e-5
+TDPropagationTime = stime
+TDTimeStep = dt
+
+
+# --------------
+# OCT parameters
+# --------------
+
+OCTPenalty = 1.0
+OCTEps = 0.000001
+OCTMaxIter = 1
+
+OCTInitialState = oct_is_gstransformation
+%OCTInitialTransformStates
+1/sqrt(2) |  1/sqrt(2)
+%
+
+OCTTargetOperator = oct_tg_gstransformation
+%OCTTargetTransformStates
+1/sqrt(2) | -1/sqrt(2)
+%
+
+OCTScheme  = oct_algorithm_zbr98
+OCTDoubleCheck = no
+
+
+#----------------------------
+# Laser field = Initial guess
+#-----------------------------
+
+
+ampl = 0.1
+freq = 0.1
+%TDExternalFields
+electric_field | 1 | 0 | 0 | freq | "envelope_function"
+%
+
+%TDFunctions
+"envelope_function" | tdf_cw | ampl
+%
+
+#----------------------------
+# Output
+#-----------------------------
+
+Output = potential + density + wfs
+OutputFormat = axis_x
+TDOutput = laser + td_occup 
+
+
+

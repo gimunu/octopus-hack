@@ -1,0 +1,24 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 05-output.02-convert.inp 14678 2015-10-19 06:40:46Z xavier $
+
+ExperimentalFeatures = yes
+Units = eV_Angstrom
+
+Radius = 5.0
+Spacing = 0.5
+%Coordinates
+  "H" | 0 | 0 | 0
+%
+
+OutputFormat = dx
+Output = density
+ConvertFolder = 'restart/gs'
+ConvertFilename = 'density'
+ConvertIterateFolder = no
+
+ConvertStart = 1
+ConvertEnd   = 1
+
+FilterPotentials = filter_none
+
+MixField = density

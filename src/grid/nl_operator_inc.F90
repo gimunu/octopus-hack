@@ -1,0 +1,516 @@
+!! Copyright (C) 2002-2006 M. Marques, A. Castro, A. Rubio, G. Bertsch
+!!
+!! This program is free software; you can redistribute it and/or modify
+!! it under the terms of the GNU General Public License as published by
+!! the Free Software Foundation; either version 2, or (at your option)
+!! any later version.
+!!
+!! This program is distributed in the hope that it will be useful,
+!! but WITHOUT ANY WARRANTY; without even the implied warranty of
+!! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!! GNU General Public License for more details.
+!!
+!! You should have received a copy of the GNU General Public License
+!! along with this program; if not, write to the Free Software
+!! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+!! 02110-1301, USA.
+!!
+!! $Id: nl_operator_inc.F90 14840 2015-11-29 06:05:24Z xavier $
+
+! ---------------------------------------------------------
+
+subroutine X(nl_operator_operate_batch)(op, fi, fo, ghost_update, profile, points, factor)
+  type(nl_operator_t), target, intent(in)    :: op
+  type(batch_t),       target, intent(inout) :: fi
+  type(batch_t),               intent(inout) :: fo !< this should be target, but old ifort 9.1 segfaults with it
+  logical,         optional,   intent(in)    :: ghost_update
+  logical,         optional,   intent(in)    :: profile
+  integer,         optional,   intent(in)    :: points
+  FLOAT,           optional,   intent(in)    :: factor
+
+  integer :: ist, points_
+  real(8) :: cop
+  logical :: ghost_update_, profile_, use_opencl
+  integer :: nri, nri_loc, ini
+  integer, pointer :: imin(:), imax(:), ri(:, :)
+  R_TYPE,  pointer :: pfi(:), pfo(:)
+!  FLOAT, allocatable :: wre(:), wim(:)
+  R_BASE, allocatable :: wre(:), wim(:)  
+#ifdef R_TREAL
+  integer, parameter :: logldf = 0
+#else
+  integer, parameter :: logldf = 1
+#endif
+  
+  PUSH_SUB(X(nl_operator_operate_batch))
+
+  ASSERT(batch_status(fi) == batch_status(fo))
+  ASSERT(batch_type(fi) == R_TYPE_VAL)
+  ASSERT(batch_type(fo) == R_TYPE_VAL)
+
+  ASSERT(fi%nst_linear == fo%nst_linear)
+
+  do ist = 1, fi%nst_linear
+    ASSERT(ubound(fi%states_linear(ist)%X(psi)(:), dim=1) == op%mesh%np_part)
+    ASSERT(ubound(fo%states_linear(ist)%X(psi)(:), dim=1) >= op%mesh%np)
+  end do
+
+  points_ = OP_ALL
+  if(present(points)) points_ = points
+
+  profile_ = .true.
+  if(present(profile)) profile_ = profile
+  if(profile_) call profiling_in(operate_batch_prof, "NL_OPERATOR_BATCH")
+
+  call select_op()
+
+  ghost_update_ = .true.
+  if(present(ghost_update)) ghost_update_ = ghost_update
+
+  if(op%mesh%parallel_in_domains .and. ghost_update_) then
+    ASSERT(.not. batch_is_packed(fi))
+    
+    do ist = 1, fi%nst_linear
+#ifdef HAVE_MPI
+      call X(vec_ghost_update)(op%mesh%vp, fi%states_linear(ist)%X(psi)(:))
+#endif
+    end do
+  end if
+
+#ifdef R_TREAL
+  if(op%cmplx_op) then
+    message(1) = "dnl_operator_operate_batch: cannot apply complex operator with real output."
+    call messages_fatal(1)
+  end if
+#endif
+
+  if(op%const_w) then
+    SAFE_ALLOCATE(wre(1:op%stencil%size))
+
+    wre(1:op%stencil%size) = op%w_re(:, 1)
+
+    if(op%cmplx_op) then
+      SAFE_ALLOCATE(wim(1:op%stencil%size))
+      wim(1:op%stencil%size) = op%w_im(1:op%stencil%size, 1)
+    end if
+    
+    if(present(factor)) then
+      wre(1:op%stencil%size) = wre(1:op%stencil%size)*factor
+      if(op%cmplx_op) then
+        wim(1:op%stencil%size) = wim(1:op%stencil%size)*factor
+      end if
+    end if
+  end if
+
+  use_opencl = .false.
+  
+  if(nri > 0) then
+    if(.not.op%const_w) then
+      call operate_non_const_weights()
+    else if(op%cmplx_op .or. X(function_global) == OP_FORTRAN) then
+      call operate_const_weights()
+#ifdef HAVE_OPENCL
+    else if(opencl_is_enabled() .and. batch_is_packed(fi) .and. batch_is_packed(fo)) then
+      use_opencl = .true.
+      call operate_opencl()
+#endif
+    else
+      
+! for the moment this is not implemented
+#ifndef SINGLE_PRECISION
+
+      !$omp parallel private(ini, nri_loc, ist, pfi, pfo)
+#ifdef HAVE_OPENMP
+      call multicomm_divide_range_omp(nri, ini, nri_loc)
+#else 
+      ini = 1
+      nri_loc = nri
+#endif
+      
+      if(batch_is_packed(fi) .and. batch_is_packed(fo)) then
+        call X(operate_ri_vec)(op%stencil%size, wre(1), nri_loc, ri(1, ini), imin(ini), imax(ini), &
+          fi%pack%X(psi)(1, 1), log2(fi%pack%size_real(1)), fo%pack%X(psi)(1, 1))
+      else
+        do ist = 1, fi%nst_linear
+          pfi => fi%states_linear(ist)%X(psi)(:)
+          pfo => fo%states_linear(ist)%X(psi)(:)
+          
+          call X(operate_ri_vec)(op%stencil%size, wre(1), nri_loc, ri(1, ini), imin(ini), imax(ini), pfi(1), logldf, pfo(1))
+        end do
+      end if
+      !$omp end parallel
+#endif
+    end if
+
+    ! count operations
+    if(profile_ .and. .not. use_opencl) then
+      if(op%cmplx_op) then
+        cop = fi%nst_linear*dble(imax(nri) - imin(1))*op%stencil%size*(R_ADD + R_MUL)
+      else
+        cop = fi%nst_linear*dble(imax(nri) - imin(1))*op%stencil%size*2*R_ADD
+      end if
+      call profiling_count_operations(cop)
+    end if
+
+    call batch_pack_was_modified(fo)
+
+  end if
+
+  SAFE_DEALLOCATE_A(wre)
+  SAFE_DEALLOCATE_A(wim)
+
+  if(profile_) call profiling_out(operate_batch_prof)
+  POP_SUB(X(nl_operator_operate_batch))
+
+contains
+
+  ! ---------------------------------------------------------
+  subroutine select_op()
+
+    PUSH_SUB(X(nl_operator_operate_batch).select_op)
+
+    select case(points_)
+    case(OP_ALL)
+      nri  =  op%nri
+      imin => op%rimap_inv(1:)
+      imax => op%rimap_inv(2:)
+      ri   => op%ri
+    case(OP_INNER)
+      nri  =  op%inner%nri
+      imin => op%inner%imin
+      imax => op%inner%imax
+      ri   => op%inner%ri
+    case(OP_OUTER)
+      nri  =  op%outer%nri
+      imin => op%outer%imin
+      imax => op%outer%imax
+      ri   => op%outer%ri
+    case default
+      ASSERT(.false.)
+    end select
+
+    POP_SUB(X(nl_operator_operate_batch).select_op)
+  end subroutine select_op
+
+
+!pgi$r novector
+!This is a pragma for the PGI compiler, preventing vector optimization for this subroutine
+
+  ! ---------------------------------------------------------
+  subroutine operate_const_weights()
+    integer :: nn, ll, ii, ist
+
+    PUSH_SUB(X(nl_operator_operate_batch).operate_const_weights)
+
+    nn = op%stencil%size
+
+    if(op%cmplx_op) then
+      ASSERT(.not. (batch_is_packed(fi) .or. batch_is_packed(fo)))
+
+#ifdef R_TCOMPLEX
+      !$omp parallel do private(ll, ist, ii)
+      do ll = 1, nri
+        do ii = imin(ll) + 1, imax(ll)
+          do ist = 1, fi%nst_linear 
+            fo%states_linear(ist)%X(psi)(ii) = sum(TOCMPLX(wre(1:nn), wim(1:nn))*fi%states_linear(ist)%X(psi)(ii + ri(1:nn, ll)))
+          end do
+        end do
+      end do
+      !$omp end parallel do
+#endif
+
+    else
+
+      if(batch_is_packed(fi)) then
+        !$omp parallel do private(ll, ist, ii)
+        do ll = 1, nri
+          do ii = imin(ll) + 1, imax(ll)
+            do ist = 1, fi%nst_linear
+              fo%pack%X(psi)(ist, ii) = sum(wre(1:nn)*fi%pack%X(psi)(ist, ii + ri(1:nn, ll)))
+            end do
+          end do
+        end do
+        !$omp end parallel do
+      else   
+        !$omp parallel do private(ll, ist, ii)
+        do ll = 1, nri
+          do ii = imin(ll) + 1, imax(ll)
+            do ist = 1, fi%nst_linear
+              fo%states_linear(ist)%X(psi)(ii) = sum(wre(1:nn)*fi%states_linear(ist)%X(psi)(ii + ri(1:nn, ll)))
+            end do
+          end do
+        end do
+        !$omp end parallel do
+      end if
+
+    end if
+
+    POP_SUB(X(nl_operator_operate_batch).operate_const_weights)
+  end subroutine operate_const_weights
+
+
+  ! ---------------------------------------------------------
+  subroutine operate_non_const_weights()
+    integer :: nn, ll, ii, ist
+    FLOAT :: factor_
+
+    PUSH_SUB(X(nl_operator_operate_batch).operate_non_const_weights)
+
+    ASSERT(.not. (batch_is_packed(fi) .or. batch_is_packed(fo)))
+
+    factor_ = M_ONE
+    if(present(factor)) factor_ = factor
+
+    if(op%cmplx_op) then
+#ifdef R_TCOMPLEX
+      !$omp parallel do private(ll, ist, ii)
+      do ll = 1, nri
+        nn = op%nn(ll)
+        forall(ist = 1:fi%nst_linear, ii = imin(ll) + 1:imax(ll))
+          fo%states_linear(ist)%X(psi)(ii) = factor_*sum(TOCMPLX(op%w_re(1:nn, ii), op%w_im(1:nn, ii)) * &
+            fi%states_linear(ist)%X(psi)(ii + ri(1:nn, ll)))
+        end forall
+      end do
+      !$omp end parallel do
+#endif
+    else
+      !$omp parallel do private(ll, ist, ii)
+      do ll = 1, nri
+        nn = op%nn(ll)
+        forall(ist = 1:fi%nst_linear, ii = imin(ll) + 1:imax(ll))
+          fo%states_linear(ist)%X(psi)(ii) = factor_*sum(op%w_re(1:nn, ii)*fi%states_linear(ist)%X(psi)(ii + ri(1:nn, ll)))
+        end forall
+      end do
+      !$omp end parallel do
+    end if
+
+    POP_SUB(X(nl_operator_operate_batch).operate_non_const_weights)
+  end subroutine operate_non_const_weights
+
+#ifdef HAVE_OPENCL
+
+  ! ------------------------------------------
+  subroutine operate_opencl()
+    integer    :: pnri, bsize, isize, ist, eff_size, iarg, npoints
+    integer(8) :: local_mem_size
+    type(opencl_mem_t) :: buff_weights
+    type(profile_t), save :: prof
+    type(cl_kernel) :: kernel_operate
+
+    PUSH_SUB(X(nl_operator_operate_batch).operate_opencl)
+    call profiling_in(prof, "CL_NL_OPERATOR")
+
+    kernel_operate = octcl_kernel_get_ref(op%kernel)
+
+    call opencl_create_buffer(buff_weights, CL_MEM_READ_ONLY, TYPE_FLOAT, op%stencil%size)
+
+    call opencl_write_buffer(buff_weights, op%stencil%size, wre)
+
+    ASSERT(fi%pack%size_real(1) == fo%pack%size_real(1))
+
+    eff_size = fi%pack%size_real(1)
+
+    select case(function_opencl)
+    case(OP_INVMAP)
+      ASSERT(points_ == OP_ALL)
+     
+      call opencl_set_kernel_arg(kernel_operate, 0, op%stencil%size)
+      call opencl_set_kernel_arg(kernel_operate, 1, nri)
+      call opencl_set_kernel_arg(kernel_operate, 2, op%buff_ri)
+      call opencl_set_kernel_arg(kernel_operate, 3, op%buff_imin)
+      call opencl_set_kernel_arg(kernel_operate, 4, op%buff_imax)
+      call opencl_set_kernel_arg(kernel_operate, 5, buff_weights)
+      call opencl_set_kernel_arg(kernel_operate, 6, fi%pack%buffer)
+      call opencl_set_kernel_arg(kernel_operate, 7, log2(eff_size))
+      call opencl_set_kernel_arg(kernel_operate, 8, fo%pack%buffer)
+      call opencl_set_kernel_arg(kernel_operate, 9, log2(eff_size))
+
+      bsize = opencl_kernel_workgroup_size(kernel_operate)
+      pnri = pad(nri, bsize)
+
+      call opencl_kernel_run(kernel_operate, (/eff_size, pnri/), (/eff_size, bsize/eff_size/))
+
+    case(OP_MAP)
+      call opencl_set_kernel_arg(kernel_operate, 0, op%mesh%np)
+      call opencl_set_kernel_arg(kernel_operate, 1, op%buff_ri)
+      call opencl_set_kernel_arg(kernel_operate, 2, op%buff_map)
+      call opencl_set_kernel_arg(kernel_operate, 3, buff_weights)
+      call opencl_set_kernel_arg(kernel_operate, 4, fi%pack%buffer)
+      call opencl_set_kernel_arg(kernel_operate, 5, log2(eff_size))
+      call opencl_set_kernel_arg(kernel_operate, 6, fo%pack%buffer)
+      call opencl_set_kernel_arg(kernel_operate, 7, log2(eff_size))
+      iarg = 7
+      
+      call clGetDeviceInfo(opencl%device, CL_DEVICE_LOCAL_MEM_SIZE, local_mem_size, cl_status)
+      isize = int(dble(local_mem_size)/(op%stencil%size*types_get_size(TYPE_INTEGER)))
+      isize = isize - mod(isize, eff_size)
+      bsize = eff_size*isize
+      bsize = min(opencl_kernel_workgroup_size(kernel_operate), bsize)
+
+      if(bsize < fi%pack%size_real(1)) then
+        message(1) = "The value of StatesBlockSize is too large for this OpenCL implementation."
+        call messages_fatal(1)
+      end if
+
+      isize = bsize/eff_size
+
+      ASSERT(isize > 0)
+      ASSERT(isize*op%stencil%size*types_get_size(TYPE_INTEGER) <= local_mem_size)
+
+      if(opencl_use_shared_mem()) then
+        iarg = iarg + 1
+        call opencl_set_kernel_arg(kernel_operate, iarg, TYPE_INTEGER, isize*op%stencil%size)
+      end if
+
+      npoints = op%mesh%np
+      if(op%mesh%parallel_in_domains) then
+        iarg = iarg + 1
+        select case(points_)
+        case(OP_INNER)
+          npoints = op%ninner
+          call opencl_set_kernel_arg(kernel_operate, 0, op%ninner)
+          call opencl_set_kernel_arg(kernel_operate, iarg, op%buff_inner)
+        case(OP_OUTER)
+          npoints = op%nouter
+          call opencl_set_kernel_arg(kernel_operate, 0, op%nouter)
+          call opencl_set_kernel_arg(kernel_operate, iarg, op%buff_outer)
+        case(OP_ALL)
+          call opencl_set_kernel_arg(kernel_operate, iarg, op%buff_all)
+        case default
+          ASSERT(.false.)
+        end select
+      end if
+      
+      call opencl_kernel_run(kernel_operate, (/eff_size, pad(op%mesh%np, bsize)/), (/eff_size, isize/))
+
+      call profiling_count_transfers(npoints*(op%stencil%size + 2), isize)
+      call profiling_count_transfers(fi%nst_linear*npoints*(op%stencil%size + 1), R_TOTYPE(M_ONE))
+
+    case(OP_NOMAP)
+      ASSERT(points_ == OP_ALL)
+
+      call opencl_set_kernel_arg(kernel_operate, 0, op%mesh%np)
+      call opencl_set_kernel_arg(kernel_operate, 1, op%buff_stencil)
+      call opencl_set_kernel_arg(kernel_operate, 2, op%buff_xyz_to_ip)
+      call opencl_set_kernel_arg(kernel_operate, 3, op%buff_ip_to_xyz)
+      call opencl_set_kernel_arg(kernel_operate, 4, buff_weights)
+      call opencl_set_kernel_arg(kernel_operate, 5, fi%pack%buffer)
+      call opencl_set_kernel_arg(kernel_operate, 6, fo%pack%buffer)
+      call opencl_set_kernel_arg(kernel_operate, 7, log2(eff_size))
+
+      call clGetDeviceInfo(opencl%device, CL_DEVICE_LOCAL_MEM_SIZE, local_mem_size, cl_status)
+      isize = int(dble(local_mem_size)/(op%stencil%size*types_get_size(TYPE_INTEGER)))
+      isize = isize - mod(isize, eff_size)
+      bsize = eff_size*isize
+      bsize = min(opencl_kernel_workgroup_size(kernel_operate), bsize)
+
+      if(bsize < fi%pack%size_real(1)) then
+        call messages_write('The value of StatesBlockSize is too large for this OpenCL implementation.')
+        call messages_fatal()
+      end if
+
+      isize = bsize/eff_size
+
+      ASSERT(isize > 0)
+      ASSERT(isize*op%stencil%size*types_get_size(TYPE_INTEGER) <= local_mem_size)
+
+      call opencl_set_kernel_arg(kernel_operate, 8, TYPE_INTEGER, isize*op%stencil%size)
+
+      call opencl_kernel_run(kernel_operate, (/eff_size, pad(op%mesh%np, bsize)/), (/eff_size, isize/))
+
+      call profiling_count_transfers(op%stencil%size*op%mesh%np + op%mesh%np, isize)
+
+      do ist = 1, fi%nst_linear
+        call profiling_count_transfers(op%mesh%np_part*op%stencil%size + op%mesh%np, R_TOTYPE(M_ONE))
+      end do
+    end select
+    
+    if(profile_) then
+      select case(points_)
+      case(OP_INNER)
+        call profiling_count_operations(fi%nst_linear*dble(op%ninner)*op%stencil%size*2*R_ADD)
+      case(OP_OUTER)
+        call profiling_count_operations(fi%nst_linear*dble(op%nouter)*op%stencil%size*2*R_ADD)
+      case(OP_ALL)
+        call profiling_count_operations(fi%nst_linear*dble(op%mesh%np)*op%stencil%size*2*R_ADD)
+      case default
+        ASSERT(.false.)
+      end select
+    end if
+    
+    call opencl_finish()
+
+    call opencl_release_buffer(buff_weights)
+
+    call profiling_out(prof)
+    POP_SUB(X(nl_operator_operate_batch).operate_opencl)
+  end subroutine operate_opencl
+
+#endif
+
+end subroutine X(nl_operator_operate_batch)
+
+
+! ---------------------------------------------------------
+subroutine X(nl_operator_operate)(op, fi, fo, ghost_update, profile, points)
+  R_TYPE,              intent(inout) :: fi(:)  !< fi(op%np_part)
+  type(nl_operator_t), intent(in)    :: op
+  R_TYPE,  target,     intent(out)   :: fo(:)  !< fo(op%np). target for batch_add_state
+  logical, optional,   intent(in)    :: ghost_update
+  logical, optional,   intent(in)    :: profile
+  integer, optional,   intent(in)    :: points
+
+  type(batch_t) :: batch_fi, batch_fo
+
+  PUSH_SUB(X(nl_operator_operate))
+
+  call batch_init     (batch_fi, 1)
+  call batch_add_state(batch_fi, fi)
+
+  call batch_init     (batch_fo, 1)
+  call batch_add_state(batch_fo, fo)
+
+  call X(nl_operator_operate_batch)(op, batch_fi, batch_fo, ghost_update, profile, points)
+
+  call batch_end(batch_fi)
+  call batch_end(batch_fo)
+
+  POP_SUB(X(nl_operator_operate))
+end subroutine X(nl_operator_operate)
+
+
+! ---------------------------------------------------------
+subroutine X(nl_operator_operate_diag)(op, fo)
+  type(nl_operator_t), intent(in)    :: op
+  R_TYPE,              intent(out)   :: fo(:)
+
+  PUSH_SUB(X(nl_operator_operate_diag))
+  
+  if(op%cmplx_op) then
+#ifdef R_TCOMPLEX
+    if(op%const_w) then
+      fo(1:op%np) = TOCMPLX(op%w_re(op%stencil%center, 1), op%w_im(op%stencil%center, 1))
+    else
+      fo(1:op%np) = TOCMPLX(op%w_re(op%stencil%center, 1:op%np), op%w_im(op%stencil%center, 1:op%np))
+    end if
+#else
+    message(1) = "nl_operator_operate_diag: cannot express complex operator in real output."
+    call messages_fatal(1)
+#endif
+  else
+    if(op%const_w) then
+      fo(1:op%np) = op%w_re(op%stencil%center, 1)
+    else
+      fo(1:op%np) = op%w_re(op%stencil%center, 1:op%np)
+    end if
+  end if
+  
+  POP_SUB(X(nl_operator_operate_diag))
+  
+end subroutine X(nl_operator_operate_diag)
+
+
+!! Local Variables:
+!! mode: f90
+!! coding: utf-8
+!! End:

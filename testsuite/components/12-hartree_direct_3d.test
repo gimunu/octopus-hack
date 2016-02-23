@@ -1,0 +1,11 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 12-hartree_direct_3d.test 13244 2015-02-28 23:19:28Z dstrubbe $
+
+Test       : Hartree direct 3D
+Program    : oct-test
+TestGroups : long-run, components
+Enabled    : Yes
+
+Precision : 0.005
+Input: 12-hartree_direct_3d.01.inp
+match ; Direct3D      ; GREPFIELD(hartree_results, 'Hartree test (abs.) =', 5) ; 0.00974749

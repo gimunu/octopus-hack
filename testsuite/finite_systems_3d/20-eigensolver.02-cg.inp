@@ -1,0 +1,28 @@
+# -*- coding: utf-8 -*-
+# $Id: 20-eigensolver.02-cg.inp 14728 2015-11-01 19:46:15Z xavier $
+
+Units = ev_angstrom
+
+CalculationMode = gs
+FromScratch = yes
+
+BoxShape = sphere
+Radius = 4
+Spacing = 0.25
+
+%Coordinates
+ "C"  |  0.000 |  0.000 |  0.000 
+ "H"  | -1.213 | -0.852 |  0.000 
+ "H"  |  0.000 |  0.852 | -1.213 
+ "H"  |  0.000 |  0.852 |  1.213 
+ "H"  |  1.213 | -0.852 |  0.000 
+%
+
+EigenSolver = cg
+
+FilterPotentials = filter_none
+
+SCFCalculatePartialCharges = yes
+
+ExperimentalFeatures = yes
+MixField = density

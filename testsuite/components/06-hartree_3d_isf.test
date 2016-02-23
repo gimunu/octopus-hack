@@ -1,0 +1,11 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 06-hartree_3d_isf.test 13244 2015-02-28 23:19:28Z dstrubbe $
+
+Test       : Hartree ISF
+Program    : oct-test
+TestGroups : short-run, components
+Enabled    : Yes
+
+Precision : 0.005
+Input: 06-hartree_3d_isf.01-isf.inp
+match ; ISF           ; GREPFIELD(hartree_results, 'Hartree test (abs.) =', 5) ; 0.00035845

@@ -1,0 +1,27 @@
+CalculationMode = td
+
+bond_length = 2.4
+
+%Coordinates
+ "C" |  -bond_length/2 |  0.0 |  0.0 
+ "C" |   bond_length/2 |  0.0 |  0.0 
+%
+
+%Velocities
+ "C" |  0.001 | 0.0 | 0.0
+ "C" | -0.001 | 0.0 | 0.0
+%
+
+Spacing = 0.6
+
+Radius = 6
+
+TDDynamics = bo
+
+TDTimeStep = 10.0
+
+TDMaxSteps = 8
+
+ParStates = no
+
+MixField = density

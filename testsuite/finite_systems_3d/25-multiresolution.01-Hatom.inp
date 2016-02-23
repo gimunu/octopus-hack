@@ -1,0 +1,29 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 25-multiresolution.01-Hatom.inp 13952 2015-05-10 13:06:21Z xavier $
+
+%Coordinates
+ 'H_f' | 0 | 0 | 0
+%
+%Species 
+ 'H_f' | species_full_delta
+%
+
+Boxshape = sphere
+Radius = 8.0
+Spacing = 0.2
+fromScratch = yes
+
+TheoryLevel = independent_particles
+
+EigenSolverMaxIter = 300
+
+EigenSolver = cg_new
+
+%MultiResolutionArea
+  0.0 |  0.0 |  0.0 | 2.40
+%
+
+ExperimentalFeatures = yes
+
+FilterPotentials = filter_none
+

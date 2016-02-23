@@ -1,0 +1,42 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 16-scfinlcao_std.01-gs.inp 14678 2015-10-19 06:40:46Z xavier $
+#
+CalculationMode = gs
+FromScratch = yes
+Units = ev_angstrom
+
+# Colmont et al
+rCCl  = 1.760
+rCH   = 1.080
+theta = 108.23 * pi / 180
+
+%Coordinates
+ "C"  |                          0 |                          0 |        0       
+ "H"  |                          0 |                          0 | rCH            
+ "Cl" |                          0 |  rCCl*sin(theta)           | rCCl*cos(theta)
+ "Cl" |  rCCl*sin(theta)*sin(pi/3) | -rCCl*sin(theta)*cos(pi/3) | rCCl*cos(theta)
+ "Cl" | -rCCl*sin(theta)*sin(pi/3) | -rCCl*sin(theta)*cos(pi/3) | rCCl*cos(theta)
+%
+
+%Species
+ 'C'  | species_pseudo | db_file | "PSF/C.psf"  | lmax | 3 | lloc | 0
+ 'H'  | species_pseudo | db_file | "PSF/H.psf"  | lmax | 3 | lloc | 0
+ 'Cl' | species_pseudo | db_file | "extra/Cl.psf" | lmax | 3 | lloc | 0
+%
+
+Spacing = 0.25
+Radius = 6.0
+
+XCFunctional = gga_x_pbe + gga_c_pbe
+
+SCFinLCAO = yes
+ExperimentalFeatures = yes
+Output = geometry + density
+OutputFormat = openscad + matlab + plane_z
+
+FilterPotentials = filter_none
+
+SCFCalculatePartialCharges = yes
+
+ExperimentalFeatures = yes
+MixField = density

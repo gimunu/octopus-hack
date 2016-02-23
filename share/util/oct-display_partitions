@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+#
+# $Id: oct-display_partitions 14174 2015-06-01 21:32:50Z dstrubbe $
+#
+# Script to use gnuplot to plot the partitioning of the mesh.
+# The files mesh_partition.XXXXXX as produced in debug/mesh_partition by
+# the octopus debug mode have to be present in the current working
+# directory when this script is invoked.
+# This script generates a gnuplot-script called mesh_partitions_index.gp
+# which is stored in the current working directory and can be loaded into
+# gnuplot manually.
+# With
+#
+#   gnuplot> load 'mesh_partitions_index.gp'
+#
+# the plot can be reproduced and shown on the screen so that
+# rotating and zooming is possible.
+
+# Output files.
+GP_IN=mesh_partitions_index.gp
+
+# Plot each partition with different linetype.
+function plot_partition () {
+  f=$1
+  n=${f##*.}
+  n=`echo $n | sed s/^0*//`
+  echo "set style line $n lt $((n+1)) lw 1 pt 13 ps 1.7" >> $GP_IN
+
+  if [ $n = 1 ]; then
+    echo "sp '$f' u 2:3:4 w p ls $n" >> $GP_IN
+  else
+    echo "replot '$f' u 2:3:4 w p ls $n" >> $GP_IN
+  fi
+}
+
+# Global settings for gnuplot file.
+{
+  cat <<EOF
+    
+unset key
+unset label
+    
+set term x11
+
+set xlabel "x"
+set ylabel "y"
+set zlabel "z"
+
+EOF
+} > $GP_IN
+
+# Create labels.
+# Uncomment this, if you want the global numbers of the points
+# plotted as well. It is probably necessary to adjust the 0.17
+# depending on the number of points in the command below to have
+# the labels set close to the corresponding point.
+#
+# cat mesh_partition.* |                                             \
+# awk '{print "set label \"" $1"\" at "$2+0.17","$3","$4}' >> $GP_IN
+
+# Loop over partitions.
+FILES=`ls mesh_partition.*`
+if [ x"$FILES" == x ]; then
+    echo "No mesh_partition files found. Run from debug/mesh_partition directory."
+    exit 1;
+fi
+for f in mesh_partition.*; do
+  echo processing: $f
+  plot_partition $f
+done

@@ -1,0 +1,39 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 08-spin_orbit_coupling_full.02-rkb.inp 14728 2015-11-01 19:46:15Z xavier $
+
+Units = ev_angstrom
+
+CalculationMode = gs
+fromScratch = yes
+
+Radius  = 5.0
+Spacing = 0.35
+
+%Species
+ "Xe" | species_pseudo | db_file | "extra/Xe.UPF"
+%
+
+%Coordinates
+  "Xe" | -1.5 | 0 | 0 
+  "Xe" |  1.5 | 0 | 0 
+%
+ExcessCharge = 1
+
+SpinComponents = non_collinear
+RelativisticCorrection = spin_orbit
+
+GuessMagnetDensity = user_defined
+%AtomsMagnetDirection
+ 0.0 | 0.0 | 1.0 
+ 0.0 | 0.0 | 1.0
+%
+
+ConvRelDens = 0.0
+ConvAbsEv = 1e-6
+ConvAbsForces = 1e-6
+
+ExperimentalFeatures = yes
+
+FilterPotentials = filter_none
+
+MixField = density

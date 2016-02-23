@@ -1,0 +1,18 @@
+TestMode = interpolation
+
+Dimensions = 2
+
+Spacing = 0.05
+
+Radius = 10
+
+%Species
+"Hydrogen1D" | species_user_defined | potential_formula | "-1/sqrt(1+(x)^2)" | valence | 2
+%
+
+%Coordinates
+"Hydrogen1D" | 0 | 0
+%
+
+
+

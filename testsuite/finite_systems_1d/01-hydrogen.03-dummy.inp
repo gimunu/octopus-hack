@@ -1,0 +1,27 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 01-hydrogen.03-dummy.inp 13978 2015-05-14 16:03:03Z xavier $
+
+CalculationMode = dummy
+
+Dimensions = 1
+fromScratch = yes
+
+BoxShape = sphere
+Spacing = 0.5
+Radius = 100.0
+
+TheoryLevel = independent_particles
+
+%Species
+"Hydrogen1D" | species_user_defined | potential_formula | "-1/sqrt(1+(x)^2)" | valence | 1
+%
+
+%Coordinates
+"Hydrogen1D" | 0
+%
+
+ExtraStates = 9
+EigenSolverTolerance = 1e-5
+
+
+

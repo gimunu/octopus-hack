@@ -1,0 +1,17 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 04-vib_modes.02-vib_modes.inp 14678 2015-10-19 06:40:46Z xavier $
+
+CalculationMode = vib_modes
+FromScratch = yes
+
+BoxShape = minimum
+Spacing = 0.4
+Radius = 6
+
+%Coordinates
+  "H"  | 0 | 0 | 0.053910
+  "Li" | 0 | 0 | 3.058523
+%
+
+LRConvAbsDens = 1e-6
+MixField = density

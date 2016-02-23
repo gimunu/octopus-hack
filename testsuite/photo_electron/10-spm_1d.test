@@ -1,0 +1,21 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id$
+
+Test       : Photoelectron linear regime (spm 1D)
+Program    : octopus
+TestGroups : short-run, photo_electron
+Enabled    : Yes
+
+
+# Sample point method
+Processors : 2
+Input      : 10-spm_1d.h1d_lin.inp
+match ; PES [val  1] ; LINEFIELD(td.general/PES_spm.distribution.out, 192, 2) ; 0.6564632461E-003
+match ; PES [val  2] ; LINEFIELD(td.general/PES_spm.distribution.out, 203, 2) ; 0.1665138981E-002
+match ; PES [val  3] ; LINEFIELD(td.general/PES_spm.distribution.out, 218, 2) ; 0.4140099815E-003
+
+match ; PES [val  4] ; LINEFIELD(td.general/PES_spm.distribution.out, 192, 3) ; 0.5712581908E-003
+match ; PES [val  5] ; LINEFIELD(td.general/PES_spm.distribution.out, 203, 3) ; 0.6099673094E-003
+match ; PES [val  6] ; LINEFIELD(td.general/PES_spm.distribution.out, 218, 3) ; 0.5046324289E-003
+
+

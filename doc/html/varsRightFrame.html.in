@@ -1,0 +1,17 @@
+<HTML>
+<HEAD>
+
+<style>
+   BODY {background-color: white; font-size: 10pt; font-family: verdana,helvetica}
+</style>
+
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+  <H1>Variables used in octopus</H1>
+  <p>(Version: @PACKAGE_VERSION@, SVN revision: @LATEST_SVN@)</p>
+
+<p>Please choose a variable from the menu.</p>
+
+</BODY>
+</HTML>

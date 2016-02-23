@@ -1,0 +1,8 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 09-angular_momentum.04-rotatory_strength.inp 14678 2015-10-19 06:40:46Z xavier $
+
+PropagationSpectrumType = RotatoryStrength
+
+FilterPotentials = filter_none
+
+MixField = density

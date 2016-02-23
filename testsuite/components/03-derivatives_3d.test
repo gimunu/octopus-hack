@@ -1,0 +1,29 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 03-derivatives_3d.test 13244 2015-02-28 23:19:28Z dstrubbe $
+
+Test       : Derivatives 3D
+Program    : oct-test
+TestGroups : short-run, components
+Enabled    : Yes
+
+Precision : 3.0e-3
+Input: 03-derivatives_3d.01.inp
+
+match ; Real Laplacian (blocksize =   1); GREPFIELD(out, 'Laplacian real bsize =   1', 9) ; 1.1962559177E-03
+match ; Real Laplacian (blocksize =   2); GREPFIELD(out, 'Laplacian real bsize =   2', 9) ; 1.1962559177E-03
+match ; Real Laplacian (blocksize =   4); GREPFIELD(out, 'Laplacian real bsize =   4', 9) ; 1.1962559177E-03
+match ; Real Laplacian (blocksize =   8); GREPFIELD(out, 'Laplacian real bsize =   8', 9) ; 1.1962559177E-03
+match ; Real Laplacian (blocksize =  16); GREPFIELD(out, 'Laplacian real bsize =  16', 9) ; 1.1962559177E-03
+match ; Real Laplacian (blocksize =  32); GREPFIELD(out, 'Laplacian real bsize =  32', 9) ; 1.1962559177E-03
+
+match ; Complex Laplacian (blocksize =   1); GREPFIELD(out, 'Laplacian complex bsize =   1', 9) ; 1.2044354237E-03
+match ; Complex Laplacian (blocksize =   2); GREPFIELD(out, 'Laplacian complex bsize =   2', 9) ; 1.2044354237E-03
+match ; Complex Laplacian (blocksize =   4); GREPFIELD(out, 'Laplacian complex bsize =   4', 9) ; 1.2044354237E-03
+match ; Complex Laplacian (blocksize =   8); GREPFIELD(out, 'Laplacian complex bsize =   8', 9) ; 1.2044354237E-03
+match ; Complex Laplacian (blocksize =  16); GREPFIELD(out, 'Laplacian complex bsize =  16', 9) ; 1.2044354237E-03
+match ; Complex Laplacian (blocksize =  32); GREPFIELD(out, 'Laplacian complex bsize =  32', 9) ; 1.2044354237E-03
+
+Precision : 3.0e-4
+
+match ; Real gradient; GREPFIELD(out, 'Gradient real', 5) ; 1.6181665936E-04
+match ; Complex gradient; GREPFIELD(out, 'Gradient complex', 5) ; 1.6297563661E-04

@@ -1,0 +1,18 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 06-restart.05-restart_gs.inp 14678 2015-10-19 06:40:46Z xavier $
+
+# Now restart the previous calculation
+
+CalculationMode = gs
+fromScratch = no
+Radius = 7.0
+Spacing = 0.5
+%Coordinates
+  "Na" | 0 | 0 | 0
+%
+SpinComponents = spin_polarized
+
+
+FilterPotentials = filter_none
+
+MixField = density

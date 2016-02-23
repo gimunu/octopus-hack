@@ -1,0 +1,34 @@
+# -*- coding: utf-8 mode: shell-script -*-
+# $Id: 02-curvilinear_coordinates.01-gygi.inp 14678 2015-10-19 06:40:46Z xavier $
+
+FromScratch = yes
+
+CalculationMode = gs
+
+%Species
+ "He" | species_pseudo | db_file | "HGH/He.hgh"
+%
+
+%Coordinates
+  "He" | 0 | 0 | 0 
+%
+
+BoxShape = sphere
+Radius  = 7.0
+Spacing = 0.47
+CurvMethod = curv_gygi
+CurvGygiA = 0.80
+
+DerivativesStencil = stencil_starplus
+DerivativesOrder = 3
+
+LCAOStart = no
+
+PoissonSolver = cg_corrected
+
+#for the moment OpenCL is not supported
+DisableOpenCL = yes
+
+FilterPotentials = filter_none
+
+MixField = density
