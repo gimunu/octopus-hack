@@ -87,16 +87,16 @@ module pcm_m
     FLOAT, allocatable               :: v_n(:)        !< Nuclear potential at each tessera
     FLOAT, allocatable               :: v_e_rs(:)     !< PCM potential in real-space produced by q_e(:) 
     FLOAT, allocatable               :: v_n_rs(:)     !< PCM potential in real-space produced by q_n(:)
-    FLOAT, allocatable               :: arg_li(:,:)   !< used in the trilinear interpolation to estimate
+!     FLOAT, allocatable               :: arg_li(:,:)   !< used in the trilinear interpolation to estimate
                                                       !< the Hartree potential at the tesserae 
     FLOAT                            :: epsilon_0     !< Static dielectric constant of the solvent 
     FLOAT                            :: epsilon_infty !< Infinite-frequency dielectric constant of the solvent
     FLOAT                            :: gaussian_width!< Parameter to change the width of density of polarization charges  
-    integer                          :: n_vertices    !< Number of grid points used to interpolate the Hartree potential
+!     integer                          :: n_vertices    !< Number of grid points used to interpolate the Hartree potential
                                                       !! at the tesserae 
-    integer, allocatable             :: ind_vh(:,:)   !< Grid points used during interpolation 
+!     integer, allocatable             :: ind_vh(:,:)   !< Grid points used during interpolation
     integer                          :: info_unit     !< unit for pcm info file
-    integer                          :: counter       !< used to print the number of SCF or TD iterations in energy_calc  
+    integer                          :: counter       !< used to print the number of SCF or TD iterations in energy_calc
     character(len=80)                :: input_cavity  !< file name containing the geometry of the VdW cavity
     
     integer                          :: update_iter   !< how often the pcm potential is updated
@@ -419,18 +419,18 @@ contains
       '#','iter', 'E_ee', 'E_en', 'E_nn', 'E_ne', 'E_M-solv', 'Q_M^e','Q_M^n'
     pcm%counter = 0
 
-    pcm%n_vertices = 8
-    SAFE_ALLOCATE(pcm%ind_vh(1:pcm%n_tesserae, 1:pcm%n_vertices))
-    pcm%ind_vh = INT(M_ZERO)
+!     pcm%n_vertices = 8
+!     cSAFE_ALLOCATE(pcm%ind_vh(1:pcm%n_tesserae, 1:pcm%n_vertices))
+!     pcm%ind_vh = INT(M_ZERO)
 
-    SAFE_ALLOCATE(pcm%arg_li(1:pcm%n_tesserae, 1:pcm_dim_space))
-    pcm%arg_li = M_ZERO
+!     cSAFE_ALLOCATE(pcm%arg_li(1:pcm%n_tesserae, 1:pcm_dim_space))
+!     pcm%arg_li = M_ZERO
 
-    !> Creating the list of the nearest grid points to each tessera
-    !! to be used to interpolate the Hartree potential at the representative points
-    do ia = 1, pcm%n_tesserae
-      call nearest_cube_vertices(pcm%tess(ia)%point, grid%mesh, pcm%ind_vh(ia,:), pcm%arg_li(ia,:))
-    end do
+!     !> Creating the list of the nearest grid points to each tessera
+!     !! to be used to interpolate the Hartree potential at the representative points
+!     do ia = 1, pcm%n_tesserae
+!       call nearest_cube_vertices(pcm%tess(ia)%point, grid%mesh, pcm%ind_vh(ia,:), pcm%arg_li(ia,:))
+!     end do
 
     !>Generating the dynamical PCM matrix
     if ( gamess_benchmark ) then
@@ -1879,8 +1879,8 @@ contains
     SAFE_DEALLOCATE_A(pcm%v_n)
     SAFE_DEALLOCATE_A(pcm%v_e_rs)
     SAFE_DEALLOCATE_A(pcm%v_n_rs)
-    SAFE_DEALLOCATE_A(pcm%ind_vh)
-    SAFE_DEALLOCATE_A(pcm%arg_li)
+!     cSAFE_DEALLOCATE_A(pcm%ind_vh)
+!     cSAFE_DEALLOCATE_A(pcm%arg_li)
 
     call io_close(pcm%info_unit)
 
