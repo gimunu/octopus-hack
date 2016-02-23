@@ -139,6 +139,7 @@ contains
     PUSH_SUB(pcm_init)
     
     pcm%iter = 0
+    pcm%update_iter = 1
 
     !%Variable PCMCalculation
     !%Type logical
