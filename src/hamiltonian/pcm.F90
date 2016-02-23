@@ -1894,7 +1894,7 @@ contains
       FLOAT,       intent(in)    :: time
 
       this%iter = this%iter + 1 
-      update = (mod(this%iter, this%update_iter) == 0)
+      update = (this%iter == 1 .or. mod(this%iter, this%update_iter) == 0)
       
       if (debug%info .and. update) then
         call messages_write(' PCM potential updated')
