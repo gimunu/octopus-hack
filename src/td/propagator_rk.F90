@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagator_rk.F90 14928 2015-12-30 22:36:03Z xavier $
+!! $Id: propagator_rk.F90 15102 2016-02-24 18:45:10Z acastro $
 
 #include "global.h"
 
@@ -198,7 +198,7 @@ contains
       do ib = stphi%group%block_start, stphi%group%block_end
         call batch_axpy(gr%mesh%np, -CNST(0.5)*M_zI*dt, hst%group%psib(ib, ik), stphi%group%psib(ib, ik))
         if(propagate_chi) then
-          call batch_axpy(gr%mesh%np, -CNST(0.5)*M_zI*dt, hchi%group%psib(ib, ik), hchi%group%psib(ib, ik))
+          call batch_axpy(gr%mesh%np, -CNST(0.5)*M_zI*dt, hchi%group%psib(ib, ik), stchi%group%psib(ib, ik))
         end if
       end do
     end do
@@ -229,7 +229,7 @@ contains
       do ib = stphi%group%block_start, stphi%group%block_end
         call batch_axpy(gr%mesh%np, -CNST(0.5)*M_zI*dt, hst%group%psib(ib, ik), stphi%group%psib(ib, ik))
         if(propagate_chi) then
-          call batch_axpy(gr%mesh%np, -CNST(0.5)*M_zI*dt, hchi%group%psib(ib, ik), hchi%group%psib(ib, ik))
+          call batch_axpy(gr%mesh%np, -CNST(0.5)*M_zI*dt, hchi%group%psib(ib, ik), stchi%group%psib(ib, ik))
         end if
       end do
     end do
@@ -261,7 +261,7 @@ contains
       do ib = stphi%group%block_start, stphi%group%block_end
         call batch_axpy(gr%mesh%np, -M_zI*dt, hst%group%psib(ib, ik), stphi%group%psib(ib, ik))
         if(propagate_chi) then
-          call batch_axpy(gr%mesh%np, -M_zI*dt, hchi%group%psib(ib, ik), hchi%group%psib(ib, ik))
+          call batch_axpy(gr%mesh%np, -M_zI*dt, hchi%group%psib(ib, ik), stchi%group%psib(ib, ik))
         end if
       end do
     end do
@@ -381,6 +381,7 @@ contains
       if( hm%theory_level /= INDEPENDENT_PARTICLES) call hamiltonian_set_oct_exchange(hm, stphi, gr%mesh)
       call prepare_inh()
       call hamiltonian_adjoint(hm)
+      call hamiltonian_update(hm, gr%mesh, time = tau)
       call zhamiltonian_apply_all(hm, ks%xc, gr%der, stchi, hchi, tau)
       call hamiltonian_not_adjoint(hm)
 
