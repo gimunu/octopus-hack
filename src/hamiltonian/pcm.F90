@@ -565,7 +565,7 @@ contains
     
     integer :: calc
 
-    PUSH_SUB(pcm_calc_v_h_rs)  
+    PUSH_SUB(pcm_calc_pot_rs)  
     
     ASSERT(present(v_h) .or. present(geo))
     
