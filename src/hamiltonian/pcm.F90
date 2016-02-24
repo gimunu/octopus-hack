@@ -931,7 +931,7 @@ contains
 !     call comm_allreduce(mesh%mpi_grp%comm, rho, mesh%np_part)
     
 
-    if (debug%info .and. mpi_grp_is_root(mpi_world)) then  
+    if (debug%info) then  
       qtot = dmf_integrate(mesh, rho)
       call messages_write(' PCM charge density integrates to q = ')
       call messages_write(qtot)
