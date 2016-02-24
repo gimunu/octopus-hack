@@ -29,6 +29,7 @@ module pcm_m
   use mesh_m 
   use mesh_interpolation_m 
   use mpi_m
+  use par_vec_m
   use parser_m
   use poisson_m
   use profiling_m
@@ -39,6 +40,7 @@ module pcm_m
   use unit_m
   use unit_system_m
   use io_function_m
+  use mesh_function_m
   
 
   implicit none
@@ -531,8 +533,8 @@ contains
     if (pcm%run_pcm)  call messages_print_stress(stdout)
 
     if (pcm%calc_method == PCM_CALC_POISSON) then
-      SAFE_ALLOCATE( pcm%rho_n(1:grid%mesh%np) )
-      SAFE_ALLOCATE( pcm%rho_e(1:grid%mesh%np) )
+      SAFE_ALLOCATE( pcm%rho_n(1:grid%mesh%np_part) )
+      SAFE_ALLOCATE( pcm%rho_e(1:grid%mesh%np_part) )
     end if 
 
 
@@ -825,7 +827,7 @@ contains
   
   ! -----------------------------------------------------------------------------  
   !> Generates the polarization charge density smearing the charge with a gaussian 
-  !> distribution on the mesh nearest neighboring points of each tessera.
+  !> distribution on the mesh nearest neighboring points   of each tessera.
   subroutine pcm_charge_density(pcm, q_pcm, q_pcm_tot, mesh, rho)
     type(pcm_t),     intent(inout) :: pcm 
     FLOAT,           intent(in)    :: q_pcm(:)     !< (1:n_tess)
@@ -833,20 +835,106 @@ contains
     type(mesh_t),    intent(in)    :: mesh
     FLOAT,           intent(out)   :: rho(:)
     
+    
+    integer :: ia
+    FLOAT   :: Norm, qtot, RR
+    
+    ! nearest neighbor variables 
+    integer :: nm(1:MAX_DIM), ipoint
+    FLOAT :: xd(1:MAX_DIM), posrel(1:MAX_DIM)
+    FLOAT :: lrho(1:8)
+    integer, parameter ::  &
+      i000 = 1,            &
+      i100 = 2,            &
+      i010 = 3,            &
+      i110 = 4,            &
+      i001 = 5,            &
+      i101 = 6,            &
+      i011 = 7,            &
+      i111 = 8
+    integer :: pt(1:8), npt, ipt
+  #ifdef HAVE_MPI
+    logical :: inner_point, boundary_point
+  #endif
+    
+    !profiling and debug 
     type(profile_t), save :: prof_init
     integer  :: ierr
+
     
     PUSH_SUB(pcm_charge_density)
 
     call profiling_in(prof_init, 'PCM_CHARGE_DENSITY') 
     
+    
+    rho = M_ZERO
+    
+    do ia = 1, pcm%n_tesserae
+      ! this is basically a rip-off of mesh_interpolation_evaluate_vec in 
+      ! mesh_interpolation_inc.F90 perhaps one could think of making it a standalone 
+      ! routine. U.D.G
+      
+      posrel(1:mesh%sb%dim) = pcm%tess(ia)%point(1:mesh%sb%dim)/mesh%spacing(1:mesh%sb%dim)
 
+      nm(1:mesh%sb%dim) = floor(posrel(1:mesh%sb%dim))
 
+      xd(1:mesh%sb%dim) = posrel(1:mesh%sb%dim) - nm(1:mesh%sb%dim)
+
+      ASSERT(all(xd(1:mesh%sb%dim) >= CNST(0.0)))
+      ASSERT(all(xd(1:mesh%sb%dim) <= CNST(1.0)))
+
+      npt = 2**mesh%sb%dim
+    
+      pt(i000) = mesh%idx%lxyz_inv(0 + nm(1), 0 + nm(2), 0 + nm(3))
+      pt(i100) = mesh%idx%lxyz_inv(1 + nm(1), 0 + nm(2), 0 + nm(3))
+      pt(i010) = mesh%idx%lxyz_inv(0 + nm(1), 1 + nm(2), 0 + nm(3))
+      pt(i110) = mesh%idx%lxyz_inv(1 + nm(1), 1 + nm(2), 0 + nm(3))
+      pt(i001) = mesh%idx%lxyz_inv(0 + nm(1), 0 + nm(2), 1 + nm(3))
+      pt(i101) = mesh%idx%lxyz_inv(1 + nm(1), 0 + nm(2), 1 + nm(3))
+      pt(i011) = mesh%idx%lxyz_inv(0 + nm(1), 1 + nm(2), 1 + nm(3))
+      pt(i111) = mesh%idx%lxyz_inv(1 + nm(1), 1 + nm(2), 1 + nm(3))
+
+       if(mesh%parallel_in_domains) then
+  #ifdef HAVE_MPI
+!          do ipt = 1, npt
+!            pt(ipt) = vec_global2local(mesh%vp, pt(ipt), mesh%vp%partno)
+!            lvalues(ipt) = CNST(0.0)
+!            boundary_point = pt(ipt) > mesh%np + mesh%vp%np_ghost
+!            inner_point = pt(ipt) > 0 .and. pt(ipt) <= mesh%np
+!            if(boundary_point .or. inner_point) lvalues(ipt) = values(pt(ipt))
+!         end do
+  #endif
+      else
+!         forall(ipt = 1:npt) lvalues(ipt) = values(pt(ipt))
+      end if
+      
+      RR = sum(xd(1:mesh%sb%dim)**2)
+      Norm = 0 
+      do ipt = 1, npt
+        Norm = Norm + exp(RR/pcm%tess(ia)%area*pcm%gaussian_width)
+        rho(pt(ipt)) = rho(pt(ipt)) + exp(RR/pcm%tess(ia)%area*pcm%gaussian_width)
+      end do
+      Norm = Norm * product(mesh%spacing(1:mesh%sb%dim))
+      Norm = q_pcm(ia)/Norm 
+      
+      forall(ipt = 1:npt) rho(pt(ipt)) = rho(pt(ipt)) * Norm
+            
+    end do 
+
+    
 
     if (debug%info) then  
+      qtot = dmf_integrate(mesh, rho)
+      call messages_write(' PCM charge density integrates to q = ')
+      call messages_write(qtot)
+      call messages_write(' (qtot = ')
+      call messages_write(q_pcm_tot)
+      call messages_write(')')
+      call messages_info()
+      
       !   Keep this here for debug purposes.    
       call dio_function_output(io_function_fill_how("VTK"), &
-                              ".", "rho",  mesh, rho, unit_one, ierr)
+                              ".", "rho_pcm",  mesh, rho, unit_one, ierr)
     end if  
 
     
