@@ -20,7 +20,6 @@
 #include "global.h"
 
 module pcm_m
-  use comm_m
   use global_m
   use geometry_m
   use grid_m
@@ -927,8 +926,6 @@ contains
             
     end do 
 
-
-!     call comm_allreduce(mesh%mpi_grp%comm, rho, mesh%np_part)
     
 
     if (debug%info) then  
