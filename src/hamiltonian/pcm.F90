@@ -20,6 +20,7 @@
 #include "global.h"
 
 module pcm_m
+  use comm_m
   use global_m
   use geometry_m
   use grid_m
@@ -884,6 +885,7 @@ contains
       ASSERT(all(xd(1:mesh%sb%dim) <= CNST(1.0)))
 
       npt = 2**mesh%sb%dim
+!       npt = 8
     
       pt(i000) = mesh%idx%lxyz_inv(0 + nm(1), 0 + nm(2), 0 + nm(3))
       pt(i100) = mesh%idx%lxyz_inv(1 + nm(1), 0 + nm(2), 0 + nm(3))
@@ -894,36 +896,42 @@ contains
       pt(i011) = mesh%idx%lxyz_inv(0 + nm(1), 1 + nm(2), 1 + nm(3))
       pt(i111) = mesh%idx%lxyz_inv(1 + nm(1), 1 + nm(2), 1 + nm(3))
 
-       if(mesh%parallel_in_domains) then
-  #ifdef HAVE_MPI
-!          do ipt = 1, npt
-!            pt(ipt) = vec_global2local(mesh%vp, pt(ipt), mesh%vp%partno)
-!            lvalues(ipt) = CNST(0.0)
-!            boundary_point = pt(ipt) > mesh%np + mesh%vp%np_ghost
-!            inner_point = pt(ipt) > 0 .and. pt(ipt) <= mesh%np
-!            if(boundary_point .or. inner_point) lvalues(ipt) = values(pt(ipt))
-!         end do
-  #endif
-      else
-!         forall(ipt = 1:npt) lvalues(ipt) = values(pt(ipt))
-      end if
       
       RR = sum(xd(1:mesh%sb%dim)**2)
       Norm = 0 
+      lrho = 0
       do ipt = 1, npt
-        Norm = Norm + exp(RR/pcm%tess(ia)%area*pcm%gaussian_width)
-        rho(pt(ipt)) = rho(pt(ipt)) + exp(RR/pcm%tess(ia)%area*pcm%gaussian_width)
+        Norm = Norm + exp(RR/(pcm%tess(ia)%area*pcm%gaussian_width))
+!         rho(pt(ipt)) = rho(pt(ipt)) + exp(RR/pcm%tess(ia)%area*pcm%gaussian_width)
+        lrho(ipt) = lrho(ipt) + exp(RR/(pcm%tess(ia)%area*pcm%gaussian_width))
       end do
       Norm = Norm * product(mesh%spacing(1:mesh%sb%dim))
       Norm = q_pcm(ia)/Norm 
       
-      forall(ipt = 1:npt) rho(pt(ipt)) = rho(pt(ipt)) * Norm
+!       forall(ipt = 1:npt) rho(pt(ipt)) = rho(pt(ipt)) * Norm
+      forall(ipt = 1:npt) lrho(ipt) = lrho(ipt) * Norm
+
+       if(mesh%parallel_in_domains) then
+  #ifdef HAVE_MPI
+         do ipt = 1, npt
+           pt(ipt) = vec_global2local(mesh%vp, pt(ipt), mesh%vp%partno)
+           boundary_point = pt(ipt) > mesh%np + mesh%vp%np_ghost
+           inner_point = pt(ipt) > 0 .and. pt(ipt) <= mesh%np
+           if(boundary_point .or. inner_point) rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
+        end do
+  #endif
+      else
+        forall(ipt = 1:npt) rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
+      end if
+
             
     end do 
 
+
+!     call comm_allreduce(mesh%mpi_grp%comm, rho, mesh%np_part)
     
 
-    if (debug%info) then  
+    if (debug%info .and. mpi_grp_is_root(mpi_world)) then  
       qtot = dmf_integrate(mesh, rho)
       call messages_write(' PCM charge density integrates to q = ')
       call messages_write(qtot)
