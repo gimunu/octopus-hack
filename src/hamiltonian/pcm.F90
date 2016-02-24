@@ -49,7 +49,8 @@ module pcm_m
     pcm_elect_energy,       &
     pcm_v_nuclei_cav,       &
     pcm_v_electrons_cav_li, &
-    pcm_update
+    pcm_update,             &
+    pcm_calc_pot_rs
 
 
   !> The cavity hosting the solute molecule is built from a set of 
@@ -81,6 +82,8 @@ module pcm_m
     FLOAT, allocatable               :: matrix(:,:)   !< PCM response matrix
     FLOAT, allocatable               :: q_e(:)        !< polarization charges due to the solute electrons        
     FLOAT, allocatable               :: q_n(:)        !< polarization charges due to the solute nuclei
+    FLOAT, allocatable               :: rho_e(:)      !< polarization density due to the solute electrons        
+    FLOAT, allocatable               :: rho_n(:)      !< polarization density due to the solute nuclei
     FLOAT                            :: qtot_e        !< total polarization charge due to electrons
     FLOAT                            :: qtot_n        !< total polarization charge due to nuclei
     FLOAT, allocatable               :: v_e(:)        !< Hartree potential at each tessera
@@ -111,7 +114,17 @@ module pcm_m
   logical            :: gamess_benchmark !< Decide to output pcm_matrix in a GAMESS format 
   FLOAT, allocatable :: mat_gamess(:,:)  !< PCM matrix formatted to be inputed to GAMESS
 
+  integer, parameter ::     &
+    PCM_ELECTRONS =0,       &
+    PCM_NUCLEI    =1
+
+  integer, parameter ::     &
+    PCM_CALC_DIRECT  =0,    &
+    PCM_CALC_POISSON =1
+    
+
 contains
+
 
   !-------------------------------------------------------------------------------------------------------
   !> Initializes the PCM calculation: reads the VdW molecular cavity and generates the PCM response matrix.
@@ -507,6 +520,39 @@ contains
     POP_SUB(pcm_init)
   end subroutine pcm_init
 
+  ! -----------------------------------------------------------------------------
+
+  subroutine pcm_calc_pot_rs(pcm, mesh, geo, v_h)
+    type(pcm_t),             intent(inout) :: pcm
+    type(mesh_t),               intent(in) :: mesh  
+    type(geometry_t), optional, intent(in) :: geo
+    FLOAT,            optional, intent(in) :: v_h(:)
+    
+    integer :: calc
+
+    PUSH_SUB(pcm_calc_v_h_rs)  
+    
+    ASSERT(present(v_h) .or. present(geo))
+    
+    if (present(v_h)) calc = PCM_ELECTRONS
+    if (present(geo)) calc = PCM_NUCLEI
+    
+    if (calc == PCM_NUCLEI) then
+      call pcm_v_nuclei_cav(pcm%v_n, geo, pcm%tess, pcm%n_tesserae)
+      call pcm_charges(pcm%q_n, pcm%qtot_n, pcm%v_n, pcm%matrix, pcm%n_tesserae)
+      call pcm_pot_rs(pcm%v_n_rs, pcm%q_n, pcm%tess, pcm%n_tesserae, mesh, pcm%gaussian_width )      
+    end if
+
+    if (calc == PCM_ELECTRONS) then
+      call pcm_v_electrons_cav_li(pcm%v_e, v_h, pcm, mesh)
+      call pcm_charges(pcm%q_e, pcm%qtot_e, pcm%v_e, pcm%matrix, pcm%n_tesserae) 
+      call pcm_pot_rs(pcm%v_e_rs, pcm%q_e, pcm%tess, pcm%n_tesserae, mesh, pcm%gaussian_width )
+    end if
+    
+    
+    POP_SUB(pcm_calc_pot_rs)  
+  end subroutine pcm_calc_pot_rs
+
 
   ! -----------------------------------------------------------------------------
 
@@ -719,20 +765,23 @@ contains
     integer, intent(in)    :: n_tess
 
     integer :: ia, ib
+    type(profile_t), save :: prof_init
 
     PUSH_SUB(pcm_charges)
-
+    call profiling_in(prof_init, 'PCM_CHARGES') 
+    
     q_pcm     = M_ZERO
     q_pcm_tot = M_ZERO
 
     do ia = 1, n_tess
       do ib = 1, n_tess
-!         q_pcm(ia) = q_pcm(ia) + pcm_mat(ia,ib)*v_cav(ib) !< transpose matrix might speed up
-        q_pcm(ia) = q_pcm(ia) + pcm_mat(ib,ia)*v_cav(ib) !< transpose matrix might speed up
+        q_pcm(ia) = q_pcm(ia) + pcm_mat(ia,ib)*v_cav(ib) !< transpose matrix might speed up
       end do
       q_pcm_tot = q_pcm_tot + q_pcm(ia)
     end do
-
+    
+    call profiling_out(prof_init)
+    
     POP_SUB(pcm_charges)
   end subroutine pcm_charges
 
@@ -755,9 +804,12 @@ contains
     FLOAT            :: term
     integer 	     :: ip
     integer          :: ia
+    type(profile_t), save :: prof_init
 
     PUSH_SUB(pcm_pot_rs)
 
+    call profiling_in(prof_init, 'PCM_POT_RS') 
+    
     v_pcm = M_ZERO
 
     if (width_factor /= M_ZERO) then
@@ -784,6 +836,8 @@ contains
       end do
      end do     
     endif
+    
+    call profiling_out(prof_init)
 
     POP_SUB(pcm_pot_rs)
   end subroutine pcm_pot_rs

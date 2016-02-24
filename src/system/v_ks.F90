@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: v_ks.F90 15100 2016-02-23 17:05:08Z umberto $
+!! $Id: v_ks.F90 15095 2016-02-12 17:58:36Z jjornet $
 
 #include "global.h"
  
@@ -1215,10 +1215,12 @@ contains
     !> PCM reaction field due to the electronic density
     if (hm%pcm%run_pcm .and. pcm_update(hm%pcm,hm%current_time)) then
     !> Generates the real-space PCM potential due to electrons during the SCF calculation.
-        call pcm_v_electrons_cav_li(hm%pcm%v_e, pot, hm%pcm, ks%gr%mesh)
-        call pcm_charges(hm%pcm%q_e, hm%pcm%qtot_e, hm%pcm%v_e, hm%pcm%matrix, hm%pcm%n_tesserae) 
-        call pcm_pot_rs( hm%pcm%v_e_rs, hm%pcm%q_e, hm%pcm%tess, hm%pcm%n_tesserae, ks%gr%mesh, hm%pcm%gaussian_width )
+!         call pcm_v_electrons_cav_li(hm%pcm%v_e, pot, hm%pcm, ks%gr%mesh)
+!         call pcm_charges(hm%pcm%q_e, hm%pcm%qtot_e, hm%pcm%v_e, hm%pcm%matrix, hm%pcm%n_tesserae)
+!         call pcm_pot_rs( hm%pcm%v_e_rs, hm%pcm%q_e, hm%pcm%tess, hm%pcm%n_tesserae, ks%gr%mesh, hm%pcm%gaussian_width)
 
+        call pcm_calc_pot_rs(hm%pcm, ks%gr%mesh, v_h = pot)
+        
         ! Calculating the PCM term renormalizing the sum of the single-particle energies
         hm%energy%pcm_corr = dmf_dotp( ks%gr%fine%mesh, ks%calc%total_density, hm%pcm%v_e_rs + hm%pcm%v_n_rs )
     end if
