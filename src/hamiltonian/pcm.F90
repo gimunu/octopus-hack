@@ -882,7 +882,7 @@ contains
     
     rho = M_ZERO
     
-    do ia = 1, 1!pcm%n_tesserae
+    do ia = 1, pcm%n_tesserae
       
       PP(1:mesh%sb%dim) = pcm%tess(ia)%point(1:mesh%sb%dim)
       posrel(1:mesh%sb%dim) = PP(1:mesh%sb%dim)/mesh%spacing(1:mesh%sb%dim)
