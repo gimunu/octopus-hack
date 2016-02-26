@@ -882,7 +882,7 @@ contains
     
     rho = M_ZERO
     
-    do ia = 1, pcm%n_tesserae
+    do ia = 1, 1!pcm%n_tesserae
       
       PP(1:mesh%sb%dim) = pcm%tess(ia)%point(1:mesh%sb%dim)
       posrel(1:mesh%sb%dim) = PP(1:mesh%sb%dim)/mesh%spacing(1:mesh%sb%dim)
@@ -910,8 +910,8 @@ contains
       do ipt = 1, npt
         XX(1:mesh%sb%dim) = mesh%x(pt(ipt),1:mesh%sb%dim)
         RR = sum((XX(1:mesh%sb%dim) - PP(1:mesh%sb%dim))**2)
-        Norm = Norm + exp(RR/(pcm%tess(ia)%area*pcm%gaussian_width))
-        lrho(ipt) = lrho(ipt) + exp(RR/(pcm%tess(ia)%area*pcm%gaussian_width))
+        Norm = Norm + exp(-RR/(pcm%tess(ia)%area*pcm%gaussian_width))
+        lrho(ipt) = lrho(ipt) + exp(-RR/(pcm%tess(ia)%area*pcm%gaussian_width))
       end do
 
       !Normalize to the tessera charge q_pcm(ia)
