@@ -953,7 +953,7 @@ contains
         do ipt = 1, npt
            boundary_point = pt(ipt) > mesh%np + mesh%vp%np_ghost
            inner_point = pt(ipt) > 0 .and. pt(ipt) <= mesh%np
-           if(boundary_point .or. inner_point) then rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
+           if(boundary_point .or. inner_point) rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
         end do
       else
         forall(ipt = 1:npt) rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
