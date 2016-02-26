@@ -20,6 +20,7 @@
 #include "global.h"
 
 module pcm_m
+  use comm_m
   use global_m
   use geometry_m
   use grid_m
@@ -873,11 +874,8 @@ contains
     integer :: npt, ipt
     integer :: i1, i2, i3
     integer, ALLOCATABLE :: pt(:)  
-    FLOAT,   ALLOCATABLE :: lrho(:)
-  
-  #ifdef HAVE_MPI
+    FLOAT,   ALLOCATABLE :: lrho(:) ! local charge density on a tessera NN 
     logical :: inner_point, boundary_point
-  #endif
     
     !profiling and debug 
     type(profile_t), save :: prof_init
@@ -902,18 +900,17 @@ contains
       posrel(1:mesh%sb%dim) = PP(1:mesh%sb%dim)/mesh%spacing(1:mesh%sb%dim)
 
       nm(1:mesh%sb%dim) = floor(posrel(1:mesh%sb%dim))
-
+      
+      ! Get the nearest neighboring points
       ipt = 0
       do i1 = -pcm%tess_nn +1 , pcm%tess_nn
         do i2 = -pcm%tess_nn +1 , pcm%tess_nn
           do i3 = -pcm%tess_nn +1 , pcm%tess_nn
             ipt = ipt+1
-!             print *, ipt , i1, i2, i3
             pt(ipt) = mesh%idx%lxyz_inv(i1 + nm(1), i2 + nm(2), i3 + nm(3))
           end do
         end do
       end do
-!       print *, "----------"
       
       
       ! Extrapolate the tessera point charge with a gaussian distritibution
@@ -922,30 +919,45 @@ contains
       Norm = 0 
       lrho = 0
       do ipt = 1, npt
-        XX(1:mesh%sb%dim) = mesh%x(pt(ipt),1:mesh%sb%dim)
+
+        if(mesh%parallel_in_domains) then
+          pt(ipt) = vec_global2local(mesh%vp, pt(ipt), mesh%vp%partno)
+          boundary_point = pt(ipt) > mesh%np + mesh%vp%np_ghost
+          inner_point = pt(ipt) > 0 .and. pt(ipt) <= mesh%np
+
+          if(boundary_point .or. inner_point) then
+            XX(1:mesh%sb%dim) = mesh%x(pt(ipt),1:mesh%sb%dim)
+          else 
+            cycle
+          end if
+          
+        else
+          XX(1:mesh%sb%dim) = mesh%x(pt(ipt),1:mesh%sb%dim)
+        end if
+        
         RR = sum((XX(1:mesh%sb%dim) - PP(1:mesh%sb%dim))**2)
         Norm = Norm + exp(-RR/(pcm%tess(ia)%area*pcm%gaussian_width))
         lrho(ipt) = lrho(ipt) + exp(-RR/(pcm%tess(ia)%area*pcm%gaussian_width))
       end do
 
-      !Normalize to the tessera charge q_pcm(ia)
-      Norm = Norm * mesh%volume_element
+      ! reduce the local density scattered among nodes
+      call comm_allreduce(mesh%mpi_grp%comm, lrho, npt)
+      
+      ! Normalize the integral to the tessera point charge q_pcm(ia)
+      Norm = sum(lrho(1:npt)) * mesh%volume_element
       Norm = q_pcm(ia)/Norm       
-      forall(ipt = 1:npt) lrho(ipt) = lrho(ipt) * Norm
+      lrho(:) = lrho(:) * Norm
 
-       if(mesh%parallel_in_domains) then
-  #ifdef HAVE_MPI
-         do ipt = 1, npt
-           pt(ipt) = vec_global2local(mesh%vp, pt(ipt), mesh%vp%partno)
+      ! Add up the local density to the full charge density 
+      if(mesh%parallel_in_domains) then
+        do ipt = 1, npt
            boundary_point = pt(ipt) > mesh%np + mesh%vp%np_ghost
            inner_point = pt(ipt) > 0 .and. pt(ipt) <= mesh%np
-           if(boundary_point .or. inner_point) rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
+           if(boundary_point .or. inner_point) then rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
         end do
-  #endif
       else
         forall(ipt = 1:npt) rho(pt(ipt)) = rho(pt(ipt)) + lrho(ipt)
       end if
-
             
     end do 
 
