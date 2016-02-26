@@ -160,6 +160,10 @@ contains
 
     type(species_t), pointer :: spci 
     FLOAT :: z_ia
+    
+    integer :: default_nn
+    FLOAT   :: max_area
+    
 
     PUSH_SUB(pcm_init)
     
@@ -528,19 +532,31 @@ contains
     call parse_variable('PCMCalcMethod', PCM_CALC_DIRECT, pcm%calc_method)
     call messages_print_var_option(stdout, "PCMCalcMethod", pcm%calc_method)
 
-    !%Variable PCMChargeSmearNN
-    !%Type integer
-    !%Default 1
-    !%Section Hamiltonian::PCM
-    !%Description
-    !% Defines the number of nearest neighbor mesh-points to be taken around each 
-    !% cavity tessera in order to smear the charge when PCMCalcMethod = pcm_poisson.
-    !% Setting PCMChargeSmearNN = 1 means first nearest neighbors, PCMChargeSmearNN = 2
-    !% second nearest neighbors, and so on.
-    !%End
-    call parse_variable('PCMChargeSmearNN', 1, pcm%tess_nn)
-    call messages_print_var_value(stdout, "PCMChargeSmearNN", pcm%tess_nn)
 
+    if (pcm%calc_method == PCM_CALC_POISSON) then
+      !%Variable PCMChargeSmearNN
+      !%Type integer
+      !%Default 1
+      !%Section Hamiltonian::PCM
+      !%Description
+      !% Defines the number of nearest neighbor mesh-points to be taken around each 
+      !% cavity tessera in order to smear the charge when PCMCalcMethod = pcm_poisson.
+      !% Setting PCMChargeSmearNN = 1 means first nearest neighbors, PCMChargeSmearNN = 2
+      !% second nearest neighbors, and so on.
+      !% The default value is such that the neighbor mesh contains 3 times the Gaussian 
+      !% width used for the smearing.
+      !%End
+      max_area = M_EPSILON
+      do ia = 1, pcm%n_tesserae
+        if (pcm%tess(ia)%area > max_area) max_area = pcm%tess(ia)%area
+      end do
+    
+      !default is as many neighbor to contain 3 gaussian width 
+      default_nn=int(2*max_area*pcm%gaussian_width/minval(grid%mesh%spacing(1:grid%mesh%sb%dim)))
+      call parse_variable('PCMChargeSmearNN', default_nn, pcm%tess_nn)
+      call messages_print_var_value(stdout, "PCMChargeSmearNN", pcm%tess_nn)
+      
+    end if
     
     
 
@@ -590,7 +606,6 @@ contains
       call pcm_v_nuclei_cav(pcm%v_n, geo, pcm%tess, pcm%n_tesserae)
       call pcm_charges(pcm%q_n, pcm%qtot_n, pcm%v_n, pcm%matrix, pcm%n_tesserae)
       if (pcm%calc_method == PCM_CALC_POISSON) call pcm_charge_density(pcm, pcm%q_n, pcm%qtot_n, mesh, pcm%rho_n)
-!       call pcm_pot_rs(pcm, pcm%v_n_rs, pcm%q_n, pcm%tess, pcm%n_tesserae, mesh, pcm%gaussian_width, pcm%rho_n )
       call pcm_pot_rs(pcm, pcm%v_n_rs, pcm%q_n, pcm%rho_n, mesh)      
     end if
 
@@ -598,7 +613,6 @@ contains
       call pcm_v_electrons_cav_li(pcm%v_e, v_h, pcm, mesh)
       call pcm_charges(pcm%q_e, pcm%qtot_e, pcm%v_e, pcm%matrix, pcm%n_tesserae) 
       if (pcm%calc_method == PCM_CALC_POISSON) call pcm_charge_density(pcm, pcm%q_e, pcm%qtot_e, mesh, pcm%rho_e)
-!       call pcm_pot_rs(pcm, pcm%v_e_rs, pcm%q_e, pcm%tess, pcm%n_tesserae, mesh, pcm%gaussian_width, pcm%rho_e )
       call pcm_pot_rs(pcm, pcm%v_e_rs, pcm%q_e, pcm%rho_e, mesh )
     end if
     
