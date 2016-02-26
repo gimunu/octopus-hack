@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: solvers_inc.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: solvers_inc.F90 15106 2016-02-25 18:44:42Z dstrubbe $
 
 
 !> The two following subroutines, sym_conjugate_gradients, and bi_conjugate_gradients,
@@ -247,7 +247,7 @@ end subroutine X(bi_conjugate_gradients)
         R_TYPE, intent(out) :: y(:)
       end subroutine prec
     end interface
-    integer,           intent(inout) :: iter         !< [in] number of max iterations, [out] used iterations
+    integer,           intent(inout) :: iter         !< (in) number of max iterations, (out) used iterations
     FLOAT, optional,   intent(out)   :: residue      !< residue = abs(Ax-b)
     FLOAT, optional,   intent(in)    :: threshold    !< convergence threshold
     logical, optional, intent(in)    :: showprogress !< show progress bar
@@ -295,7 +295,7 @@ end subroutine X(bi_conjugate_gradients)
         R_TYPE, intent(out) :: y(:)
       end subroutine prect
     end interface
-    integer,           intent(inout) :: iter         !< [in] number of max iterations, [out] used iterations
+    integer,           intent(inout) :: iter         !< (in) number of max iterations, (out) used iterations
     FLOAT, optional,   intent(out)   :: residue      !< residue = abs(Ax-b)
     FLOAT, optional,   intent(in)    :: threshold    !< convergence threshold
     logical, optional, intent(in)    :: showprogress !< show progress bar
@@ -358,7 +358,7 @@ end subroutine X(bi_conjugate_gradients)
         R_TYPE, intent(out) :: y(:)
       end subroutine prec
     end interface
-    integer,           intent(inout) :: iter         !< [in] the maximum number of iterations, [out] used iterations
+    integer,           intent(inout) :: iter         !< (in) the maximum number of iterations, (out) used iterations
     FLOAT, optional,   intent(out)   :: residue      !< the residue = abs(Ax-b)
     FLOAT, optional,   intent(in)    :: threshold    !< convergence threshold
     logical, optional, intent(in)    :: showprogress !< should there be a progress bar
@@ -607,7 +607,7 @@ end subroutine X(bi_conjugate_gradients)
         R_TYPE, intent(out) :: y(:)
       end subroutine prect
     end interface
-    integer,           intent(inout) :: iter         !< [in] the maximum number of iterations, [out] used iterations
+    integer,           intent(inout) :: iter         !< (in) the maximum number of iterations, (out) used iterations
     FLOAT, optional,   intent(out)   :: residue      !< the residue = abs(Ax-b)
     FLOAT, optional,   intent(in)    :: threshold    !< convergence threshold
     logical, optional, intent(in)    :: showprogress !< should there be a progress bar

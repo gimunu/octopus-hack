@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: species.F90 15068 2016-01-15 13:14:16Z jjornet $
+!! $Id: species.F90 15127 2016-02-26 16:07:02Z jjornet $
 #include "global.h"
 
 module species_m
@@ -875,7 +875,7 @@ contains
     call json_set(json, "type", this%type)
     call json_set(json, "z_val", this%z_val)
     call json_set(json, "mass", this%mass)
-    call json_set(json, "vdw_radius", this%mass)
+    call json_set(json, "vdw_radius", this%vdw_radius)
     call json_set(json, "def_rsize", this%def_rsize)
 
     POP_SUB(species_create_data_object)

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: run.F90 15096 2016-02-12 18:41:27Z adelgado $
+!! $Id: run.F90 15123 2016-02-25 23:36:22Z xavier $
 
 #include "global.h"
 
@@ -163,8 +163,7 @@ contains
       ! At present, PCM calculations in parallel must have ParallelizationStrategy = par_states
       if (hm%pcm%run_pcm) then 
         if ( (sys%mc%par_strategy /= P_STRATEGY_SERIAL).and.(sys%mc%par_strategy /= P_STRATEGY_STATES) ) then
-          message(1) = "Parallel in domain calculations with PCM"
-          call messages_experimental(message(1))
+          call messages_experimental('Parallel in domain calculations with PCM')
         end if
       end if
     else
@@ -172,8 +171,7 @@ contains
 
       if (hm%pcm%run_pcm) then 
         if ( (sys%mc%par_strategy /= P_STRATEGY_SERIAL).and.(sys%mc%par_strategy /= P_STRATEGY_STATES) ) then
-          message(1) = "Parallel in domain calculations with PCM"
-          call messages_experimental(message(1))
+          call messages_experimental('Parallel in domain calculations with PCM')
         end if
       end if
     end if

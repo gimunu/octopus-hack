@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: energy_calc.F90 14777 2015-11-16 11:50:24Z jrfsousa $
+!! $Id: energy_calc.F90 15105 2016-02-25 14:27:00Z jjornet $
 
 #include "global.h"
 
@@ -39,7 +39,6 @@ module energy_calc_m
   use mesh_batch_m
   use mesh_function_m
   use messages_m
-  use mpi_m
   use profiling_m
   use pcm_m
   use simul_box_m
@@ -141,24 +140,9 @@ contains
     end if
 
     if (hm%pcm%run_pcm) then
-       call pcm_elect_energy(hm%geo, hm%pcm, hm%energy%int_ee_pcm, hm%energy%int_en_pcm, &
+      hm%pcm%counter = hm%pcm%counter + 1
+      call pcm_elect_energy(hm%geo, hm%pcm, hm%energy%int_ee_pcm, hm%energy%int_en_pcm, &
                                              hm%energy%int_ne_pcm, hm%energy%int_nn_pcm)
-       hm%pcm%counter = hm%pcm%counter + 1
-       if (mpi_grp_is_root(mpi_world)) then
-         write(hm%pcm%info_unit,'(3X,I5,5X,F20.8,5X,F20.8,5X,F20.8,5X,F20.8,5X,F20.8,5X,F20.8,5X,F20.8)') &
-                                hm%pcm%counter, &
-                                units_from_atomic(units_out%energy, hm%energy%int_ee_pcm ), & 
-                                units_from_atomic(units_out%energy, hm%energy%int_en_pcm ), &
-                                units_from_atomic(units_out%energy, hm%energy%int_nn_pcm ), &
-                                units_from_atomic(units_out%energy, hm%energy%int_ne_pcm ), &
-                                units_from_atomic(units_out%energy, hm%energy%int_ee_pcm +  &
-                                                                    hm%energy%int_en_pcm +  &
-                                                                    hm%energy%int_nn_pcm +  &
-                                                                    hm%energy%int_ne_pcm ), &
-                                 (hm%pcm%epsilon_0/(hm%pcm%epsilon_0-M_ONE))*hm%pcm%qtot_e, &
-                                 (hm%pcm%epsilon_0/(hm%pcm%epsilon_0-M_ONE))*hm%pcm%qtot_n
-                               
-        end if                       
     end if
 
     select case(hm%theory_level)

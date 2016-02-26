@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: configure.ac 14766 2015-11-12 15:44:17Z jrfsousa $
+## $Id: configure.ac 15124 2016-02-25 23:42:17Z dstrubbe $
 
 AC_PREREQ(2.59)
 # Note: the version string is written into ETSF_IO files, so when you update
@@ -40,7 +40,7 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
 dnl check whether mpi is enabled
-AC_ARG_ENABLE(mpi, AS_HELP_STRING([--enable-mpi(=PATH)], [Parallel version]))
+AC_ARG_ENABLE(mpi, AS_HELP_STRING([--enable-mpi(=PATH)], [Parallel version. For ancient versions of MPI, you may need to specify PATH for MPI libs.]))
 case $enable_mpi in
   yes) ;;
   no | "") enable_mpi=no ;;
