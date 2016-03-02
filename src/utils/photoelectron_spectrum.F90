@@ -33,6 +33,7 @@ program photoelectron_spectrum
   use parser_m
   use pes_m  
   use pes_mask_m  
+  use pes_flux_m  
   use profiling_m
   use restart_m
   use simul_box_m
@@ -85,6 +86,7 @@ program photoelectron_spectrum
   FLOAT, pointer       :: pesk_out(:,:,:) 
   FLOAT, allocatable, target :: pesk(:,:,:,:)
   
+  integer              :: pes_method
 
 
   call getopt_init(ierr)
@@ -180,18 +182,39 @@ program photoelectron_spectrum
     end if 
   end if
 
+  call messages_print_stress(stdout,"Postprocessing")  
   
+  !Figure out wich method has been used to calculate the photoelectron data  
+  call parse_variable('PhotoElectronSpectrum', PHOTOELECTRON_NONE, pes_method)
   
-  
+  select case (pes_method)
+    case (PHOTOELECTRON_MASK)
+      call messages_write('Will postprocess mask-method data.')
+      call messages_new_line()  
 
-  call messages_print_stress(stdout)
-  call pes_mask_read_info("td.general/", dim, Emax, Estep, ll(:), Lk, RR)
+      call pes_mask_read_info("td.general/", dim, Emax, Estep, ll(:), Lk, RR)
+      lll(:) = ll(:)
 
-  write(message(1), '(a)') 'Read PES info file.'
-  call messages_info(1)
+      call messages_write('Read PES info file.')
+      call messages_info()
+      
+    case (PHOTOELECTRON_FLUX)
+      call messages_write('Will postprocess flux-method data.')
+      call messages_new_line()
+      call messages_info()
+      return  
+    
+    case (PHOTOELECTRON_SPM)
+      call messages_not_implemented('Postprocessing SPM data.')  
+      return  
+
+    case default 
+      call messages_write('Could not find any photoelectron data')
+      call messages_fatal()
+      
+  end select
   
   
-  lll(:) = ll(:)
   call restart_module_init()
   call restart_init(restart, RESTART_TD, RESTART_TYPE_LOAD, st%dom_st_kpt_mpi_grp, ierr)
   if(ierr /= 0) then

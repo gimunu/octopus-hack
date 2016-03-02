@@ -221,34 +221,39 @@ contains
       call messages_print_var_value(stdout, 'PES_Flux_Lmax', this%lmax)
     end if
 
-    !%Variable PES_Flux_Radius
-    !%Type float
-    !%Section Time-Dependent::PhotoElectronSpectrum
-    !%Description
-    !% The radius of the sphere, if PES_Flux_Shape == sph.
-    !%End
 
-    !%Variable PES_Flux_Lsize
-    !%Type block
-    !%Section Time-Dependent::PhotoElectronSpectrum
-    !%Description
-    !% Sets the location of the surface for PES_Flux_Shape = cub. The syntax is:
-    !%
-    !% <tt>%PES_Flux_Lsize
-    !% <br>&nbsp;&nbsp;xsize | ysize | zsize
-    !% <br>%
-    !% </tt>
-    !%
-    !% where xsize, ysize, and zsize are with respect to the origin. The surface can 
-    !% be shifted with PES_Flux_Offset.
-    !%End
-    if(this%shape == M_CUBIC) then
+    
+    if(this%shape == M_CUBIC .or. this%shape == M_PLANES) then
+
+      !%Variable PES_Flux_Lsize
+      !%Type block
+      !%Section Time-Dependent::PhotoElectronSpectrum
+      !%Description
+      !% Sets the location of the surface for PES_Flux_Shape = cub. The syntax is:
+      !%
+      !% <tt>%PES_Flux_Lsize
+      !% <br>&nbsp;&nbsp;xsize | ysize | zsize
+      !% <br>%
+      !% </tt>
+      !%
+      !% where xsize, ysize, and zsize are with respect to the origin. The surface can 
+      !% be shifted with PES_Flux_Offset.
+      !%End
+      
       if(parse_block('PES_Flux_Lsize', blk) == 0) then
+
         call parse_block_float(blk, 0, 0, border(1))
         call parse_block_float(blk, 0, 1, border(2))
         call parse_block_float(blk, 0, 2, border(3))
         border(1:mdim) = int(border(1:mdim)/mesh%spacing(1:mdim))*mesh%spacing(1:mdim)
+
+      else if (simul_box_is_periodic(mesh%sb)) then
+        border(:)= M_ZERO
+        border(1)= CNST(20)
+        call parse_variable('PES_Flux_Lsize', border(1), border(1))
+        
       else
+
         select case(mesh%sb%box_shape)
         case(PARALLELEPIPED)
           border(1:mdim) = mesh%sb%lsize(1:mdim)
@@ -262,11 +267,19 @@ contains
         message(1) = 'PES_Flux_Lsize not specified. Using default values.'
         call messages_info(1)
         call messages_print_var_value(stdout, 'PES_Flux_Lsize', border(1:mdim))
+
       end if
 
       call parse_block_end(blk)
 
     else
+      
+      !%Variable PES_Flux_Radius
+      !%Type float
+      !%Section Time-Dependent::PhotoElectronSpectrum
+      !%Description
+      !% The radius of the sphere, if PES_Flux_Shape == sph.
+      !%End
 
       if(parse_is_defined('PES_Flux_Radius')) then
         call parse_variable('PES_Flux_Radius', M_ZERO, this%radius)
@@ -319,7 +332,9 @@ contains
     ! -----------------------------------------------------------------
     ! Get the surface points
     ! -----------------------------------------------------------------
-    if(this%shape == M_CUBIC) then
+    select case (this%shape)
+    
+    case(M_CUBIC) 
       call pes_flux_getcube(this, mesh, border, offset)
 
       ! distribute the surface points on nodes,
@@ -331,13 +346,19 @@ contains
         'Number of surface points on node ', mesh%mpi_grp%rank, ' : ', this%nsrfcpnts_end - this%nsrfcpnts_start + 1
       call MPI_Barrier(mpi_world%comm, mpi_err)
 #endif
-    else
+    case(M_SPHERICAL) 
       call mesh_interpolation_init(this%interp, mesh)
       ! equispaced grid in theta & phi (Gauss-Legendre would optimize to nstepsthetar = this%lmax & nstepsphir = 2*this%lmax + 1):
       ! nstepsthetar = M_TWO * this%lmax + 1
       ! nstepsphir   = M_TWO * this%lmax + 1
       call pes_flux_getsphere(this, mesh, nstepsthetar, nstepsphir, offset)
-    end if
+    
+    case(M_PLANES) 
+      
+      
+    case default
+      ASSERT(.false.)
+    end select
 
     if(mpi_grp_is_root(mpi_world)) then
       write(message(1),'(a, i6)') 'Info: Number of surface points (total):', this%nsrfcpnts
