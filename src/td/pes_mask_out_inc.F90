@@ -245,6 +245,8 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
   if (err == -1) then
     call messages_write('Illformed momentum-space mesh: could not find p = 0 coordinate.')
     if ( kpoints_have_zero_weight_path(kpoints)) then 
+      !with a path we don't really care since we alway going to look at the full slice
+      !and the zero index is not relevant for pes_mask_output_full_mapM_cut
       idxZero(1:3) = (/1,1,1/)
       call messages_warning()
     else 

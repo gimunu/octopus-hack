@@ -201,12 +201,11 @@ program photoelectron_spectrum
     case (PHOTOELECTRON_FLUX)
       call messages_write('Will process flux-method data.')
       call messages_new_line()
-      call messages_info()
-      return  
+      call messages_fatal()
     
     case (PHOTOELECTRON_SPM)
       call messages_not_implemented('Postprocessing SPM data.')  
-      return  
+      call messages_fatal()
 
     case default 
       call messages_write('Could not find any photoelectron data')
