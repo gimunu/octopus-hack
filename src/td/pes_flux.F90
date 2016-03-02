@@ -52,7 +52,7 @@ module pes_flux_m
     pes_flux_t,                &
     pes_flux_init,             &
     pes_flux_end,              &
-    pes_flux_save,             &
+    pes_flux_calc,             &
     pes_flux_output,           &
     pes_flux_load,             &
     pes_flux_dump
@@ -68,8 +68,10 @@ module pes_flux_m
     FLOAT            :: dk                             !< parameters for k-mesh
     FLOAT, pointer   :: kcoords_cub(:,:)               !< coordinates of k-points
     FLOAT, pointer   :: kcoords_sph(:,:,:)
+    FLOAT, pointer   :: kcoords_pln(:,:,:)
+    
 
-    integer          :: shape                          !< shape of the surface (= cubic/spherical)
+    integer          :: shape                          !< shape of the surface (= cube/sphere/planes)
     integer          :: nsrfcpnts                      !< total number of surface points
     integer          :: nsrfcpnts_start, nsrfcpnts_end !< for cubic surface: number of surface points on node
     FLOAT, pointer   :: srfcnrml(:,:)                  !< vectors normal to the surface (includes surface element)
@@ -101,7 +103,9 @@ module pes_flux_m
 
   integer, parameter ::   &
     M_CUBIC      = 1,     &
-    M_SPHERICAL  = 2
+    M_SPHERICAL  = 2,     &
+    M_PLANES     = 3
+    
 
 contains
 
@@ -167,9 +171,15 @@ contains
     !%Option sph 2
     !% Constructs a sphere with radius PES_Flux_Radius. Points on the sphere 
     !% are interpolated by trilinear interpolation (default for 3D).
+    !%Option pln 3
+    !% This option is for periodic systems. 
+    !% Constructs planes perpendicular to the non-periodic dimension 
+    !% symmetrically placed at positive and negative values of PES_Flux_Lsize. 
     !%End
     default_shape = M_SPHERICAL
     if(mdim <= 2) default_shape = M_CUBIC
+    if (simul_box_is_periodic(mesh%sb)) default_shape = M_PLANES
+    
     call parse_variable('PES_Flux_Shape', default_shape, this%shape)
     if(.not.varinfo_valid_option('PES_Flux_Shape', this%shape, is_flag = .true.)) &
       call messages_input_error('PES_Flux_Shape')
@@ -632,7 +642,7 @@ contains
   end subroutine pes_flux_end
 
   ! ---------------------------------------------------------
-  subroutine pes_flux_save(this, mesh, st, gr, hm, iter, maxiter, dt)
+  subroutine pes_flux_calc(this, mesh, st, gr, hm, iter, maxiter, dt)
     type(pes_flux_t),    intent(inout) :: this
     type(mesh_t),        intent(in)    :: mesh
     type(states_t),      intent(inout) :: st
@@ -650,7 +660,7 @@ contains
     CMPLX, allocatable :: interp_values(:)
     logical            :: contains_isp
 
-    PUSH_SUB(pes_flux_save)
+    PUSH_SUB(pes_flux_calc)
 
     if(iter > 0 .and. mod(iter, this%tdstepsinterval) == 0) then
 
@@ -753,8 +763,8 @@ contains
 
     end if
 
-    POP_SUB(pes_flux_save)
-  end subroutine pes_flux_save
+    POP_SUB(pes_flux_calc)
+  end subroutine pes_flux_calc
 
   ! ---------------------------------------------------------
   subroutine pes_flux_integrate_cub(this, mesh, st, dt)
@@ -1236,350 +1246,6 @@ contains
     POP_SUB(pes_flux_getsphere)
   end subroutine pes_flux_getsphere
 
-  ! ---------------------------------------------------------
-  subroutine pes_flux_output(this, mesh, sb, st, dt)
-    type(pes_flux_t), intent(inout)    :: this
-    type(mesh_t),        intent(in)    :: mesh
-    type(simul_box_t),   intent(in)    :: sb
-    type(states_t),      intent(in)    :: st
-    FLOAT,               intent(in)    :: dt
-
-    integer            :: stst, stend, kptst, kptend, sdim, mdim
-    integer            :: ist, ik, isdim
-    integer            :: ikp, iomk, ikp_save, iomk_save
-    integer            :: ikk, ith, iph, iphi
-    FLOAT              :: phik, thetak, kact
-
-    integer            :: iunitone, iunittwo
-    FLOAT, allocatable :: spctrout_cub(:), spctrout_sph(:,:)
-    FLOAT              :: weight, spctrsum
-
-    PUSH_SUB(pes_flux_output)
-
-    stst   = st%st_start
-    stend  = st%st_end
-    kptst  = st%d%kpt%start
-    kptend = st%d%kpt%end
-    sdim   = st%d%dim
-    mdim   = mesh%sb%dim
-
-    if(this%shape == M_SPHERICAL) then
-      SAFE_ALLOCATE(spctrout_sph(1:this%nk, 1:this%nstepsomegak))
-      spctrout_sph = M_ZERO
-    else
-      SAFE_ALLOCATE(spctrout_cub(1:this%nkpnts))
-      spctrout_cub = M_ZERO
-    end if
-
-    ! calculate the total spectrum
-    do ik = kptst, kptend
-      do ist = stst, stend
-        do isdim = 1, sdim
-          if(this%shape == M_SPHERICAL) then
-            spctrout_sph(1:this%nk, 1:this%nstepsomegak) = spctrout_sph(1:this%nk, 1:this%nstepsomegak) + &
-              abs(this%spctramp_sph(ist, isdim, ik, 1:this%nk, 1:this%nstepsomegak))**M_TWO * (dt * this%tdstepsinterval)**M_TWO
-          else
-            spctrout_cub(1:this%nkpnts) = spctrout_cub(1:this%nkpnts) + &
-              abs(this%spctramp_cub(ist, isdim, ik, 1:this%nkpnts))**M_TWO * (dt * this%tdstepsinterval)**M_TWO
-          end if
-        end do
-      end do
-    end do
-
-    if(st%parallel_in_states .or. st%d%kpt%parallel) then
-#if defined(HAVE_MPI)
-      if(this%shape == M_SPHERICAL) then
-        call comm_allreduce(st%st_kpt_mpi_grp%comm, spctrout_sph)
-      else
-        call comm_allreduce(st%st_kpt_mpi_grp%comm, spctrout_cub)
-      end if
-#endif
-    end if
-
-    if(mpi_grp_is_root(mpi_world)) then
-      iunittwo = io_open('td.general/PES_flux.distribution.out', action='write', position='rewind')
-      iunitone = io_open('td.general/'//'PES_flux.power.sum', action='write', position='rewind')
-      write(iunitone, '(a19)') '# E, total spectrum'
-
-      if(this%shape == M_SPHERICAL) then
-        write(iunittwo, '(a29)') '# k, theta, phi, distribution'
-        do ikk = 1, this%nk 
-          kact = ikk * this%dk
-          iomk = 0
-          spctrsum = M_ZERO
-
-          do ith = 0, this%nstepsthetak
-            thetak = ith * M_PI / this%nstepsthetak 
-
-            if(ith == 0 .or. ith == this%nstepsthetak) then
-              weight = (M_ONE - cos(M_PI / this%nstepsthetak / M_TWO)) * M_TWO * M_PI
-            else
-              weight = abs(cos(thetak - M_PI / this%nstepsthetak / M_TWO) - cos(thetak + M_PI / this%nstepsthetak / M_TWO)) &
-                * M_TWO * M_PI / this%nstepsphik
-            end if
-
-            do iph = 0, this%nstepsphik - 1
-              iomk = iomk + 1
-              spctrsum = spctrsum + spctrout_sph(ikk, iomk) * weight 
-              phik = iph * M_TWO * M_PI / this%nstepsphik
-              if(iph == 0) iomk_save = iomk
-              write(iunittwo,'(5(1x,e18.10E3))') kact, thetak, phik, spctrout_sph(ikk, iomk)
-
-              ! just repeat the result for output
-              if(this%nstepsphik > 1 .and. iph == (this%nstepsphik - 1)) &
-                write(iunittwo,'(5(1x,e18.10E3))') kact, thetak, M_TWO * M_PI, spctrout_sph(ikk, iomk_save)
-
-              ! just repeat the result for output and exit
-              if(ith == 0 .or. ith == this%nstepsthetak) then
-                if(this%nstepsphik > 1) then
-                  do iphi = 1, this%nstepsphik
-                    phik = iphi * M_TWO * M_PI / this%nstepsphik
-                    write(iunittwo,'(5(1x,e18.10E3))') kact, thetak, phik, spctrout_sph(ikk, iomk)
-                  end do
-                end if
-                exit
-              end if
-            end do
-
-            if(this%nstepsphik > 1 .or. ith == this%nstepsthetak) write(iunittwo, '(1x)', advance='yes')
-          end do
-          write(iunitone, '(2(1x,e18.10E3))') kact**M_TWO / M_TWO, spctrsum * kact
-        end do
-
-      else ! this%shape == M_CUBIC
-        select case(mdim)
-        case(1)
-          write(iunittwo, '(a17)') '# k, distribution'
-          do ikp = 1, this%nkpnts
-            write(iunittwo, '(5(1x,e18.10E3))') this%kcoords_cub(1, ikp), spctrout_cub(ikp)
-          end do
-
-          do ikp = this%nk + 1, this%nkpnts
-            kact = this%kcoords_cub(1, ikp)
-            write(iunitone, '(2(1x,e18.10E3))') kact**M_TWO / M_TWO, &
-              (spctrout_cub(ikp) + spctrout_cub(this%nkpnts + 1 - ikp)) / M_TWO * kact
-          end do
-
-        case(2)
-          write(iunittwo, '(a29)') '# k, phi, distribution'
-          ikp = 0
-          do ikk = 1, this%nk
-            kact = ikk * this%dk
-            
-            spctrsum = M_ZERO
-            do iph = 0, this%nstepsphik - 1
-              ikp = ikp + 1
-              if(iph == 0) ikp_save = ikp
-              spctrsum = spctrsum + spctrout_cub(ikp) * M_TWO * M_PI / this%nstepsphik
-              phik = iph * M_TWO * M_PI / this%nstepsphik
-              write(iunittwo,'(5(1x,e18.10E3))') kact, phik, spctrout_cub(ikp)
-            end do
-            ! just repeat the result for output
-            write(iunittwo,'(5(1x,e18.10E3))') kact, M_TWO * M_PI, spctrout_cub(ikp_save)
-            write(iunittwo,'(1x)', advance = 'yes')
-            write(iunitone, '(2(1x,e18.10E3))') kact**M_TWO / M_TWO, spctrsum * kact
-          end do
-
-        case(3)
-          write(iunittwo, '(a29)') '# k, theta, phi, distribution'
-          ikp    = 0
-          do ikk = 1, this%nk
-            kact = ikk * this%dk
-            spctrsum = M_ZERO
-
-            do ith = 0, this%nstepsthetak
-              thetak = ith * M_PI / this%nstepsthetak 
-
-              if(ith == 0 .or. ith == this%nstepsthetak) then
-                weight = (M_ONE - cos(M_PI / this%nstepsthetak / M_TWO)) * M_TWO * M_PI
-              else
-                weight = abs(cos(thetak - M_PI / this%nstepsthetak / M_TWO) - cos(thetak + M_PI / this%nstepsthetak / M_TWO)) &
-                  * M_TWO * M_PI / this%nstepsphik
-              end if
-
-              do iph = 0, this%nstepsphik - 1
-                ikp = ikp + 1
-                spctrsum = spctrsum + spctrout_cub(ikp) * weight
-
-                phik = iph * M_TWO * M_PI / this%nstepsphik
-                if(iph == 0) ikp_save = ikp
-                write(iunittwo,'(5(1x,e18.10E3))') kact, thetak, phik, spctrout_cub(ikp)
-
-                ! just repeat the result for output
-                if(iph == (this%nstepsphik - 1)) &
-                  write(iunittwo,'(5(1x,e18.10E3))') kact, thetak, M_TWO * M_PI, spctrout_cub(ikp_save)
-
-                ! just repeat the result for output and exit
-                if(ith == 0 .or. ith == this%nstepsthetak) then
-                  do iphi = 1, this%nstepsphik
-                    phik = iphi * M_TWO * M_PI / this%nstepsphik
-                    write(iunittwo,'(5(1x,e18.10E3))') kact, thetak, phik, spctrout_cub(ikp)
-                  end do
-                  exit
-                end if
-              end do
-
-              write(iunittwo, '(1x)', advance='yes')
-            end do
-            write(iunitone, '(2(1x,e18.10E3))') kact**M_TWO / M_TWO, spctrsum * kact
-          end do
-        end select
-      end if
-
-      call io_close(iunittwo)
-      call io_close(iunitone)
-    end if
-
-    SAFE_DEALLOCATE_A(spctrout_cub)
-    SAFE_DEALLOCATE_A(spctrout_sph)
-
-    POP_SUB(pes_flux_output)
-  end subroutine pes_flux_output
-
-  ! ---------------------------------------------------------
-  subroutine pes_flux_dump(restart, this, mesh, st, ierr)
-    type(restart_t),  intent(in)  :: restart
-    type(pes_flux_t), intent(in)  :: this
-    type(mesh_t),     intent(in)  :: mesh
-    type(states_t),   intent(in)  :: st
-    integer,          intent(out) :: ierr
-
-    integer          :: stst, stend, kptst, kptend, sdim, mdim
-    integer          :: ist, ik, isdim
-    integer          :: err
-    character(len=8) :: filename
-
-    PUSH_SUB(pes_flux_dump)
-
-    stst   = st%st_start
-    stend  = st%st_end
-    kptst  = st%d%kpt%start
-    kptend = st%d%kpt%end
-    sdim   = st%d%dim
-    mdim   = mesh%sb%dim
-
-    if(restart_skip(restart)) then
-      POP_SUB(pes_flux_dump)
-      return
-    end if
-
-    if(debug%info) then
-      message(1) = "Debug: Writing pes_flux restart."
-      call messages_info(1)
-    end if
-
-    if(mpi_grp_is_root(mesh%mpi_grp)) then
-      do ik = kptst, kptend
-        do ist = stst, stend
-          do isdim = 1, sdim
-            write(filename, '(i2.2, a, i2.2, a, i2.2)') ik, '.', ist, '.', isdim
-  
-            if(this%shape == M_SPHERICAL) then
-              call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-                this%nk * this%nstepsomegak, this%spctramp_sph(ist, isdim, ik, :, :), err)
-            else
-              call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-                this%nkpnts, this%spctramp_cub(ist, isdim, ik, :), err)
-            end if
-
-            call io_binary_write(trim(restart_dir(restart))//"/pesflux2."//trim(filename)//".obf", &
-              this%nsrfcpnts * this%tdsteps, this%wf(ist, isdim, ik, :, :), err)
-            call io_binary_write(trim(restart_dir(restart))//"/pesflux3."//trim(filename)//".obf", &
-              this%nsrfcpnts * this%tdsteps * mdim, this%gwf(ist, isdim, ik, :, :, :), err)
-          end do
-        end do
-      end do
-    end if
-
-    if(this%shape == M_SPHERICAL) then
-      call zrestart_write_binary(restart, 'pesflux4', this%nk * this%nstepsomegak, this%conjgphase_prev_sph, err)
-    else
-      call zrestart_write_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub, err)
-    end if
-
-    call drestart_write_binary(restart, 'pesflux5', this%tdsteps * mdim, this%veca, err) 
-
-    if(err /= 0) ierr = ierr + 1
-
-    if(debug%info) then
-      message(1) = "Debug: Writing pes_flux restart done."
-      call messages_info(1)
-    end if
-
-    POP_SUB(pes_flux_dump)
-  end subroutine pes_flux_dump
-
-  ! ---------------------------------------------------------
-  subroutine pes_flux_load(restart, this, mesh, st, ierr)
-    type(restart_t),     intent(in)    :: restart
-    type(pes_flux_t),    intent(inout) :: this
-    type(mesh_t),        intent(in)    :: mesh
-    type(states_t),      intent(in)    :: st
-    integer,             intent(out)   :: ierr
-
-    integer          :: stst, stend, kptst, kptend, sdim, mdim
-    integer          :: ist, ik, isdim
-    integer          :: err
-    character(len=8) :: filename
-
-    PUSH_SUB(pes_flux_load)
-
-    stst   = st%st_start
-    stend  = st%st_end
-    kptst  = st%d%kpt%start
-    kptend = st%d%kpt%end
-    sdim   = st%d%dim
-    mdim   = mesh%sb%dim
-
-    if(restart_skip(restart)) then
-      ierr = -1
-      POP_SUB(pes_flux_load)
-      return
-    end if
-
-    if(debug%info) then
-      message(1) = "Debug: Reading pes_flux restart."
-      call messages_info(1)
-    end if
-
-    do ik = kptst, kptend
-      do ist = stst, stend
-        do isdim = 1, sdim
-          write(filename, '(i2.2, a, i2.2, a, i2.2)') ik, '.', ist, '.', isdim
-  
-          if(this%shape == M_SPHERICAL) then
-            call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-              this%nk * this%nstepsomegak, this%spctramp_sph(ist, isdim, ik, :, :), err)
-          else
-            call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-              this%nkpnts, this%spctramp_cub(ist, isdim, ik, :), err)
-          end if
-
-          call io_binary_read(trim(restart_dir(restart))//"/pesflux2."//trim(filename)//".obf", &
-            this%nsrfcpnts * this%tdsteps, this%wf(ist, isdim, ik, :, :), err)
-          call io_binary_read(trim(restart_dir(restart))//"/pesflux3."//trim(filename)//".obf", &
-            this%nsrfcpnts * this%tdsteps * mdim, this%gwf(ist, isdim, ik, :, :, :), err)
-        end do
-      end do
-    end do
-
-    if(this%shape == M_SPHERICAL) then
-      call zrestart_read_binary(restart, 'pesflux4', this%nk * this%nstepsomegak, this%conjgphase_prev_sph, err)
-    else
-      call zrestart_read_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub, err)
-    end if
-
-    call drestart_read_binary(restart, 'pesflux5', this%tdsteps * mdim, this%veca, err) 
-
-    if(err /= 0) ierr = ierr + 1
-   
-    if(debug%info) then
-      message(1) = "Debug: Reading pes_flux restart done."
-      call messages_info(1)
-    end if
-
-    POP_SUB(pes_flux_load)
-  end subroutine pes_flux_load
 
   ! ---------------------------------------------------------
   subroutine pes_flux_distribute(istart_global, iend_global, istart, iend, comm)
@@ -1626,6 +1292,9 @@ contains
 
     POP_SUB(pes_flux_distribute)
   end subroutine pes_flux_distribute
+
+
+#include "pes_flux_out_inc.F90"
 
 end module pes_flux_m
 
