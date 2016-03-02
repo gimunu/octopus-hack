@@ -243,19 +243,24 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
 !       end do
 
   if (err == -1) then
-    write(message(1), '(a)') 'Illformed momentum-space mesh: could not find p = 0 coordinate.'
-    call messages_fatal(1)
+    call messages_write('Illformed momentum-space mesh: could not find p = 0 coordinate.')
+    if ( kpoints_have_zero_weight_path(kpoints)) then 
+      idxZero(1:3) = (/1,1,1/)
+      call messages_warning()
+    else 
+      call messages_fatal()
+    end if
   end if 
 
   if (err > 1) then
-    write(message(1), '(a)') 'Illformed momentum-space mesh: more than in point with p = 0 coordinate.'
-    write(message(1), '(a)') 'This can happen only if the kpoint mesh does not contain gamma.'
-    call messages_warning(1)
+    call messages_write('Illformed momentum-space mesh: more than in point with p = 0 coordinate.')
+    call messages_write('This can happen only if the kpoint mesh does not contain gamma.')
+    call messages_warning()
   end if 
 
   if (err == -2) then
-    write(message(1), '(a)') 'Illformed momentum-space mesh: two or more points with the same p.'
-    call messages_fatal(1)
+    call messages_write('Illformed momentum-space mesh: two or more points with the same p.')
+    call messages_fatal()
   end if 
   
  

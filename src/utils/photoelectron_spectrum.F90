@@ -189,7 +189,7 @@ program photoelectron_spectrum
   
   select case (pes_method)
     case (PHOTOELECTRON_MASK)
-      call messages_write('Will postprocess mask-method data.')
+      call messages_write('Will process mask-method data.')
       call messages_new_line()  
 
       call pes_mask_read_info("td.general/", dim, Emax, Estep, ll(:), Lk, RR)
@@ -199,7 +199,7 @@ program photoelectron_spectrum
       call messages_info()
       
     case (PHOTOELECTRON_FLUX)
-      call messages_write('Will postprocess flux-method data.')
+      call messages_write('Will process flux-method data.')
       call messages_new_line()
       call messages_info()
       return  
@@ -660,6 +660,7 @@ program photoelectron_spectrum
        
         type(block_t)       :: blk
         integer             :: no_l
+        CMPLX               :: cPol(1:3)
         
         PUSH_SUB(get_laser_polarization)
         
@@ -667,13 +668,15 @@ program photoelectron_spectrum
         if(parse_block('TDExternalFields', blk) == 0) then
           no_l = parse_block_n(blk)
 
-          call parse_block_float(blk, 0, 1, lPol(1))
-          call parse_block_float(blk, 0, 2, lPol(2))
-          call parse_block_float(blk, 0, 3, lPol(3))
+          call parse_block_cmplx(blk, 0, 1, cPol(1))
+          call parse_block_cmplx(blk, 0, 2, cPol(2))
+          call parse_block_cmplx(blk, 0, 3, cPol(3))
 
 
           call parse_block_end(blk)
         end if
+        
+        lPol(:) = abs(cPol)
         
         if(no_l > 1) then
           message(1)="There is more than one external field. Polarization will be selected"
