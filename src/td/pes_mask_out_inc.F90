@@ -257,16 +257,16 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
           end do
         end do
       end do
-
-      if(debug%info) then
-        print * ,"idxZero(1:3)=", idxZero(1:3)
-      end if
       
       call messages_warning()
     else 
       call messages_fatal()
     end if
   end if 
+
+  if(debug%info) then
+    print * ,"idxZero(1:3)=", idxZero(1:3)
+  end if
 
   if (err > 1) then
     call messages_write('Illformed momentum-space mesh: more than one point with p = 0 coordinate.')
