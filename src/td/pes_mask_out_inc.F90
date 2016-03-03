@@ -247,7 +247,18 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
     if ( kpoints_have_zero_weight_path(kpoints)) then 
       !with a path we don't really care since we alway going to look at the full slice
       !and the zero index is not relevant for pes_mask_output_full_mapM_cut
-      idxZero(1:3) = ll(1:3)/2 
+      do j1 = 1, ll(1) 
+        do j2 = 1, ll(2) 
+          do j3 = 1, ll(3) 
+
+            GG(1:3)= (/LG_(j1,1),LG_(j2,2),LG_(j3,3)/)
+            if (sum(GG(1:3)**2)<=M_EPSILON) idxZero(1:3) = (/j1,j2,j3/)
+            
+          end do
+        end do
+      end do
+!       print * ,idxZero(1:3)
+      
       call messages_warning()
     else 
       call messages_fatal()
