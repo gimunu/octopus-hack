@@ -257,7 +257,10 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
           end do
         end do
       end do
-!       print * ,idxZero(1:3)
+
+      if(debug%info) then
+        print * ,"idxZero(1:3)=", idxZero(1:3)
+      end if
       
       call messages_warning()
     else 
