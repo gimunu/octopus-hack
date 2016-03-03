@@ -434,6 +434,7 @@ program photoelectron_spectrum
         pesk_out => pesk(:,:,:,1)
         call output_pes()
       else 
+        ! Write total quantities (summed over spin) 
         SAFE_ALLOCATE(pesk_out(1:ll(1),1:ll(2),1:ll(3)))
         pesk_out(:,:,:) = pesk(:,:,:,1)+pesk(:,:,:,2)
     
@@ -441,6 +442,7 @@ program photoelectron_spectrum
         
         SAFE_DEALLOCATE_P(pesk_out)      
     
+        ! spin-resolved 
         do ispin = 1, st%d%nspin
           pesk_out => pesk(:,:,:,ispin)
           call output_pes()    

@@ -247,7 +247,7 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
     if ( kpoints_have_zero_weight_path(kpoints)) then 
       !with a path we don't really care since we alway going to look at the full slice
       !and the zero index is not relevant for pes_mask_output_full_mapM_cut
-      idxZero(1:3) = (/1,1,1/)
+      idxZero(1:3) = ll(1:3)/2 
       call messages_warning()
     else 
       call messages_fatal()
@@ -255,7 +255,7 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
   end if 
 
   if (err > 1) then
-    call messages_write('Illformed momentum-space mesh: more than in point with p = 0 coordinate.')
+    call messages_write('Illformed momentum-space mesh: more than one point with p = 0 coordinate.')
     call messages_write('This can happen only if the kpoint mesh does not contain gamma.')
     call messages_warning()
   end if 
@@ -321,7 +321,7 @@ subroutine pes_mask_map_from_states(restart, st, ll, pesK, krng, Lp, istin)
 
       if (st%d%kweights(ik) < M_EPSILON) then
         ! we have a zero-weight path
-        weight = st%occ(ist, ik)
+        weight = st%occ(ist, ik)!/nkpt
       else
         weight = st%occ(ist, ik) * st%d%kweights(ik)
       end if
