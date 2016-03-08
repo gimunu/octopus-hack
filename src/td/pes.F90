@@ -63,7 +63,7 @@ module pes_m
     
   end type pes_t
 
-  integer, public, parameter ::     &
+  integer, parameter ::     &
     PHOTOELECTRON_NONE = 0, &
     PHOTOELECTRON_SPM  = 2, &
     PHOTOELECTRON_MASK = 4, &
