@@ -113,9 +113,12 @@ program photoelectron_spectrum
   call states_init(st, gr, geo)
   !*
 
-  !Initial values
+  !Initialize variables
   llp(:) = 1 
   llg(:) = 1
+
+  need_pmesh = .false. 
+  dim = sb%dim   ! The dimensionality dim = [1,2,3]
 
   call messages_print_stress(stdout,"Postprocessing")  
   
@@ -126,14 +129,18 @@ program photoelectron_spectrum
   case (OPTION__PHOTOELECTRONSPECTRUM__PES_MASK)
     call messages_write('Will process mask-method data.')
     call messages_new_line()  
-
+    
+    ! Note that Lg(:,:) is allocated inside pes_mask_read_info
     call pes_mask_read_info("td.general/", dim, Emax, Estep, llp(:), Lg, RR)
     ! Keep a copy the original dimensions vector
     ! For periodic systems llg represents the extension on the g-point grid
-    llg(1:sb%dim) = llp(1:sb%dim) 
+    llg(1:dim) = llp(1:dim) 
 
     call messages_write('Read PES_MASK info file.')
     call messages_info()
+    
+    need_pmesh = simul_box_is_periodic(sb) 
+    
     
   case (OPTION__PHOTOELECTRONSPECTRUM__PES_FLUX)
     call messages_write('Will process flux-method data.')
@@ -141,13 +148,14 @@ program photoelectron_spectrum
     call messages_info()
     
     option = OPTION__PES_FLUX_SHAPE__SPH
-    if(sb%dim <= 2) option = OPTION__PES_FLUX_SHAPE__CUB
+    if(dim <= 2) option = OPTION__PES_FLUX_SHAPE__CUB
     if (simul_box_is_periodic(sb)) option = OPTION__PES_FLUX_SHAPE__PLN
     
     call parse_variable('PES_Flux_Shape', option, pflux%shape)
     call pes_flux_reciprocal_mesh_gen(pflux, sb, st)
     
-    llg(1:sb%dim) = pflux%ll(1:sb%dim)
+    llg(1:dim) = pflux%ll(1:dim)
+    need_pmesh = .true.
     
   
   case (OPTION__PHOTOELECTRONSPECTRUM__PES_SPM)
@@ -163,9 +171,8 @@ program photoelectron_spectrum
 
   !set default values
 
-  need_pmesh = simul_box_is_periodic(sb)
 
-  integrate = -1
+  integrate = INTEGRATE_NONE
   uEstep = -1
   uEspan = (/-1,-1/)
   uThstep = -1
@@ -176,10 +183,9 @@ program photoelectron_spectrum
   pvec = (/1,0,0/)
 
   pesout%what = OPTION__PHOTOELECTRONSPECTRUMOUTPUT__ENERGY_TOT 
-  pesout%pvec = (/1,0,0/)
+  pesout%pvec = pvec
 
   have_zweight_path = kpoints_have_zero_weight_path(sb%kpoints)
-!   if (sb%kpoints%nik_skip > 0) have_zweight_path = .true.
 
   call get_laser_polarization(pol)
   ! if there is no laser set pol along the z-axis
@@ -188,7 +194,7 @@ program photoelectron_spectrum
   ! more defaults
   if(simul_box_is_periodic(sb)) then
     
-    if (sb%dim == 2) then
+    if (dim == 2) then
       ! write the velocity map on plane pz=0 as it contains all the informations
       pol = (/0,1,0/) 
       pvec = (/0,0,1/)
@@ -198,7 +204,7 @@ program photoelectron_spectrum
       pesout%pvec = (/0,0,1/)
     end if
     
-    if (sb%dim == 3) then 
+    if (dim == 3) then 
       ! write the full ARPES in vtk format (this could be a big file)
       pol = (/0,0,1/) 
       
@@ -208,7 +214,7 @@ program photoelectron_spectrum
     
     if (have_zweight_path) then
       ! In this case the output is well defined only on a path in reciprocal space
-      ! so we are going to have only a 2D slice regardless of sb%dim=2 or 3 
+      ! so we are going to have only a 2D slice regardless of dim=2 or 3 
       pol = (/0,0,1/) 
       pvec = (/0,1,0/)
 
@@ -281,7 +287,7 @@ program photoelectron_spectrum
   if (have_zweight_path) then
     llp(kpth_dir) = llg(kpth_dir) * nkpt    
   else
-    llp(1:sb%dim) = llg(1:sb%dim) * sb%kpoints%nik_axis(1:sb%dim)    
+    llp(1:dim) = llg(1:dim) * sb%kpoints%nik_axis(1:dim)    
   endif  
 
   SAFE_ALLOCATE(pmesh(1:llp(1),1:llp(2),1:llp(3),1:3 + 1))
@@ -289,18 +295,20 @@ program photoelectron_spectrum
 
   select case (pes_method)
   case (OPTION__PHOTOELECTRONSPECTRUM__PES_MASK)
-    call pes_mask_pmesh(sb%dim, sb%kpoints, llg, Lg, pmesh, idxZero, krng, Lp)  
+    call pes_mask_pmesh(dim, sb%kpoints, llg, Lg, pmesh, idxZero, krng, Lp)  
 
   case (OPTION__PHOTOELECTRONSPECTRUM__PES_FLUX)
-    call pes_flux_pmesh(pflux, sb%dim, sb%kpoints, llg, Lg, pmesh, idxZero, krng, Lp)    
+    call pes_flux_pmesh(pflux, dim, sb%kpoints, llg, Lg, pmesh, idxZero, krng, Lp)    
   end select
    
 
   
-  if (.not. simul_box_is_periodic(sb)) then
+  if (.not. need_pmesh) then
     ! There is no need to use pmesh we just need to sort Lg in place
     ! in order to have a coordinate ordering coherent with pesP
-    do idim = 1, sb%dim
+    ! NOTE: this works only for the mask_method since Lg is well-defined  
+    ! only in this case
+    do idim = 1, dim
       call sort(Lg(1:llp(idim), idim)) 
     end do  
   end if  
@@ -423,8 +431,9 @@ program photoelectron_spectrum
   SAFE_DEALLOCATE_A(pesP)    
   SAFE_DEALLOCATE_A(pmesh)
   SAFE_DEALLOCATE_A(Lp)
-  SAFE_DEALLOCATE_P(Lg)
-  
+  if (.not. need_pmesh .or. pes_method == OPTION__PHOTOELECTRONSPECTRUM__PES_MASK) then
+    SAFE_DEALLOCATE_P(Lg)
+  end if
   contains
     
     function outfile(name, ist, ispin, extension) result(fname)    
@@ -597,8 +606,8 @@ program photoelectron_spectrum
         call messages_print_stress(stdout, "ARPES")
 
         forall (i1=1:llp(1), i2=1:llp(2), i3=1:llp(3))
-          pmesh(i1,i2,i3,sb%dim) = units_from_atomic(units_out%energy, &
-            sign(M_ONE,pmesh(i1,i2,i3,sb%dim)) * sum( pmesh(i1,i2,i3,1:sb%dim)**2 )/M_TWO)
+          pmesh(i1,i2,i3,dim) = units_from_atomic(units_out%energy, &
+            sign(M_ONE,pmesh(i1,i2,i3,dim)) * sum( pmesh(i1,i2,i3,1:dim)**2 )/M_TWO)
         end forall
 
         how = io_function_fill_how("VTK")

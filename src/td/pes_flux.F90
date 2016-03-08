@@ -693,9 +693,14 @@ contains
       call messages_write(DE, fmt = '(e9.2)')
       call messages_write(")")
       call messages_info()
+            
       
-      
-      
+      kmax = sqrt(M_TWO*Emax)
+      kmin = sqrt(M_TWO*Emin)
+      this%dk = sqrt(M_TWO*DE)
+
+      this%nk = nint((kmax-kmin)/this%dk)
+
     
     
       !%Variable PES_Flux_BZones
@@ -725,33 +730,29 @@ contains
         call parse_block_end(blk)
 
       else
-        ! the cube sides along the periodi directions are out of the simulation box
         call parse_variable('PES_Flux_BZones', 2, NBZ(1))
         NBZ(:) = NBZ(1)
 
       end if
+
+
+      ! This information is needed for postprocessing the data
+      this%ll(:)   = 1
+      this%ll(1:pdim) = (NBZ(1:pdim)-1)*2+1
+      this%ll(mdim)   = this%nk * 2
       
 
       call messages_write("Number of Brillouin zones = ")
       do idim = 1 , pdim
-        call messages_write(NBZ(idim)*2+1)
+        call messages_write( this%ll(idim) )
         if (.not. idim == pdim) call messages_write(" x ")        
       end do 
       call messages_info()
       
       
-      kmax = sqrt(M_TWO*Emax)
-      kmin = sqrt(M_TWO*Emin)
-      this%dk = sqrt(M_TWO*DE)
-
-      this%nk = nint((kmax-kmin)/this%dk)
-
-      this%nkpnts = 2 * this%nk * product(NBZ(1:pdim)*2 + 1)
+      ! Total number of points
+      this%nkpnts = product(this%ll(1:mdim))
       
-      ! This information is needed for postprocessing the data
-      this%ll(:)   = 1
-      this%ll(1:pdim) = NBZ(1:pdim)*2+1
-      this%ll(mdim) = this%nk * 2
       
 
     end if    
@@ -857,13 +858,6 @@ contains
         this%nkpnts_start = 1 
         this%nkpnts_end   = this%nkpnts
         
-!         #if defined(HAVE_MPI)
-!               call MPI_Barrier(mpi_world%comm, mpi_err)
-!               call MPI_Comm_rank(mpi_world%comm, mpirank, mpi_err)
-!               write(*,*) &
-!                 'Number of k-points on node ', mpirank, ' : ', this%nkpnts_end - this%nkpnts_start + 1
-!               call MPI_Barrier(mpi_world%comm, mpi_err)
-!         #endif
       
         SAFE_ALLOCATE(this%kcoords_cub(1:mdim, 1:this%nkpnts, kptst:kptend))
         
@@ -873,10 +867,11 @@ contains
         do ikpt = kptst, kptend
           ikp = 0
           do ikk = -this%nk, this%nk
-            if (ikk == 0 ) cycle
+            if (ikk == 0 ) cycle !this way I have exactly 2*this%nk elements  
+            
             ! loop over periodic directions
             do idim = 1, pdim
-              do ibz = -NBZ(idim), NBZ(idim) 
+              do ibz = -(NBZ(idim)-1), (NBZ(idim)-1) 
 
                 kvec(1:pdim) = ibz * sb%klattice(1:pdim, idim)                
                 
@@ -884,6 +879,7 @@ contains
                 kvec(mdim) = ikk * this%dk + ikk/abs(ikk) * kmin
             
                 ikp = ikp + 1
+!                 print *, "ikpt, ikk, ibz, ikp", ikpt, ikk, ibz, ikp
                 this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
 
               end do
@@ -1161,9 +1157,6 @@ contains
                 Jk_cub(ist, isdim, ik, 1:this%nkpnts) = &
                   Jk_cub(ist, isdim, ik, 1:this%nkpnts) * conjgplanewf_cub(1:this%nkpnts, ik)
               end if
-!               print *, ist, isdim, ik, "Jk_cub(ist, isdim, ik, 63:66)", Jk_cub(ist, isdim, ik, 63:66)
-!               print *, ist, isdim, ik, "Jk_cub(ist, isdim, ik, :)", Jk_cub(ist, isdim, ik, :)
-!               print *, ist, isdim, ik, isdim, isp, this%wf(ist, isdim, ik, isp, 1)
             end do
           end do
         end do
