@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_flux.F90 15083 2016-01-27 15:07:45Z philipp $
+!! $Id: pes_flux.F90 15193 2016-03-09 17:48:57Z umberto $
 
 #include "global.h"
 
@@ -1104,7 +1104,8 @@ contains
       do ikp = ikp_start, ikp_end
         do itstep = 1, this%tdsteps
           vec = sum((this%kcoords_cub(1:mdim, ikp, ik) - kpoint(1:mdim) - this%veca(1:mdim, itstep) / P_c)**2)
-          conjgphase_cub(ikp, itstep, ik) = conjgphase_cub(ikp, itstep - 1, ik) * exp(M_zI * vec * dt * this%tdstepsinterval / M_TWO)
+          conjgphase_cub(ikp, itstep, ik) = conjgphase_cub(ikp, itstep - 1, ik) & 
+                                            * exp(M_zI * vec * dt * this%tdstepsinterval / M_TWO)
         end do
       end do
     end do

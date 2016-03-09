@@ -190,6 +190,7 @@ subroutine pes_flux_pmesh(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
           
           GG(:) = M_ZERO 
           ig = (j3-1)*ll(1)*ll(2) + (j2-1)*ll(1) + j1
+!           ig = (j1-1)*ll(3)*ll(2) + (j2-1)*ll(3) + j3
           GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
 !           print *, ik, j1, j2, j3, "GG(:) = ", GG(:) , ig
 !           GG(1:3)= (/LG_(j1,1),LG_(j2,2),LG_(j3,3)/)
@@ -360,7 +361,9 @@ subroutine pes_flux_map_from_states(this, restart, st, ll, pesP, krng, Lp, istin
                   pesP(ip(1),ip(2),ip(3), ispin) = pesP(ip(1),ip(2),ip(3), ispin) &
                                                  + abs(psiG1(ig))**2 * weight 
 !                   if (all(ip(1:2)==(/155,17/))) then
-!                     print *, itot, ig, ip(1:2), "psiG1(ig) =", psiG1(ig), "pesP(ip(1),ip(2),ip(3), ispin) =", pesP(ip(1),ip(2),ip(3), ispin) , "abs(psiG1(ig))**2 * weight =", abs(psiG1(ig))**2 * weight
+!                     print *, itot, ig, ip(1:2), "psiG1(ig) =", psiG1(ig), & 
+!                              "pesP(ip(1),ip(2),ip(3), ispin) =", pesP(ip(1),ip(2),ip(3), ispin) ,&
+!                               "abs(psiG1(ig))**2 * weight =", abs(psiG1(ig))**2 * weight
 !                   end if
               end do
             end do
