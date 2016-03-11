@@ -242,6 +242,7 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
           
           GG(:) = M_ZERO 
           ig = flatten_indices(j1,j2,j3, ll) 
+          
 !           ig = (j1-1)*ll(3)*ll(2) + (j2-1)*ll(3) + j3
           GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
 !           print *, ik, j1, j2, j3, "GG(:) = ", GG(:) , ig
