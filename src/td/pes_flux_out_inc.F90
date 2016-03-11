@@ -204,8 +204,10 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
   if (debug%info) then
     print *,"reordered"
     do ik = krng(1),krng(2)
-      kpt(1:dim) = kpoints_get_point(kpoints, ik, absolute_coordinates = .false.)
-      print *, ik, "Lkpt(ik)= [", ikidx(Lkpt(ik,1),1), ikidx(Lkpt(ik,2),2), ikidx(Lkpt(ik,3),3),"] -- kpt= ",kpt(1)
+!       kpt(1:dim) = kpoints_get_point(kpoints, ik, absolute_coordinates = .false.)
+      kpt(1:dim) = kpoints_get_point(kpoints, ik, absolute_coordinates = .true.)
+      print *, ik, "Lkpt(ik)= [", ikidx(Lkpt(ik,1),1), ikidx(Lkpt(ik,2),2), ikidx(Lkpt(ik,3),3),&
+                "] -- kpt= ",kpt(1:dim)
     end do
 
     print *,"----"
@@ -243,7 +245,6 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
           GG(:) = M_ZERO 
           ig = flatten_indices(j1,j2,j3, ll) 
           
-!           ig = (j1-1)*ll(3)*ll(2) + (j2-1)*ll(3) + j3
           GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
 !           print *, ik, j1, j2, j3, "GG(:) = ", GG(:) , ig
 !           GG(1:3)= (/LG_(j1,1),LG_(j2,2),LG_(j3,3)/)
@@ -266,8 +267,8 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
           pmesh(ip1, ip2, ip3, 1:dim) = GG(1:dim) - kpt(1:dim)
           pmesh(ip1, ip2, ip3, dim+1) = pmesh(ip1, ip2, ip3, dim+1) + 1 
           
-!               print *,idx_inv(j1,1),idx_inv(j2,2),idx_inv(j3,3),ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/)
-!               print *, "pmesh = ",pmesh(ip1, ip2, ip3, :) !,"  GG = ",  GG (1:dim), "  kpt = ", kpt(1:dim)
+              print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
+                      "pmesh = ",pmesh(ip1, ip2, ip3, 1:3) 
 
 
 
@@ -285,15 +286,11 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
 
         end do 
       end do 
-!           print *,idx_inv(j1,1),ik,"  Lp(i1,ll(2),ll(3),ik,1) = ", ip1, "pmesh = ",pmesh(ip1, ip2, ip3, 1)
 
     end do 
   end do
   
-!       do ip1 = 1, ll(1) * nk(1)
-!         print *,ip1, "Pmesh", pmesh(ip1, 1, 1, 1)
-!       end do
-
+  
   if ( kpoints_have_zero_weight_path(kpoints)) then 
   ! With a path we just need to get the correct the zero index on the in-plane direction  
   ! perpendicular to the path since is along this direction that we are going 
@@ -304,7 +301,7 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
       do j2 = 1, ll(2) 
         do j3 = 1, ll(3) 
 
-          ig = (j3-1)*ll(1)*ll(2) + (j2-1)*ll(1) + j1
+          ig = flatten_indices(j1,j2,j3, ll) 
           GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
           if (sum(GG(1:dim-1)**2)<=M_EPSILON) idxZero(1:3) = (/j1,j2,j3/)
         

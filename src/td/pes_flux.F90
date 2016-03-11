@@ -877,7 +877,7 @@ contains
       do ikpt = kptst, kptend
         ikp = 0
         do ikk = -this%nk, this%nk
-          if (ikk == 0 ) cycle !this way I have exactly 2*this%nk elements  
+          if (ikk == 0 ) cycle !this way I have 2*this%nk elements  
       
           ! loop over periodic directions
           do idim = 1, pdim
@@ -1160,8 +1160,8 @@ contains
                 Jk_cub(ist, isdim, ik, 1:this%nkpnts) = &
                   Jk_cub(ist, isdim, ik, 1:this%nkpnts) + conjgphase_cub(1:this%nkpnts, itstep, ik) * &
                   (this%wf(ist, isdim, ik, isp, itstep) * &
-                   (M_TWO * this%veca(idir, itstep) / P_c - this%kcoords_cub(idir, 1:this%nkpnts, ik)) + &
-                   this%gwf(ist, isdim, ik, isp, itstep, idir) * M_zI)
+                   (M_TWO * this%veca(idir, itstep) / P_c - this%kcoords_cub(idir, 1:this%nkpnts, ik) &
+                   + kpoint(idir) ) + this%gwf(ist, isdim, ik, isp, itstep, idir) * M_zI)
               end do
 
               if(this%usememory) then
