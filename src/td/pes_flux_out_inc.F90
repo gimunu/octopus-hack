@@ -775,12 +775,12 @@ subroutine pes_flux_output(this, mesh, sb, st, dt)
       do isdim = 1, sdim
         if(this%shape == M_SPHERICAL) then
           spctrout_sph(1:this%nk, 1:this%nstepsomegak) = spctrout_sph(1:this%nk, 1:this%nstepsomegak) + &
-            abs(this%spctramp_sph(ist, isdim, ik, 1:this%nk, 1:this%nstepsomegak))**M_TWO * (dt * this%tdstepsinterval)**M_TWO &
+            abs(this%spctramp_sph(ist, isdim, ik, 1:this%nk, 1:this%nstepsomegak))**M_TWO * dt**M_TWO &
 !             abs(this%spctramp_sph(ist, isdim, ik, 1:this%nk, 1:this%nstepsomegak))**M_TWO  &
             * st%occ(ist, ik)
         else
           spctrout_cub(1:this%nkpnts) = spctrout_cub(1:this%nkpnts) + &
-            abs(this%spctramp_cub(ist, isdim, ik, 1:this%nkpnts))**M_TWO * (dt * this%tdstepsinterval)**M_TWO &
+            abs(this%spctramp_cub(ist, isdim, ik, 1:this%nkpnts))**M_TWO * dt**M_TWO &
 !             abs(this%spctramp_cub(ist, isdim, ik, 1:this%nkpnts))**M_TWO  &
             * st%occ(ist, ik)
         end if
@@ -997,9 +997,9 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
           end if
 
           call io_binary_write(trim(restart_dir(restart))//"/pesflux2."//trim(filename)//".obf", &
-            this%nsrfcpnts * this%tdsteps, this%wf(ist, isdim, ik, :, :), err)
+            (this%nsrfcpnts + 1)* this%tdsteps, this%wf(ist, isdim, ik, :, :), err)
           call io_binary_write(trim(restart_dir(restart))//"/pesflux3."//trim(filename)//".obf", &
-            this%nsrfcpnts * this%tdsteps * mdim, this%gwf(ist, isdim, ik, :, :, :), err)
+            (this%nsrfcpnts + 1)* this%tdsteps * mdim, this%gwf(ist, isdim, ik, :, :, :), err)
 
         end if
         
@@ -1074,9 +1074,9 @@ subroutine pes_flux_load(restart, this, mesh, st, ierr)
         end if
 
         call io_binary_read(trim(restart_dir(restart))//"/pesflux2."//trim(filename)//".obf", &
-          this%nsrfcpnts * this%tdsteps, this%wf(ist, isdim, ik, :, :), err)
+          (this%nsrfcpnts + 1) * this%tdsteps, this%wf(ist, isdim, ik, :, :), err)
         call io_binary_read(trim(restart_dir(restart))//"/pesflux3."//trim(filename)//".obf", &
-          this%nsrfcpnts * this%tdsteps * mdim, this%gwf(ist, isdim, ik, :, :, :), err)
+          (this%nsrfcpnts + 1) * this%tdsteps * mdim, this%gwf(ist, isdim, ik, :, :, :), err)
       end do
     end do
   end do

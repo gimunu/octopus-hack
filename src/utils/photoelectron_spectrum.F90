@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: photoelectron_spectrum.F90 15195 2016-03-11 12:05:18Z umberto $
+!! $Id: photoelectron_spectrum.F90 15199 2016-03-16 19:02:14Z philipp $
 
 #include "global.h"
 
@@ -152,7 +152,7 @@ program photoelectron_spectrum
     if (simul_box_is_periodic(sb)) option = OPTION__PES_FLUX_SHAPE__PLN
     
     call parse_variable('PES_Flux_Shape', option, pflux%shape)
-    call pes_flux_reciprocal_mesh_gen(pflux, sb, st, post = .true.)
+    call pes_flux_reciprocal_mesh_gen(pflux, sb, st, 0, post = .true.)
     
     llg(1:dim) = pflux%ll(1:dim)
     need_pmesh = .true.

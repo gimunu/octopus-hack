@@ -219,11 +219,13 @@ contains
     
     PUSH_SUB(local_write_end)
 
-    do id = 1, nd
-      do iout = 1, LOCAL_OUT_MAX
-        if(writ%out(iout, id)%write)  call write_iter_end(writ%out(iout, id)%handle)
+    if (mpi_grp_is_root(mpi_world)) then
+      do id = 1, nd
+        do iout = 1, LOCAL_OUT_MAX
+          if(writ%out(iout, id)%write)  call write_iter_end(writ%out(iout, id)%handle)
+        end do
       end do
-    end do
+    end if
     SAFE_DEALLOCATE_A(writ%out)
 
     POP_SUB(local_write_end)
@@ -231,7 +233,7 @@ contains
 
   ! ---------------------------------------------------------
   subroutine local_write_iter(writ, nd, domain, lab, inside, center, gr, st, & 
-                              hm, ks, mc, geo, kick, iter, dt, l_start, l_end, ldoverwrite)
+                              hm, ks, geo, kick, iter, l_start, ldoverwrite)
     type(local_write_t),    intent(inout) :: writ
     integer,                intent(in)    :: nd 
     type(box_union_t),      intent(in)    :: domain(:)
@@ -242,13 +244,10 @@ contains
     type(states_t),         intent(inout) :: st
     type(hamiltonian_t),    intent(inout) :: hm
     type(v_ks_t),           intent(inout) :: ks
-    type(multicomm_t),      intent(in)    :: mc
     type(geometry_t),       intent(inout) :: geo
     type(kick_t),           intent(inout) :: kick
     integer,                intent(in)    :: iter
-    FLOAT,                  intent(in)    :: dt
     integer,                intent(in)    :: l_start
-    integer,                intent(in)    :: l_end
     logical,                intent(in)    :: ldoverwrite
 
     type(profile_t), save :: prof
@@ -262,22 +261,26 @@ contains
       end if
       call local_write_multipole(writ%out(LOCAL_OUT_MULTIPOLES, :), nd, domain, lab, inside, center, & 
                         gr, geo, st, writ%lmax, kick, iter, l_start, ldoverwrite, writ%how)
-      do id = 1, nd
-        call write_iter_flush(writ%out(LOCAL_OUT_MULTIPOLES, id)%handle)
-      end do
+      if(mpi_grp_is_root(mpi_world)) then
+        do id = 1, nd
+          call write_iter_flush(writ%out(LOCAL_OUT_MULTIPOLES, id)%handle)
+        end do
+      end if
     end if
 
     if(any(writ%out(LOCAL_OUT_DENSITY,:)%write).or.any(writ%out(LOCAL_OUT_POTENTIAL,:)%write)) &
       call local_write_density(writ%out(LOCAL_OUT_DENSITY, :), writ%out(LOCAL_OUT_POTENTIAL,:), & 
-                               nd, domain, lab, inside, center, &
-                               gr, geo, st, hm, ks, mc, iter, l_start, ldoverwrite, writ%how)
+                               nd, lab, inside, &
+                               gr, geo, st, hm, ks, iter, writ%how)
     
     if(any(writ%out(LOCAL_OUT_ENERGY, :)%write)) then
-      call local_write_energy(writ%out(LOCAL_OUT_ENERGY, :), nd, domain, lab, inside, center, &
-                               gr, geo, st, hm, ks, mc, iter, l_start, ldoverwrite, writ%how)
-      do id = 1, nd
-        call write_iter_flush(writ%out(LOCAL_OUT_ENERGY, id)%handle)
-      end do
+      call local_write_energy(writ%out(LOCAL_OUT_ENERGY, :), nd, lab, inside, &
+                               gr, geo, st, hm, ks, iter, l_start, ldoverwrite)
+      if(mpi_grp_is_root(mpi_world)) then
+        do id = 1, nd
+          call write_iter_flush(writ%out(LOCAL_OUT_ENERGY, id)%handle)
+        end do
+      end if
     end if
 
     call profiling_out(prof)
@@ -285,24 +288,19 @@ contains
   end subroutine local_write_iter
 
   ! ---------------------------------------------------------
-  subroutine local_write_density(out_dens, out_pot, nd, domain, lab, inside, center, & 
-                                gr, geo, st, hm, ks, mc, iter, l_start, start, how)
+  subroutine local_write_density(out_dens, out_pot, nd, lab, inside, & 
+                                gr, geo, st, hm, ks, iter, how)
     type(local_write_prop_t),      intent(inout) :: out_dens(:)
     type(local_write_prop_t),      intent(inout) :: out_pot(:)
     integer,                  intent(in)    :: nd 
-    type(box_union_t),        intent(in)    :: domain(:)
     character(len=15),        intent(in)    :: lab(:)
     logical,                  intent(in)    :: inside(:,:)
-    FLOAT,                    intent(in)    :: center(:,:)
     type(grid_t),         intent(inout) :: gr
     type(geometry_t),     intent(inout) :: geo
     type(states_t),       intent(inout) :: st
     type(hamiltonian_t),  intent(inout) :: hm
     type(v_ks_t),         intent(inout) :: ks
-    type(multicomm_t),    intent(in)    :: mc
     integer,              intent(in) :: iter
-    integer,              intent(in) :: l_start
-    logical,              intent(in) :: start
     integer,              intent(in) :: how
 
     integer            :: id, is, ix, ierr
@@ -354,7 +352,6 @@ contains
     end do
 
     if (any(out_pot(:)%write)) then
-      call v_ks_init(ks, gr, st, geo, mc)
       do is = 1, st%d%nspin
       !Computes Hartree potential
         call dpoisson_solve(psolver, hm%vhartree, st%rho(1:gr%mesh%np, is))
@@ -378,27 +375,23 @@ contains
   end subroutine local_write_density
 
   ! ---------------------------------------------------------
-  subroutine local_write_energy(out_energy, nd, domain, lab, inside, center, & 
-                                gr, geo, st, hm, ks, mc, iter, l_start, start, how)
+  subroutine local_write_energy(out_energy, nd, lab, inside, & 
+                                gr, geo, st, hm, ks, iter, l_start, start)
     type(local_write_prop_t),      intent(inout) :: out_energy(:)
     integer,                  intent(in)    :: nd 
-    type(box_union_t),        intent(in)    :: domain(:)
     character(len=15),        intent(in)    :: lab(:)
     logical,                  intent(in)    :: inside(:,:)
-    FLOAT,                    intent(in)    :: center(:,:)
     type(grid_t),         intent(inout) :: gr
     type(geometry_t),     intent(inout) :: geo
     type(states_t),       intent(inout) :: st
     type(hamiltonian_t),  intent(inout) :: hm
     type(v_ks_t),         intent(inout) :: ks
-    type(multicomm_t),    intent(in)    :: mc
     integer,              intent(in) :: iter
     integer,              intent(in) :: l_start
     logical,              intent(in) :: start
-    integer,              intent(in) :: how
 
-    integer :: id, ii, is, ix, ierr, jd
-    character(len=120) :: folder, out_name, aux
+    integer :: id, ii, is, ix, jd
+    character(len=120) :: aux
     FLOAT              :: geh, gexc, leh, lexc
     FLOAT, allocatable :: tmp_rhoi(:), st_rho(:)
     FLOAT, allocatable :: hm_vxc(:), hm_vh(:)
@@ -408,49 +401,50 @@ contains
     SAFE_ALLOCATE(tmp_rhoi(1:gr%mesh%np))
     SAFE_ALLOCATE(st_rho(1:gr%mesh%np_part))
     SAFE_ALLOCATE(hm_vxc(1:gr%mesh%np))
-    SAFE_ALLOCATE(hm_vh(1:gr%mesh%np))
+    SAFE_ALLOCATE(hm_vh(1:gr%mesh%np_part))
 
-    if(.not.mpi_grp_is_root(mpi_world)) return ! only first node outputs
+    if(mpi_grp_is_root(mpi_world)) then  ! only first node outputs
 
-    if(iter == l_start .and. start) then
-      do id = 1, nd   
-        call local_write_print_header_init(out_energy(id)%handle)
-
-      ! first line -> column names
-        write(aux,'(a,i4.4,2x,a,2x,a,2x,a)')'# Domain ID:',id,'- ',trim(lab(id))
-        call write_iter_header(out_energy(id)%handle, trim(aux))
-        write(aux,'(a)')trim(lab(id))
-        call write_iter_header(out_energy(id)%handle, trim(aux))
-        call write_iter_nl(out_energy(id)%handle)
-        call write_iter_header_start(out_energy(id)%handle)
-        aux = 'Total Hartree'
-        call write_iter_header(out_energy(id)%handle, trim(aux))
-        aux = 'Total Int[n*vxc]'
-        call write_iter_header(out_energy(id)%handle, trim(aux))
-        write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vh(',id,')]'
-        call write_iter_header(out_energy(id)%handle, trim(aux))
-        write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vxc(',id,')]'
-        call write_iter_header(out_energy(id)%handle, trim(aux))
-        do jd = 1, nd
-          if (jd /= id) then
-            write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vh(',jd,')]'
-            call write_iter_header(out_energy(id)%handle, trim(aux))
-            write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vxc(',jd,')]'
-            call write_iter_header(out_energy(id)%handle, trim(aux))
-          end if
+      if(iter == l_start .and. start) then
+        do id = 1, nd   
+          call local_write_print_header_init(out_energy(id)%handle)
+    
+        ! first line -> column names
+          write(aux,'(a,i4.4,2x,a,2x,a,2x,a)')'# Domain ID:',id,'- ',trim(lab(id))
+          call write_iter_header(out_energy(id)%handle, trim(aux))
+          write(aux,'(a)')trim(lab(id))
+          call write_iter_header(out_energy(id)%handle, trim(aux))
+          call write_iter_nl(out_energy(id)%handle)
+          call write_iter_header_start(out_energy(id)%handle)
+          aux = 'Total Hartree'
+          call write_iter_header(out_energy(id)%handle, trim(aux))
+          aux = 'Total Int[n*vxc]'
+          call write_iter_header(out_energy(id)%handle, trim(aux))
+          write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vh(',id,')]'
+          call write_iter_header(out_energy(id)%handle, trim(aux))
+          write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vxc(',id,')]'
+          call write_iter_header(out_energy(id)%handle, trim(aux))
+          do jd = 1, nd
+            if (jd /= id) then
+              write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vh(',jd,')]'
+              call write_iter_header(out_energy(id)%handle, trim(aux))
+              write(aux,'(a,i2.2,a,i2.2,a)')'Int[n(',id,')*vxc(',jd,')]'
+              call write_iter_header(out_energy(id)%handle, trim(aux))
+            end if
+          end do
+          call write_iter_nl(out_energy(id)%handle)
+    
+        ! units
+          call write_iter_string(out_energy(id)%handle, '#[Iter n.]')
+          call write_iter_header(out_energy(id)%handle, '[' // trim(units_abbrev(units_out%time)) // ']')
+          do ii = 1, 2*nd + 2
+            call write_iter_header(out_energy(id)%handle, '[' // trim(units_abbrev(units_out%energy)) // ']')
+          end do
+          call write_iter_nl(out_energy(id)%handle)
+        
+          call local_write_print_header_end(out_energy(id)%handle)
         end do
-        call write_iter_nl(out_energy(id)%handle)
-
-      ! units
-        call write_iter_string(out_energy(id)%handle, '#[Iter n.]')
-        call write_iter_header(out_energy(id)%handle, '[' // trim(units_abbrev(units_out%time)) // ']')
-        do ii = 1, 2*nd + 2
-          call write_iter_header(out_energy(id)%handle, '[' // trim(units_abbrev(units_out%energy)) // ']')
-        end do
-        call write_iter_nl(out_energy(id)%handle)
-      
-        call local_write_print_header_end(out_energy(id)%handle)
-      end do
+      end if
     end if
 
     ! TODO: Make new files for each nspin value. 
@@ -464,13 +458,16 @@ contains
       hm_vxc(:) = hm%vxc(:, is)
       hm_vh(:) = hm%vhartree(:)
      !Compute Global Values
-      geh = dmf_integrate(gr%mesh, st_rho(1:gr%mesh%np)*hm%vhartree) 
+      geh = dmf_integrate(gr%mesh, st_rho(1:gr%mesh%np)*hm%vhartree(1:gr%mesh%np)) 
       gexc = dmf_integrate(gr%mesh, st_rho(1:gr%mesh%np)*hm_vxc(1:gr%mesh%np))
+
       do id = 1, nd
-        call write_iter_set(out_energy(id)%handle, iter)
-        call write_iter_start(out_energy(id)%handle)
-        call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, geh), 1)
-        call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, gexc), 1)
+        if (mpi_grp_is_root(mpi_world)) then
+          call write_iter_set(out_energy(id)%handle, iter)
+          call write_iter_start(out_energy(id)%handle)
+          call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, geh), 1)
+          call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, gexc), 1)
+        end if
      !Compute Local Values
         tmp_rhoi = M_ZERO
         st%rho(:,is) = M_ZERO
@@ -482,11 +479,13 @@ contains
         call v_ks_calc(ks, hm, st, geo, calc_eigenval = .false. , calc_berry = .false. , calc_energy = .false.)
         tmp_rhoi(1:gr%mesh%np) = st%rho(1:gr%mesh%np, is)
       !eh = Int[n(id)*v_h(id)]
-        leh = dmf_integrate(gr%mesh, tmp_rhoi*hm%vhartree) 
-        call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, leh), 1)
+        leh = dmf_integrate(gr%mesh, tmp_rhoi*hm%vhartree(1:gr%mesh%np)) 
       !exc = Int[n(id)*v_xc(id)]
         lexc = dmf_integrate(gr%mesh, tmp_rhoi*hm%vxc(1:gr%mesh%np,is))
-        call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, lexc), 1)
+        if (mpi_grp_is_root(mpi_world)) then
+          call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, leh), 1)
+          call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, lexc), 1)
+        end if
         do jd = 1, nd
           if (jd /= id) then
             ! TODO: Check for domains overlaping to avoid segmentation fault. 
@@ -498,17 +497,19 @@ contains
               if (inside(ix, jd)) st%rho(ix, is) = st_rho(ix)
             end do
             call v_ks_calc(ks, hm, st, geo, calc_eigenval = .false. , calc_berry = .false. , calc_energy = .false.)
-            leh = dmf_integrate(gr%mesh, tmp_rhoi*hm%vhartree) 
-            call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, leh), 1)
+            leh = dmf_integrate(gr%mesh, tmp_rhoi*hm%vhartree(1:gr%mesh%np)) 
           !exc = Int[n(id)*v_xc(jd)]
             lexc = dmf_integrate(gr%mesh, tmp_rhoi*hm%vxc(1:gr%mesh%np, is))
-            call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, lexc), 1)
+            if (mpi_grp_is_root(mpi_world)) then
+              call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, leh), 1)
+              call write_iter_double(out_energy(id)%handle, units_from_atomic(units_out%energy, lexc), 1)
+            end if
           end if
         end do
         st%rho(:,is) = st_rho(:)
         hm%vxc(:,is) = hm_vxc(:)
         hm%vhartree(:) = hm_vh(:)
-        call write_iter_nl(out_energy(id)%handle)
+        if (mpi_grp_is_root(mpi_world)) call write_iter_nl(out_energy(id)%handle)
       end do 
     end do
 
@@ -519,6 +520,7 @@ contains
     POP_SUB(local_write_energy)
   end subroutine local_write_energy
 
+  ! ---------------------------------------------------------
   subroutine local_write_multipole(out_multip, nd, domain, lab, inside, center, & 
                                 gr, geo, st, lmax, kick, iter, l_start, start, how)
     type(local_write_prop_t),      intent(inout) :: out_multip(:)
@@ -541,7 +543,7 @@ contains
     character(len=120) :: aux
     FLOAT, allocatable :: ionic_dipole(:,:), multipole(:,:,:)
     CMPLX, allocatable :: zmultipole(:,:,:)
-    logical :: cmplxscl
+    logical :: cmplxscl, use_ionic_dipole
 
     PUSH_SUB(local_write_multipole)
 
@@ -659,13 +661,26 @@ contains
     end do
     ! FIXME: with cmplxscl we need to think how to treat 
     ! the ions dipole moment 
-    call local_geometry_dipole(nd, domain, geo, ionic_dipole)
-    do is = 1, st%d%nspin
-      do id = 1, nd
-        multipole(2:gr%mesh%sb%dim+1, is, id) = -ionic_dipole(1:gr%mesh%sb%dim, id)/st%d%nspin & 
-                                                - multipole(2:gr%mesh%sb%dim+1, is, id)
+    ! For transition densities or density differences there is no need to add the ionic dipole
+    
+    !%Variable LDIonicDipole
+    !%Type logical
+    !%Default yes
+    !%Section Utilities::oct-local_multipoles
+    !%Description
+    !% Describes if the ionic dipole has to be take into account
+    !% when computing the multipoles.
+    !%End
+    call parse_variable('LDIonicDipole', .true., use_ionic_dipole)
+    if (use_ionic_dipole) then
+      call local_geometry_dipole(nd, domain, geo, ionic_dipole)
+      do is = 1, st%d%nspin
+        do id = 1, nd
+          multipole(2:gr%mesh%sb%dim+1, is, id) = -ionic_dipole(1:gr%mesh%sb%dim, id)/st%d%nspin & 
+                                                  - multipole(2:gr%mesh%sb%dim+1, is, id)
+        end do
       end do
-    end do
+    end if
 
     if(mpi_grp_is_root(mpi_world)) then
       do id = 1, nd
@@ -696,7 +711,7 @@ contains
     end if
 
    ! Write multipoles in BILD format
-    if(iand(how, OPTION__OUTPUTFORMAT__BILD) /= 0 )then
+    if(iand(how, OPTION__OUTPUTFORMAT__BILD) /= 0 .and. mpi_grp_is_root(mpi_world))then
       !FIXME: to include spin larger than 1.
       is = 1
       do id = 1, nd

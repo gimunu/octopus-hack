@@ -15,12 +15,12 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: configure.ac 15124 2016-02-25 23:42:17Z dstrubbe $
+## $Id: configure.ac 15170 2016-03-02 22:10:35Z xavier $
 
 AC_PREREQ(2.59)
 # Note: the version string is written into ETSF_IO files, so when you update
 # this, update the results for test periodic_systems/09-etsf_io.test too.
-AC_INIT([Octopus],[tetricus],[octopus-devel@tddft.org],[octopus])
+AC_INIT([Octopus],[mimus],[octopus-devel@tddft.org],[octopus])
 AC_CONFIG_SRCDIR([src/basic/global.F90])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE
@@ -28,7 +28,7 @@ AM_INIT_AUTOMAKE
 AC_CONFIG_HEADERS([config.h])
 
 # Installation prefix by default
-AC_PREFIX_DEFAULT([/opt/etsf])
+AC_PREFIX_DEFAULT([/usr/local])
 
 # who am i
 AC_CANONICAL_HOST
@@ -96,7 +96,6 @@ strndup tcgetpgrp scandir alphasort \
 sigaction readdir closedir strchr strtod \
 perror strcasestr sbrk getopt_long uname ioctl])
 
-ACX_PAPI
 ACX_ARCH
 
 dnl ============================================================================
@@ -260,9 +259,7 @@ ACX_LAPACK([], AC_MSG_ERROR([could not find required LAPACK library]))
 
 dnl check for GSL
 AC_LANG_PUSH(C)
-
-AX_PATH_GSL([1],[9],[], 
-  AC_MSG_ERROR([could not find required GSL library]))
+AX_PATH_GSL
 
 dnl check for GD library
 ACX_GDLIB

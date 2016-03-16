@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: symmetries.F90 14695 2015-10-23 10:19:48Z jrfsousa $
+!! $Id: symmetries.F90 15175 2016-03-03 22:51:08Z acastro $
 
 #include "global.h"
 
@@ -62,7 +62,7 @@ module symmetries_m
     subroutine symmetries_finite_init(natoms, types, positions, verbosity, point_group)
       integer, intent(in)  :: natoms
       integer, intent(in)  :: types !< (natoms)
-      real*8,  intent(in)  :: positions !< (3, natoms)
+      real(8), intent(in)  :: positions !< (3, natoms)
       integer, intent(in)  :: verbosity
       integer, intent(out) :: point_group
     end subroutine symmetries_finite_init

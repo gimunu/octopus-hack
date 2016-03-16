@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: local_multipoles.F90 14997 2016-01-06 23:55:14Z xavier $
+!! $Id: local_multipoles.F90 15189 2016-03-08 18:12:21Z jjornet $
 
 #include "global.h"
 
@@ -24,6 +24,7 @@ program oct_local_multipoles
   use basins_m
   use box_m
   use box_union_m
+  use calc_mode_par_m
   use command_line_m
   use geometry_m
   use global_m
@@ -72,6 +73,7 @@ program oct_local_multipoles
 
   ! Initialize stuff
   call global_init(is_serial = .false.)
+  call calc_mode_par_init()
 
   call messages_init()
 
@@ -86,6 +88,8 @@ program oct_local_multipoles
 
   call unit_system_init()
   call restart_module_init()
+
+  call calc_mode_par_set_parallelization(P_STRATEGY_STATES, default = .false.)
   call system_init(sys)
   call simul_box_init(sb, sys%geo, sys%space)
   call hamiltonian_init(hm, sys%gr, sys%geo, sys%st, sys%ks%theory_level, sys%ks%xc_family)
@@ -376,7 +380,7 @@ contains
       end if
 
       call local_write_iter(local%writ, local%nd, local%domain, local%lab, local%inside, local%dcm, & 
-                              sys%gr, sys%st, hm, sys%ks, sys%mc, sys%geo, kick, iter, dt, l_start, l_end, ldoverwrite)
+                              sys%gr, sys%st, hm, sys%ks, sys%geo, kick, iter, l_start, ldoverwrite)
       call loct_progress_bar(iter-l_start, l_end-l_start) 
     end do
 
@@ -703,6 +707,7 @@ contains
     
     PUSH_SUB(local_inside_domain)
 
+    !TODO: find a parallel algorithm to perform the charge-density fragmentation.
     message(1) = 'Info: Assigning mesh points inside each local domain'
     call messages_info(1)
     SAFE_ALLOCATE(ff2(1:sys%gr%mesh%np,1))
@@ -779,7 +784,7 @@ contains
     integer,           intent(in)    :: dsh(:)
     logical,           intent(out)   :: inside(:,:)
 
-    integer               :: how, ia, ib, id, ierr, ip, ix, nb, rankmin
+    integer               :: how, ia, ib, id, ierr, ip, ix, rankmin
     integer               :: max_check
     integer, allocatable  :: dunit(:), domain_map(:,:), ion_map(:)
     FLOAT                 :: dmin, dd
@@ -802,13 +807,21 @@ contains
     !%End
     call parse_variable('LDUseAtomicRadii', .false., lduseatomicradii)
 
+    SAFE_ALLOCATE(ion_map(1:sys%geo%natoms))
+
+    max_check = 1
+    do id = 1, nd
+      if (box_union_get_nboxes(dom(id)) > max_check) max_check = box_union_get_nboxes(dom(id))
+    end do
+    SAFE_ALLOCATE(domain_map(1:nd, 1:max_check))
+
     do id = 1, nd
       if( dsh(id) /= BADER ) then
         call box_union_inside_vec(dom(id), sys%gr%mesh%np, sys%gr%mesh%x, inside(:,id))
       else
       ! Assign basins%map to ions
         if (lduseatomicradii .and. (id == 1)) then
-          SAFE_ALLOCATE(ion_map(1:sys%geo%natoms))
+          ion_map = 0
           do ia = 1, sys%geo%natoms
             ion_map(ia) = basins%map(mesh_nearest_point(sys%gr%mesh, sys%geo%atom(ia)%x, dmin, rankmin)) 
           end do
@@ -819,26 +832,25 @@ contains
                 dd = sum((sys%gr%mesh%x(ip, 1:sys%gr%mesh%sb%dim) & 
                       - sys%geo%atom(ia)%x(1:sys%gr%mesh%sb%dim))**2)
                 dd = sqrt(dd)
-                if ( dd < species_def_rsize(sys%geo%atom(ia)%species) ) basins%map(ip) = ion_map(ia)
+                if ( dd <= species_vdw_radius(sys%geo%atom(ia)%species) ) basins%map(ip) = ion_map(ia)
               end do
             end if
           end do
-          SAFE_DEALLOCATE_A(ion_map)
         end if
-        nb = box_union_get_nboxes(dom(id))
-        max_check = nb
-        SAFE_ALLOCATE(domain_map(1:nd,1:max_check))
-        do ib = 1, nb
+        domain_map = 0
+        do ib = 1, box_union_get_nboxes(dom(id))
           xi = box_union_get_center(dom(id), ib)
           ix = mesh_nearest_point(sys%gr%mesh, xi, dmin, rankmin)
           domain_map(id,ib) = basins%map(ix)
         end do
         do ip = 1, sys%gr%mesh%np
-          if(any( domain_map(id,:) == basins%map(ip) ) ) inside(ip,id) = .true.
+          if(any( domain_map(id, 1:max_check) == basins%map(ip) ) ) inside(ip,id) = .true.
         end do
-        SAFE_DEALLOCATE_A(domain_map)
       end if
     end do
+
+    SAFE_DEALLOCATE_A(domain_map)
+    SAFE_DEALLOCATE_A(ion_map)
 
     !%Variable LDExtraWrite
     !%Type logical
@@ -850,15 +862,16 @@ contains
     !%End
     call parse_variable('LDExtraWrite', .false., extra_write)
 
+    SAFE_ALLOCATE(dble_domain_map(1:nd, 1:sys%gr%mesh%np))
+    SAFE_ALLOCATE(domain_mesh(1:sys%gr%mesh%np))
+
     if (extra_write) then
       call parse_variable('LDOutputFormat', 0, how)
       if(.not.varinfo_valid_option('OutputFormat', how, is_flag=.true.)) then
         call messages_input_error('LDOutputFormat')
       end if
-      SAFE_ALLOCATE(dble_domain_map(1:nd, 1:sys%gr%mesh%np))
-      SAFE_ALLOCATE(domain_mesh(1:sys%gr%mesh%np))
-      dble_domain_map = M_ZERO
-      domain_mesh = M_ZERO
+      dble_domain_map(1:nd, 1:sys%gr%mesh%np) = M_ZERO
+      domain_mesh(1:sys%gr%mesh%np) = M_ZERO
       do ip = 1, sys%gr%mesh%np
         do id = 1, nd
           if (inside(ip, id)) then 
@@ -870,16 +883,17 @@ contains
       
       write(filename,'(a,a,a)')'domain.mesh'
       call dio_function_output(how, &
-      trim('local.general'), trim(filename), sys%gr%mesh, domain_mesh(:) , unit_one, ierr, geo = sys%geo)
+      trim('local.general'), trim(filename), sys%gr%mesh, domain_mesh(1:sys%gr%mesh%np) , unit_one, ierr, geo = sys%geo)
       
       do id = 1, nd
         write(filename,'(a,a,a)')'domain.',trim(lab(id))
         call dio_function_output(how, &
-        trim('local.general'), trim(filename), sys%gr%mesh, dble_domain_map(id,:) , unit_one, ierr, geo = sys%geo)
+        trim('local.general'), trim(filename), sys%gr%mesh, dble_domain_map(id, 1:sys%gr%mesh%np) , unit_one, ierr, geo = sys%geo)
       end do
-      SAFE_DEALLOCATE_A(dble_domain_map)
-      SAFE_DEALLOCATE_A(domain_mesh)
     end if
+
+    SAFE_DEALLOCATE_A(dble_domain_map)
+    SAFE_DEALLOCATE_A(domain_mesh)
 
     SAFE_DEALLOCATE_A(xi)
     SAFE_DEALLOCATE_A(dunit)
@@ -922,8 +936,10 @@ contains
 
     PUSH_SUB(local_center_of_mass)
 
+    SAFE_ALLOCATE(sumw(1:nd))
+    sumw(1:nd) = M_ZERO
+
     center(:,:) = M_ZERO
-    SAFE_ALLOCATE(sumw(1:nd)); sumw(:) = M_ZERO
     do ia = 1, geo%natoms
       do  id = 1, nd
         if (box_union_inside(dom(id), geo%atom(ia)%x)) then
@@ -936,6 +952,7 @@ contains
     do id = 1, nd
       center(1:geo%space%dim,id) = center(1:geo%space%dim,id) / sumw(id)
     end do
+
     SAFE_DEALLOCATE_A(sumw)
 
     POP_SUB(local_center_of_mass)

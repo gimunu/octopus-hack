@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: global.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: global.F90 15148 2016-02-29 20:57:38Z dstrubbe $
 
 #include "global.h"
 
@@ -259,7 +259,7 @@ FCFLAGS
 #ifdef HAVE_OPENMP
     not_in_openmp = .not. omp_in_parallel()
 #else
-    not_in_openmp = .true.;
+    not_in_openmp = .true.
 #endif
 
   end function not_in_openmp

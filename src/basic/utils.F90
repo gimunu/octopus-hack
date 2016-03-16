@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: utils.F90 15015 2016-01-08 21:24:27Z xavier $
+!! $Id: utils.F90 15150 2016-02-29 21:53:42Z dstrubbe $
 
 #include "global.h"
 
@@ -304,9 +304,6 @@ contains
 #endif
 #ifdef HAVE_NFFT
     get_optional_libraries = trim(get_optional_libraries)//' nfft'
-#endif
-#ifdef HAVE_PAPI
-    get_optional_libraries = trim(get_optional_libraries)//' papi'
 #endif
 #ifdef HAVE_PARMETIS
     get_optional_libraries = trim(get_optional_libraries)//' parmetis'

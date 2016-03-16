@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 16-scfinlcao_std.01-gs.inp 14678 2015-10-19 06:40:46Z xavier $
+# $Id: 16-scfinlcao_std.01-gs.inp 15139 2016-02-27 13:01:02Z xavier $
 #
 CalculationMode = gs
 FromScratch = yes
@@ -40,3 +40,7 @@ SCFCalculatePartialCharges = yes
 
 ExperimentalFeatures = yes
 MixField = density
+
+#We need to disable OpenCL as the OpenSCAD file changes considerably for small numerical differences
+DisableOpenCL = yes
+

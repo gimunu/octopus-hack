@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian_base_inc.F90 14634 2015-10-04 05:57:39Z xavier $
+!! $Id: hamiltonian_base_inc.F90 15140 2016-02-29 14:52:20Z xavier $
 
 subroutine X(hamiltonian_base_local)(this, mesh, std, ispin, psib, vpsib)
   type(hamiltonian_base_t),    intent(in)    :: this
@@ -29,6 +29,7 @@ subroutine X(hamiltonian_base_local)(this, mesh, std, ispin, psib, vpsib)
 
   if(batch_status(psib) == BATCH_CL_PACKED) then
 #ifdef HAVE_OPENCL
+    ASSERT(.not. allocated(this%Impotential))
     call X(hamiltonian_base_local_sub)(this%potential, mesh, std, ispin, &
       psib, vpsib, potential_opencl = this%potential_opencl)
 #endif

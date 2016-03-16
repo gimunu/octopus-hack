@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: libfm.m4 10978 2013-07-11 15:28:46Z micael $
+## $Id: libfm.m4 15180 2016-03-04 21:35:04Z dstrubbe $
 ##
 
 dnl NOT available from the GNU Autoconf Macro Archive at:
@@ -73,10 +73,8 @@ LIBS="$acx_libfm_save_LIBS"
 dnl Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
 if test x"$acx_libfm_ok" = xyes; then
   AC_DEFINE(HAVE_LIBFM,1,[Defined if you have LIBFM library.])
-  $1
 else
   AC_MSG_WARN([Could not find Libfm library. 
                *** Will compile without Libfm support])
-  $2
 fi
 ])dnl ACX_LIBFM

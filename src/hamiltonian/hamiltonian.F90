@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian.F90 15103 2016-02-24 23:20:07Z umberto $
+!! $Id: hamiltonian.F90 15140 2016-02-29 14:52:20Z xavier $
 
 #include "global.h"
 
@@ -1141,7 +1141,8 @@ contains
     if(this%rashba_coupling**2 > M_ZERO) apply = .false.
     if(this%ep%non_local .and. .not. this%hm_base%apply_projector_matrices) apply = .false.
     if(iand(this%xc_family, XC_FAMILY_MGGA + XC_FAMILY_HYB_MGGA) /= 0)  apply = .false. 
-
+    if(this%ab == IMAGINARY_ABSORBING .and. opencl_is_enabled()) apply = .false.
+    
   end function hamiltonian_apply_packed
 
   ! -----------------------------------------------------------------

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: kpoints.F90 15009 2016-01-08 09:32:49Z umberto $
+!! $Id: kpoints.F90 15154 2016-03-01 16:54:21Z dstrubbe $
 
 #include "global.h"
   
@@ -309,7 +309,8 @@ contains
       !% zone, and the actual number of <i>k</i>-points is usually
       !% reduced exploiting the symmetries of the system.  By default
       !% the grid will always include the <math>\Gamma</math>-point. An optional
-      !% second row can specify a shift in the <i>k</i>-points (between 0 and 1).
+      !% second row can specify a shift in the <i>k</i>-points (between 0.0 and 1.0),
+      !% in units of the Brillouin zone divided by the number in the first row.
       !% The number of columns should be equal to <tt>Dimensions</tt>,
       !% but the grid and shift numbers should be 1 and zero in finite directions.
       !%

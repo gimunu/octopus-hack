@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: solvers.F90 13468 2015-03-22 06:22:58Z xavier $
+!! $Id: solvers.F90 15174 2016-03-03 17:44:38Z acastro $
 
 #include "global.h"
 
@@ -44,7 +44,10 @@ module solvers_m
     zqmr_spec_dotu,             &
     dqmr_spec_dotu,             &
     zqmr_gen_dotu,              &
-    dqmr_gen_dotu
+    dqmr_gen_dotu,              &
+    didrs,                      &
+    zidrs
+
 
   !> ---------------------------------------------------------
   !! QMR (quasi-minimal residual) algorithm for complex symmetric matrices

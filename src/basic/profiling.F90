@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: profiling.F90 14829 2015-11-26 23:05:33Z xavier $
+!! $Id: profiling.F90 15150 2016-02-29 21:53:42Z dstrubbe $
 
 #include "global.h"
 
@@ -60,9 +60,6 @@ module profiling_m
   use messages_m
   use mpi_m
   use parser_m
-#ifdef HAVE_PAPI
-  use papi_m
-#endif
   use sort_om
   use string_m
   use types_m
@@ -235,10 +232,6 @@ contains
 
     call get_output_dir()
 
-#ifdef HAVE_PAPI
-    call papi_init()
-#endif
-
     if(iand(prof_vars%mode, PROFILING_MEMORY_FULL) /= 0) then
       prof_vars%mode = ior(prof_vars%mode, PROFILING_MEMORY)
     end if
@@ -292,7 +285,6 @@ contains
 
     ! ---------------------------------------------------------
     subroutine get_output_dir()
-      character(len=6) :: dirnum
 
       PUSH_SUB(profiling_init.get_output_dir)
 
@@ -322,10 +314,6 @@ contains
 
     call profiling_out(C_PROFILING_COMPLETE_RUN)
     call profiling_output()
-
-#ifdef HAVE_PAPI
-    call papi_end()
-#endif
 
     do ii = 1, prof_vars%last_profile
       prof_vars%profile_list(ii)%p%initialized = .false.
@@ -429,9 +417,6 @@ contains
                                                          !! Only use it for functions that otherwise would spoil statistics.
 
     real(8) :: now
-#ifdef HAVE_PAPI
-    real(8) :: ops
-#endif
 
     if(.not.in_profiling_mode) return
     if(.not. not_in_openmp()) return
@@ -456,10 +441,6 @@ contains
       !we are orphans
       nullify(this%parent)
     end if
-#ifdef HAVE_PAPI
-    call papi_get_count_and_reset(ops)
-    if(associated(this%parent)) this%parent%op_count_current = this%parent%op_count_current + ops
-#endif
 
     this%op_count_current = M_ZERO
     this%tr_count_current = M_ZERO
@@ -482,9 +463,6 @@ contains
     type(profile_t),   intent(inout) :: this
 
     real(8) :: now, time_spent
-#ifdef HAVE_PAPI
-    real(8) :: ops
-#endif
 
     if(.not.in_profiling_mode) return
     if(.not. not_in_openmp()) return
@@ -507,11 +485,6 @@ contains
     if (time_spent < this%min_time) then
       this%min_time = time_spent
     end if
-
-#ifdef HAVE_PAPI
-    call papi_get_count_and_reset(ops)
-    this%op_count_current = this%op_count_current + ops
-#endif
 
     this%op_count = this%op_count + this%op_count_current
     this%tr_count = this%tr_count + this%tr_count_current
@@ -544,12 +517,10 @@ contains
   subroutine iprofiling_count_operations(ops)
     integer,         intent(in)    :: ops
 
-#ifndef HAVE_PAPI
     if(.not.in_profiling_mode) return
     ! no PUSH_SUB, called too often
 
     prof_vars%current%p%op_count_current = prof_vars%current%p%op_count_current + dble(ops)
-#endif
   end subroutine iprofiling_count_operations
 
 
@@ -558,13 +529,10 @@ contains
   subroutine rprofiling_count_operations(ops)
     real(4),         intent(in)    :: ops
 
-#ifndef HAVE_PAPI
     if(.not.in_profiling_mode) return
     ! no PUSH_SUB, called too often
     
     prof_vars%current%p%op_count_current = prof_vars%current%p%op_count_current + dble(ops)
-    
-#endif
   end subroutine rprofiling_count_operations
 
 
@@ -573,13 +541,11 @@ contains
   subroutine dprofiling_count_operations(ops)
     real(8),         intent(in)    :: ops
 
-#ifndef HAVE_PAPI
     if(.not.in_profiling_mode) return
     ! no PUSH_SUB, called too often
     
     prof_vars%current%p%op_count_current = prof_vars%current%p%op_count_current + ops
 
-#endif
   end subroutine dprofiling_count_operations
 
 
@@ -816,7 +782,7 @@ contains
   !! (only, if pass_in and pass_out are equal).
   subroutine profiling_output()
     
-    integer          :: ii, jj
+    integer          :: ii
     integer          :: iunit
     real(8)          :: total_time
     type(profile_t), pointer :: prof

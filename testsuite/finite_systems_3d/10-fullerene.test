@@ -1,13 +1,15 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 10-fullerene.test 14159 2015-05-30 17:07:56Z xavier $
+# $Id: 10-fullerene.test 15191 2016-03-09 01:09:36Z xavier $
 
 Test       : Fullerene
 Program    : octopus
 TestGroups : long-run, finite_systems_3d
 Enabled    : Yes
 
-Processors: 4
-Input: 10-fullerene.01-gs.inp
+Processors : 4
+ExtraFile  : 10-fullerene.geometry.xyz
+Input      : 10-fullerene.01-gs.inp
+
 match ; Total energy       ; GREPFIELD(static/info, 'Total       =', 3) ; -340.67480783
 match ; Ion-ion energy     ; GREPFIELD(static/info, 'Ion-ion     =', 3) ; 3706.61771965
 match ; Eigenvalues sum    ; GREPFIELD(static/info, 'Eigenvalues =', 3) ; -71.57879406

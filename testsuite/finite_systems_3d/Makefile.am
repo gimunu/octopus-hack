@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 14731 2015-11-01 23:37:04Z xavier $
+## $Id: Makefile.am 15194 2016-03-10 00:30:35Z xavier $
 
 sharedir = $(pkgdatadir)/testsuite/finite_systems_3d
 
@@ -53,6 +53,7 @@ dist_share_DATA = \
 	06-restart.test                                \
 	07-spin_orbit_coupling.01-hgh.inp              \
 	07-spin_orbit_coupling.02-rkb.inp              \
+	07-spin_orbit_coupling.02-xe-pseudo.upf        \
 	07-spin_orbit_coupling.test                    \
 	08-spin_orbit_coupling_full.01-hgh.inp         \
 	08-spin_orbit_coupling_full.02-rkb.inp         \
@@ -64,6 +65,7 @@ dist_share_DATA = \
 	09-spinors.test                                \
 	10-fullerene.test                              \
 	10-fullerene.01-gs.inp                         \
+	10-fullerene.geometry.xyz                      \
 	12-forces.01-N2_gs.inp \
         12-forces.02-N2_gs.inp \
         12-forces.03-N2_gs.inp \

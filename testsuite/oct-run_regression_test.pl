@@ -17,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 #
-# $Id: oct-run_regression_test.pl 15022 2016-01-09 04:19:06Z xavier $
+# $Id: oct-run_regression_test.pl 15190 2016-03-09 01:08:25Z xavier $
 
 use warnings;
 use Getopt::Std;
@@ -409,6 +409,11 @@ while ($_ = <TESTSUITE>) {
       elsif ( $_ =~ /^Precision\s*:\s*(.*)\s*$/) {
 	set_precision($1);
       }
+
+      elsif ( $_ =~ /^ExtraFile\s*:\s*(.*)\s*$/) {
+        $file_cp = dirname($opt_f)."/".$1;
+        $cp_return = system("cp $file_cp $workdir/");
+      } 
 
       elsif ( $_ =~ /^match/ ) {
 	  # FIXME: should we do matches even when execution failed?

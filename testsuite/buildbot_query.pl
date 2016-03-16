@@ -17,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 #
-# $Id: buildbot_query.pl 14239 2015-06-10 20:02:47Z dstrubbe $
+# $Id: buildbot_query.pl 15147 2016-02-29 20:36:20Z dstrubbe $
 
 # Query a buildbot using the Octopus/APE/BerkeleyGW testsuite infrastructure for
 # values obtained by each buildslave for a particular test and match.
@@ -38,7 +38,7 @@ if(length($branch) == 0) {
 
 # options specifying setup for Octopus
 $bbpath = "http://www.tddft.org/programs/octopus/buildbot";
-$shell_num = 3;
+$shell_num = 4;
 
 print "URL: $bbpath\n";
 print "Branch: $branch\n";
