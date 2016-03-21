@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: metis.F90 13166 2015-02-23 22:03:17Z dstrubbe $
+!! $Id: metis.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -23,7 +23,7 @@
 !> This module contains interfaces for METIS and PARMETIS routines
 ! -----------------------------------------------------------------------
 
-module metis_m
+module metis_oct_m
   implicit none
 
   public
@@ -138,7 +138,7 @@ module metis_m
 #endif
   end interface
 
-end module metis_m
+end module metis_oct_m
 
 !! Local Variables:
 !! mode: f90

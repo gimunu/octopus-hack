@@ -15,10 +15,10 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: test_parameters.F90 13811 2015-04-09 01:12:00Z dstrubbe $
+!! $Id: test_parameters.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
-module test_parameters_m
+module test_parameters_oct_m
   
   private
   
@@ -31,7 +31,7 @@ module test_parameters_m
     integer :: max_blocksize
   end type test_parameters_t
 
-end module test_parameters_m
+end module test_parameters_oct_m
 
 !! Local Variables:
 !! mode: f90

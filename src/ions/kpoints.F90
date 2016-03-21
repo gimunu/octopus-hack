@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: kpoints.F90 15154 2016-03-01 16:54:21Z dstrubbe $
+!! $Id: kpoints.F90 15204 2016-03-19 13:17:02Z xavier $
 
 #include "global.h"
   
-module kpoints_m
-  use geometry_m
-  use global_m
-  use loct_m
-  use messages_m
-  use parser_m
-  use profiling_m
-  use sort_om
-  use symmetries_m
-  use unit_m
-  use unit_system_m
-  use utils_m
+module kpoints_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use sort_oct_m
+  use symmetries_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use utils_oct_m
   
   implicit none
   
@@ -1038,7 +1038,7 @@ contains
 
   end function kpoints_have_zero_weight_path
 
-end module kpoints_m
+end module kpoints_oct_m
 
 !! Local Variables:
 !! mode: f90

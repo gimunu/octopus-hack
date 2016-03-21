@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: check_input_inc.F90 12409 2014-08-20 19:05:45Z acastro $
+!! $Id: check_input_inc.F90 15214 2016-03-21 12:47:45Z umberto $
 
 
   ! ---------------------------------------------------------
@@ -167,11 +167,11 @@
       end if
     end if
 
-    if( hm%ab  ==  MASK_ABSORBING) then
+    if(hm%bc%abtype == MASK_ABSORBING) then
       if( (oct%algorithm /= oct_algorithm_direct) .and. &
           (oct%algorithm /= oct_algorithm_newuoa) ) then
         write(message(1), '(a)') 'Cannot do QOCT with mask absorbing boundaries. Use either'
-        write(message(2), '(a)') '"AbsorbingBoudaries = sin2" or "AbsorbingBoundaries = no".'
+        write(message(2), '(a)') '"AbsorbingBoundaries = sin2" or "AbsorbingBoundaries = no".'
         call messages_fatal(2)
       end if
     end if

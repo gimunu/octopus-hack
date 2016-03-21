@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: io_csv_f.F90 14034 2015-05-19 15:31:40Z dstrubbe $
+!! $Id: io_csv_f.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 #include "io_binary.h"
 
-module io_csv_m
-  use global_m
-  use messages_m
+module io_csv_oct_m
+  use global_oct_m
+  use messages_oct_m
 
   implicit none 
 
@@ -59,7 +59,7 @@ contains
     POP_SUB(io_csv_get_info)
   end subroutine io_csv_get_info
 
-end module io_csv_m
+end module io_csv_oct_m
 
 !! Local Variables:
 !! mode: f90

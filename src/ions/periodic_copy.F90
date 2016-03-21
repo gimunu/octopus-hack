@@ -15,20 +15,20 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: periodic_copy.F90 14220 2015-06-05 15:51:28Z xavier $
+!! $Id: periodic_copy.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module periodic_copy_m
-  use geometry_m
-  use global_m
-  use io_m
-  use messages_m
-  use mpi_m
-  use profiling_m
-  use simul_box_m
-  use unit_m
-  use unit_system_m
+module periodic_copy_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
 
   implicit none
 
@@ -199,7 +199,7 @@ contains
     POP_SUB(periodic_write_crystal)
   end subroutine periodic_write_crystal
 
-end module periodic_copy_m
+end module periodic_copy_oct_m
 
 !! Local Variables:
 !! mode: f90

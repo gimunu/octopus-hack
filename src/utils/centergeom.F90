@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: centergeom.F90 12862 2015-02-06 17:48:44Z xavier $
+!! $Id: centergeom.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 program centergeom
-  use command_line_m
-  use geometry_m
-  use global_m
-  use io_m
-  use messages_m
-  use parser_m
-  use simul_box_m
-  use space_m
-  use unit_m
-  use unit_system_m
-  use xyz_adjust_m
+  use command_line_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use simul_box_oct_m
+  use space_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use xyz_adjust_oct_m
 
   implicit none
 

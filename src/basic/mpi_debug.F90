@@ -15,17 +15,17 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mpi_debug.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: mpi_debug.F90 15203 2016-03-19 13:15:05Z xavier $
 
 ! Routines to support MPI debugging.
 
 #include "global.h"
 
-module mpi_debug_m
-  use global_m
-  use loct_m
-  use messages_m
-  use mpi_m
+module mpi_debug_oct_m
+  use global_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use mpi_oct_m
 
   implicit none
 
@@ -196,7 +196,7 @@ contains
     neither_is_this_subroutine = 0
   end subroutine this_module_is_not_empty
 #endif
-end module mpi_debug_m
+end module mpi_debug_oct_m
 
 
 !! Local Variables:

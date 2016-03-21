@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: types.F90 13512 2015-03-24 15:20:56Z dstrubbe $
+!! $Id: types.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module types_m
+module types_oct_m
   
   implicit none
   
@@ -100,7 +100,7 @@ contains
 
   end function type_is_single
 
-end module types_m
+end module types_oct_m
 
 !! Local Variables:
 !! mode: f90

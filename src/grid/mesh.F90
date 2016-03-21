@@ -15,32 +15,32 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh.F90 14624 2015-10-03 13:39:53Z xavier $
+!! $Id: mesh.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module mesh_m
-  use curvilinear_m
-  use geometry_m
-  use global_m
-  use hypercube_m
-  use index_m
-  use io_m
-  use io_binary_m
-  use math_m
-  use mesh_cube_map_m
-  use messages_m
-  use mpi_m
-  use multicomm_m
-  use loct_m
-  use par_vec_m
-  use partition_m
-  use parser_m
-  use profiling_m
-  use simul_box_m
-  use species_m
-  use unit_m
-  use unit_system_m
+module mesh_oct_m
+  use curvilinear_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use hypercube_oct_m
+  use index_oct_m
+  use io_oct_m
+  use io_binary_oct_m
+  use math_oct_m
+  use mesh_cube_map_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use multicomm_oct_m
+  use loct_oct_m
+  use par_vec_oct_m
+  use partition_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
+  use species_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
 
   implicit none
   
@@ -786,7 +786,7 @@ contains
 
   end function mesh_compact_boundaries
 
-end module mesh_m
+end module mesh_oct_m
 
 
 !! Local Variables:

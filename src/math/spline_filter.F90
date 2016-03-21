@@ -15,16 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: spline_filter.F90 14978 2016-01-05 14:48:38Z xavier $
+!! $Id: spline_filter.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module spline_filter_m
-  use global_m
-  use io_m
-  use splines_m
-  use loct_math_m
-  use messages_m
+module spline_filter_oct_m
+  use global_oct_m
+  use io_oct_m
+  use splines_oct_m
+  use loct_math_oct_m
+  use messages_oct_m
 
   implicit none
 
@@ -161,7 +161,7 @@ contains
 
   end subroutine spline_filter_mask
 
-end module spline_filter_m
+end module spline_filter_oct_m
 
 !! Local Variables:
 !! mode: f90

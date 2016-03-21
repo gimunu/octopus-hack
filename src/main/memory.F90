@@ -15,17 +15,17 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: memory.F90 13469 2015-03-22 06:59:19Z xavier $
+!! $Id: memory.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module memory_m
-  use global_m
-  use mesh_m
-  use messages_m
-  use states_m
-  use system_m
-  use unit_system_m
+module memory_oct_m
+  use global_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use states_oct_m
+  use system_oct_m
+  use unit_system_oct_m
   
   implicit none
 
@@ -83,7 +83,7 @@ contains
 
   end subroutine memory_run
 
-end module memory_m
+end module memory_oct_m
 
 !! Local Variables:
 !! mode: f90

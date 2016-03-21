@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: unit.F90 12474 2014-09-04 15:28:39Z dstrubbe $
+!! $Id: unit.F90 15203 2016-03-19 13:15:05Z xavier $
 
 !
 !> Atomic weights should be read in "atomic mass units" (u) (not to
@@ -35,8 +35,8 @@
 
 #include "global.h"
 
-module unit_m
-  use global_m
+module unit_oct_m
+  use global_oct_m
 
   implicit none
 
@@ -245,7 +245,7 @@ contains
 
   end function units_sqrt
 
-end module unit_m
+end module unit_oct_m
 
 !! Local Variables:
 !! mode: f90

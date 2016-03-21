@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hirshfeld.F90 14576 2015-09-18 22:45:22Z xavier $
+!! $Id: hirshfeld.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module hirshfeld_m
-  use derivatives_m
-  use messages_m
-  use geometry_m
-  use global_m
-  use mesh_m
-  use mesh_function_m
-  use profiling_m
-  use ps_m
-  use species_pot_m
-  use states_m
-  use species_m
+module hirshfeld_oct_m
+  use derivatives_oct_m
+  use messages_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use mesh_oct_m
+  use mesh_function_oct_m
+  use profiling_oct_m
+  use ps_oct_m
+  use species_pot_oct_m
+  use states_oct_m
+  use species_oct_m
   
   implicit none
 
@@ -286,7 +286,7 @@ contains
     POP_SUB(hirshfeld_position_derivative)
   end subroutine hirshfeld_position_derivative
   
-end module hirshfeld_m
+end module hirshfeld_oct_m
 
 !! Local Variables:
 !! mode: f90

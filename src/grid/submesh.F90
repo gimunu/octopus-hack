@@ -15,26 +15,26 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: submesh.F90 14132 2015-05-29 01:09:57Z xavier $
+!! $Id: submesh.F90 15204 2016-03-19 13:17:02Z xavier $
  
 #include "global.h"
   
-module submesh_m
-  use batch_m
-  use blas_m
-  use comm_m
-  use global_m
-  use lalg_basic_m
-  use messages_m
-  use sort_om
-  use mesh_m
-  use mpi_m
-  use par_vec_m
-  use periodic_copy_m
-  use profiling_m
-  use simul_box_m
-  use unit_m
-  use unit_system_m
+module submesh_oct_m
+  use batch_oct_m
+  use blas_oct_m
+  use comm_oct_m
+  use global_oct_m
+  use lalg_basic_oct_m
+  use messages_oct_m
+  use sort_oct_m
+  use mesh_oct_m
+  use mpi_oct_m
+  use par_vec_oct_m
+  use periodic_copy_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
     
   implicit none
   private 
@@ -417,7 +417,7 @@ contains
 #include "complex.F90"
 #include "submesh_inc.F90"
 
-end module submesh_m
+end module submesh_oct_m
 
 !! Local Variables:
 !! mode: f90

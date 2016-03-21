@@ -15,32 +15,32 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: phonons_fd.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: phonons_fd.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module phonons_fd_m
-  use density_m
-  use energy_calc_m
-  use geometry_m
-  use global_m
-  use grid_m
-  use output_m
-  use hamiltonian_m
-  use mesh_m
-  use messages_m
-  use multicomm_m
-  use parser_m
-  use profiling_m
-  use restart_m
-  use scf_m
-  use states_m
-  use states_restart_m
-  use system_m
-  use unit_system_m
-  use utils_m 
-  use v_ks_m
-  use vibrations_m
+module phonons_fd_oct_m
+  use density_oct_m
+  use energy_calc_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use output_oct_m
+  use hamiltonian_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use multicomm_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use restart_oct_m
+  use scf_oct_m
+  use states_oct_m
+  use states_restart_oct_m
+  use system_oct_m
+  use unit_system_oct_m
+  use utils_oct_m 
+  use v_ks_oct_m
+  use vibrations_oct_m
 
   implicit none
 
@@ -222,7 +222,7 @@ contains
     POP_SUB(get_dyn_matrix)
   end subroutine get_dyn_matrix
 
-end module phonons_fd_m
+end module phonons_fd_oct_m
 
 !! Local Variables:
 !! mode: f90

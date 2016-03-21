@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: command_line.F90 15193 2016-03-09 17:48:57Z umberto $
+!! $Id: command_line.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -34,7 +34,7 @@
 !! can be managed in this "standard" way.
 !
 ! ---------------------------------------------------------
-module command_line_m
+module command_line_oct_m
 
   !< ---------------------------------------------------------
   !! The compilation depends on several macros defined at configure time (the m4 code that
@@ -293,7 +293,7 @@ contains
 #endif
 
 
-end module command_line_m
+end module command_line_oct_m
 
 
 

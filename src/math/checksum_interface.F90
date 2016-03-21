@@ -15,9 +15,9 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: checksum_interface.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: checksum_interface.F90 15203 2016-03-19 13:15:05Z xavier $
 
-module checksum_interface_m
+module checksum_interface_oct_m
   
   public ::                 &
     checksum_calculate
@@ -32,7 +32,7 @@ module checksum_interface_m
     end subroutine checksum_calculate
   end interface
 
-end module checksum_interface_m
+end module checksum_interface_oct_m
 
 !! Local Variables:
 !! mode: f90

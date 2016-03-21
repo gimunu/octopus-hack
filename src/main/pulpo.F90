@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pulpo.F90 13152 2015-02-22 19:16:36Z xavier $
+!! $Id: pulpo.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module pulpo_m
-  use global_m
-  use io_m
-  use loct_m
-  use messages_m
+module pulpo_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use messages_oct_m
 
   implicit none
 
@@ -52,7 +52,7 @@ contains
 
   end subroutine pulpo_print
 
-end module pulpo_m
+end module pulpo_oct_m
 
 !! Local Variables:
 !! mode: f90

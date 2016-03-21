@@ -15,21 +15,21 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: solvers.F90 15174 2016-03-03 17:44:38Z acastro $
+!! $Id: solvers.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 !> This module is intended to contain "only mathematical" functions
 !! and procedures.
 
-module solvers_m
-  use blas_m
-  use global_m
-  use lalg_basic_m
-  use loct_m
-  use loct_math_m
-  use messages_m
-  use profiling_m
+module solvers_oct_m
+  use blas_oct_m
+  use global_oct_m
+  use lalg_basic_oct_m
+  use loct_oct_m
+  use loct_math_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -114,7 +114,7 @@ contains
 #include "real.F90"
 #include "solvers_inc.F90"
 
-end module solvers_m
+end module solvers_oct_m
 
 !! Local Variables:
 !! mode: f90

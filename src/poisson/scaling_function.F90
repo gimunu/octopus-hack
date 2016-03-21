@@ -16,14 +16,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: scaling_function.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: scaling_function.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include <global.h>
 
-module scaling_function_m
-  use blas_m
-  use global_m
-  use messages_m
+module scaling_function_oct_m
+  use blas_oct_m
+  use global_oct_m
+  use messages_oct_m
 
   implicit none
 
@@ -283,7 +283,7 @@ contains
   end subroutine scf_recursion_8
   !!***
   
-end module scaling_function_m
+end module scaling_function_oct_m
 
 !! Local Variables:
 !! mode: f90

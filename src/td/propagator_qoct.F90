@@ -15,23 +15,23 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagator_qoct.F90 13875 2015-04-26 21:14:12Z xavier $
+!! $Id: propagator_qoct.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module propagator_qoct_m
-  use density_m
-  use exponential_m
-  use grid_m
-  use geometry_m
-  use global_m
-  use hamiltonian_m
-  use ion_dynamics_m
-  use messages_m
-  use potential_interpolation_m
-  use propagator_base_m
-  use states_m
-  use xc_m
+module propagator_qoct_oct_m
+  use density_oct_m
+  use exponential_oct_m
+  use grid_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use hamiltonian_oct_m
+  use ion_dynamics_oct_m
+  use messages_oct_m
+  use potential_interpolation_oct_m
+  use propagator_base_oct_m
+  use states_oct_m
+  use xc_oct_m
 
   implicit none
 
@@ -85,7 +85,7 @@ contains
   end subroutine td_qoct_tddft_propagator
   ! ---------------------------------------------------------
 
-end module propagator_qoct_m
+end module propagator_qoct_oct_m
 
 !! Local Variables:
 !! mode: f90

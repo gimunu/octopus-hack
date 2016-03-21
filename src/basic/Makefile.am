@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 15150 2016-02-29 21:53:42Z dstrubbe $
+## $Id: Makefile.am 15206 2016-03-19 17:46:16Z xavier $
 
 noinst_LIBRARIES = libbasic.a
 
@@ -57,7 +57,7 @@ libbasic_a_SOURCES =     \
 	oct_f.c          \
 	oct_gdlib_f.c    \
 	write_iter.F90   \
-	write_iter_low.c \
+	write_iter_low.cc \
 	varinfo_low.c    \
 	signals.c        \
 	io_binary_f.F90  \

@@ -15,20 +15,20 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: poisson_cg.F90 13392 2015-03-18 16:30:00Z joseba $
+!! $Id: poisson_cg.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module poisson_cg_m
-  use derivatives_m
-  use global_m
-  use lalg_basic_m
-  use math_m
-  use mesh_m
-  use messages_m
-  use poisson_corrections_m
-  use profiling_m
-  use solvers_m
+module poisson_cg_oct_m
+  use derivatives_oct_m
+  use global_oct_m
+  use lalg_basic_oct_m
+  use math_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use poisson_corrections_oct_m
+  use profiling_oct_m
+  use solvers_oct_m
 
   implicit none
 
@@ -151,7 +151,7 @@ contains
     POP_SUB(poisson_cg2)
   end subroutine poisson_cg2
 
-end module poisson_cg_m
+end module poisson_cg_oct_m
 
 !! Local Variables:
 !! mode: f90

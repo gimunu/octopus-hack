@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: main.F90 14622 2015-10-02 22:46:44Z xavier $
+!! $Id: main.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 program octopus
-  use calc_mode_par_m
-  use command_line_m
-  use io_m
-  use loct_m
-  use mpi_m
-  use parser_m
-  use profiling_m
-  use run_m
-  use string_m
-  use utils_m
-  use varinfo_m
+  use calc_mode_par_oct_m
+  use command_line_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use mpi_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use run_oct_m
+  use string_oct_m
+  use utils_oct_m
+  use varinfo_oct_m
 
   implicit none
 

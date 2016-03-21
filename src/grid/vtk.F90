@@ -15,31 +15,31 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: vtk.F90 14785 2015-11-18 18:53:48Z umberto $
+!! $Id: vtk.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module vtk_m
-  use cube_function_m
-  use cube_m
-  use geometry_m
-  use global_m
-  use index_m
-  use io_m
-  use io_binary_m
-  use io_csv_m
-  use mesh_m
-  use messages_m
-  use mpi_m
-  use mpi_debug_m
-  use parser_m
-  use profiling_m
-  use simul_box_m
-  use species_m
-  use unit_m
-  use unit_system_m
-  use utils_m
-  use varinfo_m
+module vtk_oct_m
+  use cube_function_oct_m
+  use cube_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use index_oct_m
+  use io_oct_m
+  use io_binary_oct_m
+  use io_csv_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use mpi_debug_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
+  use species_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use utils_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -175,7 +175,7 @@ contains
 #include "vtk_inc.F90"
 #include "undef.F90"
 
-end module vtk_m
+end module vtk_oct_m
 
 !! Local Variables:
 !! mode: f90

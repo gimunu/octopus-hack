@@ -15,20 +15,20 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: octcl_kernel.F90 13649 2015-03-29 11:12:38Z micael $
+!! $Id: octcl_kernel.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module octcl_kernel_m
+module octcl_kernel_oct_m
 #ifdef HAVE_OPENCL
   use cl
 #endif
   use iso_c_binding
-  use global_m
-  use io_m
-  use messages_m
-  use opencl_m
-  use varinfo_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use opencl_oct_m
+  use varinfo_oct_m
 
   implicit none
   private
@@ -157,7 +157,7 @@ contains
 #endif
   !--------------------------------------------------------------
 
-end module octcl_kernel_m
+end module octcl_kernel_oct_m
 
 !! Local Variables:
 !! mode: f90

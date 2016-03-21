@@ -15,19 +15,19 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: ps_psf.F90 13349 2015-03-14 18:14:20Z xavier $
+!! $Id: ps_psf.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module ps_psf_m
-  use atomic_m
-  use global_m
-  use io_m
-  use logrid_m
-  use messages_m
-  use profiling_m
-  use ps_in_grid_m
-  use ps_psf_file_m
+module ps_psf_oct_m
+  use atomic_oct_m
+  use global_oct_m
+  use io_oct_m
+  use logrid_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use ps_in_grid_oct_m
+  use ps_psf_file_oct_m
 
   implicit none
 
@@ -504,7 +504,7 @@ contains
     POP_SUB(ghost_analysis)
   end subroutine ghost_analysis
 
-end module ps_psf_m
+end module ps_psf_oct_m
 
 !! Local Variables:
 !! mode: f90

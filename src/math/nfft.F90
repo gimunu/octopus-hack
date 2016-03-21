@@ -15,24 +15,24 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: nfft.F90 14460 2015-07-24 07:07:35Z dannert $
+!! $Id: nfft.F90 15203 2016-03-19 13:15:05Z xavier $
 
 
 #include "global.h"
 
-module nfft_m
+module nfft_oct_m
 
 #if !defined(HAVE_NFFT)
   integer, public :: nfft_dummy ! this avoids compilers complaining about empty module
 #else
 
   use,intrinsic :: iso_c_binding
-  use fftw_params_m
-  use global_m
-  use loct_math_m
-  use messages_m
-  use parser_m
-  use varinfo_m
+  use fftw_params_oct_m
+  use global_oct_m
+  use loct_math_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -515,7 +515,7 @@ contains
 
 #endif
 
-end module nfft_m
+end module nfft_oct_m
 
 !! Local Variables:
 !! mode: f90

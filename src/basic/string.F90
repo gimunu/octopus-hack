@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: string.F90 13656 2015-03-29 20:47:15Z dstrubbe $
+!! $Id: string.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module string_m
+module string_oct_m
   
   use iso_c_binding
-  use loct_m
+  use loct_oct_m
   
   implicit none
 
@@ -199,7 +199,7 @@ contains
   end subroutine conv_to_C_string
 
 
-end module string_m
+end module string_oct_m
 
 !! Local Variables:
 !! mode: f90

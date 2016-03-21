@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: blacs.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: blacs.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -24,7 +24,7 @@
 !! Interfaces are from http://www.netlib.org/blacs/BLACS/QRef.html (entered manually...)
 ! -----------------------------------------------------------------------
 
-module blacs_m
+module blacs_oct_m
 
   implicit none
 
@@ -97,7 +97,7 @@ module blacs_m
     end function numroc
   end interface
 
-end module blacs_m
+end module blacs_oct_m
 
 !! Local Variables:
 !! mode: f90

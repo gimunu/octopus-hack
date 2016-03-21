@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pblas.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: pblas.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module pblas_m
+module pblas_oct_m
   implicit none
 
   private 
@@ -183,7 +183,7 @@ module pblas_m
 
   end interface pblas_trsm
 
-end module pblas_m
+end module pblas_oct_m
 
 !! Local Variables:
 !! mode: f90

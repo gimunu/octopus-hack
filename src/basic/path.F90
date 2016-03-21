@@ -15,16 +15,16 @@
 !! Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 !! 02111-1307, USA.
 !!
-!! $Id: path.F90 13468 2015-03-22 06:22:58Z xavier $
+!! $Id: path.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module path_m
+module path_oct_m
 
-  use global_m
-  use loct_m
-  use messages_m
-  use profiling_m
+  use global_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
 
   implicit none
@@ -170,7 +170,7 @@ contains
     return
   end subroutine path_getcwd
 
-end module path_m
+end module path_oct_m
 
 !! Local Variables:
 !! mode: f90

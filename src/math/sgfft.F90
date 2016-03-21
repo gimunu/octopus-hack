@@ -15,21 +15,21 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sgfft.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: sgfft.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include <global.h> 
 
 !> These routines are part of the ISF poisson solver, eventually they
 !! will be integrated with the other FFT. Do not use them for other
 !! purposes.
-module sgfft_m
-  use global_m
-  use messages_m
-  use mpi_m
+module sgfft_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use mpi_oct_m
 #ifdef HAVE_OMP
   use omp
 #endif
-  use profiling_m
+  use profiling_oct_m
 
   implicit none
   
@@ -4662,7 +4662,7 @@ end subroutine kernelfft
         
   end subroutine inserthalf
 
-end module sgfft_m
+end module sgfft_oct_m
 
 !! Local Variables:
 !! mode: f90

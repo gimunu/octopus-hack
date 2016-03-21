@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: loct_math.F90 13649 2015-03-29 11:12:38Z micael $
+!! $Id: loct_math.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module loct_math_m
+module loct_math_oct_m
   implicit none
 
   !> Define which routines can be seen from the outside.
@@ -461,7 +461,7 @@ contains
     oct_ran_flat4 = real(oct_ran_flat(r, real(a, kind=8), real(b, kind=8)), kind=4)
   end function oct_ran_flat4
 
-end module loct_math_m
+end module loct_math_oct_m
 
 !! Local Variables:
 !! mode: f90

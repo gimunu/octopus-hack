@@ -16,11 +16,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: fftw.F90 14486 2015-07-30 10:29:37Z dannert $
+!! $Id: fftw.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module fftw_params_m
+module fftw_params_oct_m
   use, intrinsic :: iso_c_binding
   implicit none
 
@@ -29,14 +29,14 @@ module fftw_params_m
 #else
   include "fftw3.f03"
 #endif
-end module fftw_params_m
+end module fftw_params_oct_m
 
-module fftw_m
+module fftw_oct_m
   use,intrinsic :: iso_c_binding
-  use global_m
-  use messages_m
-  use profiling_m
-  use fftw_params_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use fftw_params_oct_m
   implicit none
 
   private
@@ -185,7 +185,7 @@ contains
     POP_SUB(fftw_get_dims)
   end subroutine fftw_get_dims
 
-end module fftw_m
+end module fftw_oct_m
 
 !! Local Variables:
 !! mode: f90

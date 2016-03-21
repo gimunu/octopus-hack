@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: operate_f.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: operate_f.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 ! -----------------------------------------------------------------------
 !> This module contains interfaces for routines in operate.c
 ! -----------------------------------------------------------------------
-module operate_f_m
+module operate_f_oct_m
 
   implicit none
 
@@ -73,7 +73,7 @@ module operate_f_m
     end subroutine dgauss_seidel
   end interface
 
-end module operate_f_m
+end module operate_f_oct_m
 
 !! Local Variables:
 !! mode: f90

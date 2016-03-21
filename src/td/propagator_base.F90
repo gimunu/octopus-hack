@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagator_base.F90 13876 2015-04-26 22:03:19Z xavier $
+!! $Id: propagator_base.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module propagator_base_m
-  use exponential_m
-  use potential_interpolation_m
-  use sparskit_m
+module propagator_base_oct_m
+  use exponential_oct_m
+  use potential_interpolation_oct_m
+  use sparskit_oct_m
   
   implicit none
 
@@ -57,7 +57,7 @@ module propagator_base_m
     FLOAT               :: scf_threshold
   end type propagator_t
 
-end module propagator_base_m
+end module propagator_base_oct_m
 
 
 !! Local Variables:

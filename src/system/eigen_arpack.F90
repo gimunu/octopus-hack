@@ -15,34 +15,34 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: eigen_arpack.F90 14011 2015-05-15 23:52:35Z dstrubbe $
+!! $Id: eigen_arpack.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 
-module eigen_arpack_m
+module eigen_arpack_oct_m
 
-  use batch_m
-  use comm_m
-  use global_m
-  use grid_m
-  use hamiltonian_m
-  use io_m
-  use lalg_basic_m
-  use lalg_adv_m
-  use loct_m
-  use math_m
-  use mesh_m
-  use mesh_batch_m
-  use mesh_function_m
-  use messages_m
-  use mpi_m
-  use mpi_lib_m
-  use parser_m
-  use profiling_m
-  use states_m
-  use states_calc_m
-  use varinfo_m
+  use batch_oct_m
+  use comm_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use hamiltonian_oct_m
+  use io_oct_m
+  use lalg_basic_oct_m
+  use lalg_adv_oct_m
+  use loct_oct_m
+  use math_oct_m
+  use mesh_oct_m
+  use mesh_batch_oct_m
+  use mesh_function_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use mpi_lib_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use states_oct_m
+  use states_calc_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -411,7 +411,7 @@ contains
 #include "eigen_arpack_inc.F90" 
 #include "undef.F90" 
 
-end module eigen_arpack_m
+end module eigen_arpack_oct_m
 
 
 !! Local Variables:

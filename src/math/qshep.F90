@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: qshep.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: qshep.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module qshep_m
+module qshep_oct_m
 
-  use global_m
-  use messages_m
-  use profiling_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
   
   implicit none
 
@@ -372,7 +372,7 @@ contains
     POP_SUB(qshepr_end)
   end subroutine qshepr_end
 
-end module qshep_m
+end module qshep_oct_m
 
 !! Local Variables:
 !! mode: f90

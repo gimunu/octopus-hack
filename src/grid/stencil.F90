@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: stencil.F90 14689 2015-10-22 20:46:45Z jrfsousa $
+!! $Id: stencil.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module stencil_m
-  use global_m
-  use messages_m
-  use profiling_m
+module stencil_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -162,7 +162,7 @@ contains
     POP_SUB(stencil_init_center)
   end subroutine stencil_init_center
 
-end module stencil_m
+end module stencil_oct_m
 
 !! Local Variables:
 !! mode: f90

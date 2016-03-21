@@ -15,21 +15,21 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: born_charges.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: born_charges.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module born_charges_m
-  use geometry_m
-  use global_m
-  use io_m
-  use messages_m
-  use parser_m
-  use profiling_m
-  use species_m
-  use states_m
-  use unit_system_m
-  use utils_m
+module born_charges_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use species_oct_m
+  use states_oct_m
+  use unit_system_oct_m
+  use utils_oct_m
 
   implicit none
 
@@ -190,7 +190,7 @@ contains
     POP_SUB(out_Born_charges)
   end subroutine out_Born_charges
 
-end module Born_charges_m
+end module Born_charges_oct_m
 
 !! Local Variables:
 !! mode: f90

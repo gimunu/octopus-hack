@@ -15,29 +15,29 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: batch.F90 14968 2016-01-04 04:10:29Z xavier $
+!! $Id: batch.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module batch_m
-  use blas_m
+module batch_oct_m
+  use blas_oct_m
   use iso_c_binding
 #ifdef HAVE_OPENCL
   use cl
 #endif
-  use octcl_kernel_m
-  use global_m
-  use hardware_m
-  use lalg_adv_m
-  use lalg_basic_m
-  use parser_m
-  use math_m
-  use messages_m
-  use mpi_m
-  use opencl_m
-  use profiling_m
-  use types_m
-  use varinfo_m
+  use octcl_kernel_oct_m
+  use global_oct_m
+  use hardware_oct_m
+  use lalg_adv_oct_m
+  use lalg_basic_oct_m
+  use parser_oct_m
+  use math_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use opencl_oct_m
+  use profiling_oct_m
+  use types_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -1072,7 +1072,7 @@ end subroutine batch_copy_data
 #include "undef.F90"
 
 
-end module batch_m
+end module batch_oct_m
 
 !! Local Variables:
 !! mode: f90

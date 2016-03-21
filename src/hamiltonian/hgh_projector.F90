@@ -15,23 +15,23 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hgh_projector.F90 13756 2015-04-06 21:51:10Z dstrubbe $
+!! $Id: hgh_projector.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module hgh_projector_m
-  use atom_m
-  use global_m
-  use lalg_basic_m
-  use mesh_m
-  use messages_m
-  use simul_box_m
-  use profiling_m
-  use ps_m
-  use species_m
-  use submesh_m
-  use geometry_m
-  use mpi_m
+module hgh_projector_oct_m
+  use atom_oct_m
+  use global_oct_m
+  use lalg_basic_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use simul_box_oct_m
+  use profiling_oct_m
+  use ps_oct_m
+  use species_oct_m
+  use submesh_oct_m
+  use geometry_oct_m
+  use mpi_oct_m
 
   implicit none
 
@@ -146,7 +146,7 @@ contains
 #include "complex.F90"
 #include "hgh_projector_inc.F90"
 
-end module hgh_projector_m
+end module hgh_projector_oct_m
 
 !! Local Variables:
 !! mode: f90

@@ -15,23 +15,23 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_interpolation.F90 13733 2015-04-04 18:00:27Z xavier $
+!! $Id: mesh_interpolation.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module mesh_interpolation_m
-  use comm_m
+module mesh_interpolation_oct_m
+  use comm_oct_m
   use iso_c_binding
-  use geometry_m
-  use global_m
-  use io_m
-  use loct_math_m
-  use mesh_m
-  use messages_m
-  use mpi_m
-  use profiling_m
-  use par_vec_m
-  use simul_box_m
+  use geometry_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_math_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use profiling_oct_m
+  use par_vec_oct_m
+  use simul_box_oct_m
   
   implicit none
   private
@@ -94,7 +94,7 @@ contains
 #include "complex.F90"
 #include "mesh_interpolation_inc.F90"
 
-end module mesh_interpolation_m
+end module mesh_interpolation_oct_m
 
 
 !! Local Variables:

@@ -15,20 +15,20 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: distributed.F90 14952 2016-01-03 00:38:09Z xavier $
+!! $Id: distributed.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module distributed_m
-  use global_m
-  use io_m
-  use loct_m
-  use messages_m
-  use mpi_m
-  use multicomm_m
-  use parser_m
-  use profiling_m
-  use varinfo_m
+module distributed_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use multicomm_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -234,7 +234,7 @@ contains
     POP_SUB(distributed_allgather)
   end subroutine distributed_allgather
 
-end module distributed_m
+end module distributed_oct_m
 
 
 !! Local Variables:

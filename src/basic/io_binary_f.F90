@@ -15,16 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: io_binary_f.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: io_binary_f.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 #include "io_binary.h"
 
-module io_binary_m
-  use global_m
-  use messages_m
-  use mpi_m
-  use profiling_m
+module io_binary_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use profiling_oct_m
 
   implicit none 
 
@@ -257,7 +257,7 @@ contains
 #include "integer.F90"
 #include "io_binary_f_inc.F90"
 
-end module io_binary_m
+end module io_binary_oct_m
 
 !! Local Variables:
 !! mode: f90

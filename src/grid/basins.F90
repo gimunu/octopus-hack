@@ -15,19 +15,19 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: basins.F90 15005 2016-01-07 23:26:24Z xavier $
+!! $Id: basins.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module basins_m
-  use global_m
-  use index_m
-  use mesh_m
-  use messages_m
-  use par_vec_m
-  use profiling_m
-  use unit_m
-  use unit_system_m
+module basins_oct_m
+  use global_oct_m
+  use index_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use par_vec_oct_m
+  use profiling_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
 
   implicit none
 
@@ -288,7 +288,7 @@ contains
     POP_SUB(basins_write)
   end subroutine basins_write
 
-end module basins_m
+end module basins_oct_m
 
 !! Local Variables:
 !! mode: f90

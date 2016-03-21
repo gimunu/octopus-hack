@@ -16,23 +16,23 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: casida_spectrum.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: casida_spectrum.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 program casida_spectrum
-  use command_line_m
-  use geometry_m
-  use global_m
-  use io_m
-  use messages_m
-  use parser_m
-  use profiling_m
-  use space_m
-  use unit_m
-  use unit_system_m
-  use utils_m
-  use varinfo_m
+  use command_line_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use space_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use utils_oct_m
+  use varinfo_oct_m
 
   implicit none
 

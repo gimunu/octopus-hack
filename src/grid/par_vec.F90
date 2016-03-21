@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: par_vec.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: par_vec.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
  
@@ -77,18 +77,18 @@
   !! ! Clean up.
   !! deallocate(ul, vl, wl)
   !! \endverbatim
-module par_vec_m
-  use global_m
-  use iihash_m
-  use index_m
-  use io_m
-  use messages_m
-  use mpi_m
-  use mpi_debug_m
-  use partition_m
-  use profiling_m
-  use stencil_m
-  use subarray_m
+module par_vec_oct_m
+  use global_oct_m
+  use iihash_oct_m
+  use index_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use mpi_debug_oct_m
+  use partition_oct_m
+  use profiling_oct_m
+  use stencil_oct_m
+  use subarray_oct_m
 
   implicit none
 
@@ -928,7 +928,7 @@ contains
 #include "par_vec_inc.F90"
 
 #endif
-end module par_vec_m
+end module par_vec_oct_m
 
 !! Local Variables:
 !! mode: f90

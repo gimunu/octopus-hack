@@ -15,44 +15,45 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: opt_control.F90 13875 2015-04-26 21:14:12Z xavier $
+!! $Id: opt_control.F90 15214 2016-03-21 12:47:45Z umberto $
 
 #include "global.h"
 
 !> This module contains the main procedure ("opt_control_run") that is 
 !! used when optimal control runs are requested.
-module opt_control_m
-  use messages_m
-  use controlfunction_m
-  use exponential_m
-  use filter_m
-  use geometry_m
-  use global_m
-  use grid_m
-  use initst_m
-  use output_m
-  use hamiltonian_m
-  use io_m
-  use lasers_m
-  use loct_m
-  use loct_math_m
-  use math_m
-  use mesh_m
-  use minimizer_m
-  use opt_control_global_m
-  use opt_control_iter_m
-  use opt_control_state_m
-  use profiling_m
-  use propagation_m
-  use propagator_m
-  use propagator_base_m
-  use restart_m
-  use simul_box_m
-  use states_m
-  use states_dim_m
-  use system_m
-  use target_m
-  use td_m
+module opt_control_oct_m
+  use boundary_op_oct_m
+  use messages_oct_m
+  use controlfunction_oct_m
+  use exponential_oct_m
+  use filter_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use initst_oct_m
+  use output_oct_m
+  use hamiltonian_oct_m
+  use io_oct_m
+  use lasers_oct_m
+  use loct_oct_m
+  use loct_math_oct_m
+  use math_oct_m
+  use mesh_oct_m
+  use minimizer_oct_m
+  use opt_control_global_oct_m
+  use opt_control_iter_oct_m
+  use opt_control_state_oct_m
+  use profiling_oct_m
+  use propagation_oct_m
+  use propagator_oct_m
+  use propagator_base_oct_m
+  use restart_oct_m
+  use simul_box_oct_m
+  use states_oct_m
+  use states_dim_oct_m
+  use system_oct_m
+  use target_oct_m
+  use td_oct_m
 
   implicit none
 
@@ -109,7 +110,7 @@ contains
     if(hm%theory_level /= INDEPENDENT_PARTICLES ) call propagator_set_scf_prop(td%tr, threshold = CNST(1.0e-14))
 
     ! Read general information about how the OCT run will be made, from inp file. "oct_read_inp" is
-    ! in the opt_control_global_m module (like the definition of the oct_t data type)
+    ! in the opt_control_global_oct_m module (like the definition of the oct_t data type)
     call oct_read_inp(oct)
 
     ! Read info about, and prepare, the control functions
@@ -131,7 +132,7 @@ contains
     call oct_iterator_init(iterator, par)
 
 
-    ! Initialization of the propagation_m module.
+    ! Initialization of the propagation_oct_m module.
     call propagation_mod_init(td%max_iter, oct%eta, oct%delta, oct%number_checkpoints, &
       (oct%algorithm == oct_algorithm_zbr98), (oct%algorithm == oct_algorithm_cg) .or. (oct%algorithm == oct_algorithm_bfgs))
 
@@ -731,7 +732,7 @@ contains
 #include "finalcheck_inc.F90"
 
 
-end module opt_control_m
+end module opt_control_oct_m
 
 !! Local Variables:
 !! mode: f90

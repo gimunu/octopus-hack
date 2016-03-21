@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: gauss_legendre.F90 13468 2015-03-22 06:22:58Z xavier $
+!! $Id: gauss_legendre.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module gauss_legendre_m
+module gauss_legendre_oct_m
 
   implicit none
 
@@ -149,7 +149,7 @@ contains
 
   end subroutine gauss_legendre_points
 
-end module gauss_legendre_m
+end module gauss_legendre_oct_m
 
 !! Local Variables:
 !! mode: f90

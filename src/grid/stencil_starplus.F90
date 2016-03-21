@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: stencil_starplus.F90 10978 2013-07-11 15:28:46Z micael $
+!! $Id: stencil_starplus.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module stencil_starplus_m
-  use global_m
-  use messages_m
-  use profiling_m
-  use stencil_m
+module stencil_starplus_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use stencil_oct_m
 
   private
   public ::                     &
@@ -389,7 +389,7 @@ contains
     POP_SUB(stencil_starplus_pol_grad)
   end subroutine stencil_starplus_pol_grad
 
-end module stencil_starplus_m
+end module stencil_starplus_oct_m
 
 !! Local Variables:
 !! mode: f90

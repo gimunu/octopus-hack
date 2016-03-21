@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sort.F90 14824 2015-11-26 07:21:58Z xavier $
+!! $Id: sort.F90 15204 2016-03-19 13:17:02Z xavier $
 
 #include "global.h"
 
 !> This module is intended to contain "only mathematical" functions
 !! and procedures.
-module sort_om
-  use global_m
-  use messages_m
+module sort_oct_m
+  use global_oct_m
+  use messages_oct_m
 
   implicit none
 
@@ -272,7 +272,7 @@ contains
 #include "integer.F90"
 #include "sort_inc.F90"
 
-end module sort_om
+end module sort_oct_m
 
 !! Local Variables:
 !! mode: f90

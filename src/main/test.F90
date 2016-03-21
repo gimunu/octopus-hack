@@ -15,26 +15,26 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: test.F90 14494 2015-08-01 19:36:45Z xavier $
+!! $Id: test.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 program oct_test
-  use calc_mode_par_m
-  use command_line_m
-  use derivatives_m
-  use fft_m
-  use io_m
-  use ion_interaction_m
-  use mesh_interpolation_m
-  use parser_m
-  use poisson_m
-  use profiling_m
-  use states_calc_m
-  use system_m
-  use test_parameters_m
-  use unit_system_m
-  use utils_m
+  use calc_mode_par_oct_m
+  use command_line_oct_m
+  use derivatives_oct_m
+  use fft_oct_m
+  use io_oct_m
+  use ion_interaction_oct_m
+  use mesh_interpolation_oct_m
+  use parser_oct_m
+  use poisson_oct_m
+  use profiling_oct_m
+  use states_calc_oct_m
+  use system_oct_m
+  use test_parameters_oct_m
+  use unit_system_oct_m
+  use utils_oct_m
 
   implicit none
 

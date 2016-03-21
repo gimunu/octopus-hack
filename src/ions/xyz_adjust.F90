@@ -15,20 +15,20 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: xyz_adjust.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: xyz_adjust.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module xyz_adjust_m
-  use global_m
-  use geometry_m
-  use lalg_adv_m
-  use parser_m
-  use messages_m
-  use species_m
-  use unit_m
-  use unit_system_m
-  use utils_m
+module xyz_adjust_oct_m
+  use global_oct_m
+  use geometry_oct_m
+  use lalg_adv_oct_m
+  use parser_oct_m
+  use messages_oct_m
+  use species_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use utils_oct_m
 
   implicit none
 
@@ -477,7 +477,7 @@ contains
     POP_SUB(rotate_z)
   end subroutine rotate_z
 
-end module xyz_adjust_m
+end module xyz_adjust_oct_m
 
 !! Local Variables:
 !! mode: f90

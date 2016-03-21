@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: write_iter.F90 13649 2015-03-29 11:12:38Z micael $
+!! $Id: write_iter.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module write_iter_m
+module write_iter_oct_m
 
   implicit none
 
@@ -167,7 +167,7 @@ module write_iter_m
     end subroutine write_iter_int_n
   end interface write_iter_int
 
-end module write_iter_m
+end module write_iter_oct_m
 
 !! Local Variables:
 !! mode: f90

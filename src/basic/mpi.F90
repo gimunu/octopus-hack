@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mpi.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: mpi.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module mpi_m
+module mpi_oct_m
 #if defined(MPI_MOD)
   use mpi
 #endif
-  use blacs_m
+  use blacs_oct_m
 
   implicit none
 
@@ -147,7 +147,7 @@ contains
   
   ! ---------------------------------------------------------
 
-end module mpi_m
+end module mpi_oct_m
 
 
 !! Local Variables:

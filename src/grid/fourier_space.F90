@@ -15,31 +15,31 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: fourier_space.F90 15016 2016-01-08 21:44:30Z xavier $
+!! $Id: fourier_space.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module fourier_space_m
+module fourier_space_oct_m
 #ifdef HAVE_OPENCL
   use cl
 #endif
-  use cube_m
-  use cube_function_m
-  use global_m
-  use math_m
-  use mesh_m
-  use messages_m
-  use fft_m
+  use cube_oct_m
+  use cube_function_oct_m
+  use global_oct_m
+  use math_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use fft_oct_m
 #ifdef HAVE_OPENMP
   use omp_lib
 #endif
-  use opencl_m
+  use opencl_oct_m
 #ifdef HAVE_PFFT
-  use pfft_m
+  use pfft_oct_m
 #endif
-  use profiling_m
-  use simul_box_m
-  use types_m
+  use profiling_oct_m
+  use simul_box_oct_m
+  use types_oct_m
 
   implicit none
   private
@@ -190,7 +190,7 @@ contains
 #include "complex.F90"
 #include "fourier_space_inc.F90"
 
-end module fourier_space_m
+end module fourier_space_oct_m
 
 
 !! Local Variables:

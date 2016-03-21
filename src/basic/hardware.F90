@@ -15,10 +15,10 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hardware.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: hardware.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
-module hardware_m
+module hardware_oct_m
   
   private
   
@@ -72,7 +72,7 @@ contains
 
   end subroutine hardware_end
 
-end module hardware_m
+end module hardware_oct_m
 
 !! Local Variables:
 !! mode: f90

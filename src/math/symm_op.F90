@@ -15,13 +15,13 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: symm_op.F90 13468 2015-03-22 06:22:58Z xavier $
+!! $Id: symm_op.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module symm_op_m
-  use global_m
-  use messages_m
+module symm_op_oct_m
+  use global_oct_m
+  use messages_oct_m
 
   implicit none
 
@@ -166,7 +166,7 @@ contains
 #include "complex.F90"
 #include "symm_op_inc.F90"
 
-end module symm_op_m
+end module symm_op_oct_m
 
 !! Local Variables:
 !! mode: f90

@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: scf_tol.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: scf_tol.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module scf_tol_m
-  use global_m
-  use messages_m
-  use parser_m
-  use varinfo_m
+module scf_tol_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use varinfo_oct_m
 
   implicit none
   
@@ -300,7 +300,7 @@ contains
     POP_SUB(scf_tol_obsolete_variables)
   end subroutine scf_tol_obsolete_variables
 
-end module scf_tol_m
+end module scf_tol_oct_m
 
 !! Local Variables:
 !! mode: f90

@@ -15,17 +15,17 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: physics_op.F90 11469 2013-11-05 11:00:00Z joseba $
+!! $Id: physics_op.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module physics_op_m
-  use derivatives_m
-  use global_m
-  use mesh_m
-  use messages_m
-  use profiling_m
-  use simul_box_m
+module physics_op_oct_m
+  use derivatives_oct_m
+  use global_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
   
   implicit none
 
@@ -47,7 +47,7 @@ contains
 #include "physics_op_inc.F90"
 
 
-end module physics_op_m
+end module physics_op_oct_m
 
 
 !! Local Variables:

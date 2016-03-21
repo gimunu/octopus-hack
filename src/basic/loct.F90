@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: loct.F90 14206 2015-06-03 20:38:04Z dstrubbe $
+!! $Id: loct.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module loct_m
+module loct_oct_m
 
   implicit none
 
@@ -315,7 +315,7 @@ contains
 
   end function loct_dir_exists
 
-end module loct_m
+end module loct_oct_m
 
 !! Local Variables:
 !! mode: f90

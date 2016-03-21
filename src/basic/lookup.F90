@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: lookup.F90 14698 2015-10-23 11:36:36Z jrfsousa $
+!! $Id: lookup.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module lookup_m
-  use global_m
-  use loct_pointer_m
-  use messages_m
-  use profiling_m
+module lookup_oct_m
+  use global_oct_m
+  use loct_pointer_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -133,7 +133,7 @@ contains
 
   end subroutine lookup_get_list
 
-end module lookup_m
+end module lookup_oct_m
 
 !! Local Variables:
 !! mode: f90

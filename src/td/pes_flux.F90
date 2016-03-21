@@ -15,39 +15,39 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_flux.F90 15199 2016-03-16 19:02:14Z philipp $
+!! $Id: pes_flux.F90 15204 2016-03-19 13:17:02Z xavier $
 
 #include "global.h"
 
-module pes_flux_m
-  use comm_m
-  use derivatives_m
-  use global_m
-  use grid_m
-  use hamiltonian_m
-  use kpoints_m
-  use io_binary_m
-  use io_function_m
-  use io_m
-  use lasers_m
-  use loct_m
-  use loct_math_m
-  use math_m
-  use mesh_interpolation_m
-  use mesh_m
-  use messages_m
-  use mpi_m
-  use parser_m
-  use par_vec_m
-  use profiling_m
-  use restart_m
-  use simul_box_m
-  use sort_om
-  use states_m
-  use states_dim_m
-  use unit_m
-  use unit_system_m
-  use varinfo_m
+module pes_flux_oct_m
+  use comm_oct_m
+  use derivatives_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use hamiltonian_oct_m
+  use kpoints_oct_m
+  use io_binary_oct_m
+  use io_function_oct_m
+  use io_oct_m
+  use lasers_oct_m
+  use loct_oct_m
+  use loct_math_oct_m
+  use math_oct_m
+  use mesh_interpolation_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use parser_oct_m
+  use par_vec_oct_m
+  use profiling_oct_m
+  use restart_oct_m
+  use simul_box_oct_m
+  use sort_oct_m
+  use states_oct_m
+  use states_dim_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -90,8 +90,11 @@ module pes_flux_m
     FLOAT, pointer   :: j_l(:,:)                       !< for spherical surface
     FLOAT            :: radius
 
-    integer          :: tdsteps                        !<
-    integer          :: max_iter                       !<
+    integer          :: tdsteps                        !< = sys%outp%restart_write_interval (M_PLANES/M_CUBIC)
+                                                       !< = mesh%mpi_grp%size (M_SPHERICAL)
+    integer          :: max_iter                       !< td%max_iter
+    integer          :: save_iter                      !< sys%outp%restart_write_interval
+    integer          :: itstep                         !< 1 <= itstep <= tdsteps
 
     CMPLX, pointer   :: wf(:,:,:,:,:)                  !< wavefunction
     CMPLX, pointer   :: gwf(:,:,:,:,:,:)               !< gradient of wavefunction
@@ -399,6 +402,8 @@ contains
     ! Options for time integration 
     ! -----------------------------------------------------------------
     this%max_iter  = max_iter
+    this%save_iter = save_iter
+    this%itstep    = 0
 
     if(this%shape == M_CUBIC .or. this%shape == M_PLANES) then
       this%tdsteps = save_iter
@@ -896,7 +901,7 @@ contains
 
     integer            :: stst, stend, kptst, kptend, sdim, mdim
     integer            :: ist, ik, isdim, imdim
-    integer            :: isp, itstep
+    integer            :: isp
     integer            :: il, ip_local
     CMPLX, allocatable :: gpsi(:,:), psi(:)
     CMPLX, allocatable :: interp_values(:)
@@ -920,24 +925,13 @@ contains
         SAFE_ALLOCATE(interp_values(1:this%nsrfcpnts))
       end if
 
-      if(mod(iter, this%tdsteps) == 0) then
-        itstep = this%tdsteps
-      else
-        itstep = mod(iter, this%tdsteps) 
-      end if
-
-      ! clean up fields when a new cycle begins
-      if(itstep == 1) then
-         this%wf  = M_z0
-        this%gwf  = M_z0
-        this%veca = M_ZERO
-      end if
+      this%itstep = this%itstep + 1
 
       ! get and save current laser field
       do il = 1, hm%ep%no_lasers
-        call laser_field(hm%ep%lasers(il), this%veca(1:mdim, itstep), iter*dt)
+        call laser_field(hm%ep%lasers(il), this%veca(1:mdim, this%itstep), iter*dt)
       end do
-      this%veca(:, itstep) = - this%veca(:, itstep)
+      this%veca(:, this%itstep) = - this%veca(:, this%itstep)
 
       ! save wavefunctions & gradients
       do ik = kptst, kptend
@@ -949,11 +943,11 @@ contains
             if(this%shape == M_SPHERICAL) then
               call mesh_interpolation_evaluate(this%interp, this%nsrfcpnts, psi(1:mesh%np_part), &
                 this%rcoords(1:mdim, 1:this%nsrfcpnts), interp_values(1:this%nsrfcpnts))
-              this%wf(ist, isdim, ik, 1:this%nsrfcpnts, itstep) = st%occ(ist, ik) * interp_values(1:this%nsrfcpnts)
+              this%wf(ist, isdim, ik, 1:this%nsrfcpnts, this%itstep) = st%occ(ist, ik) * interp_values(1:this%nsrfcpnts)
               do imdim = 1, mdim
                 call mesh_interpolation_evaluate(this%interp, this%nsrfcpnts, gpsi(1:mesh%np_part, imdim), &
                   this%rcoords(1:mdim, 1:this%nsrfcpnts), interp_values(1:this%nsrfcpnts))
-                this%gwf(ist, isdim, ik, 1:this%nsrfcpnts, itstep, imdim) = st%occ(ist, ik) * interp_values(1:this%nsrfcpnts)
+                this%gwf(ist, isdim, ik, 1:this%nsrfcpnts, this%itstep, imdim) = st%occ(ist, ik) * interp_values(1:this%nsrfcpnts)
               end do
 
             else
@@ -972,16 +966,16 @@ contains
 
                 if(contains_isp) then
                   ip_local = this%srfcpnt(isp)
-                  this%wf(ist, isdim, ik, isp, itstep) = st%occ(ist, ik) * psi(ip_local)
-                  this%gwf(ist, isdim, ik, isp, itstep, 1:mdim) = &
+                  this%wf(ist, isdim, ik, isp, this%itstep) = st%occ(ist, ik) * psi(ip_local)
+                  this%gwf(ist, isdim, ik, isp, this%itstep, 1:mdim) = &
                     st%occ(ist, ik) * gpsi(ip_local, 1:mdim) ! * mesh%spacing(1:mdim) ?
                 end if
               end do
               if(mesh%parallel_in_domains) then
 #if defined(HAVE_MPI)
-                call comm_allreduce(mesh%mpi_grp%comm, this%wf(ist, isdim, ik, :, itstep))
+                call comm_allreduce(mesh%mpi_grp%comm, this%wf(ist, isdim, ik, :, this%itstep))
                 do imdim = 1, mdim
-                  call comm_allreduce(mesh%mpi_grp%comm, this%gwf(ist, isdim, ik, :, itstep, imdim))
+                  call comm_allreduce(mesh%mpi_grp%comm, this%gwf(ist, isdim, ik, :, this%itstep, imdim))
                 end do
 #endif
               end if
@@ -993,12 +987,18 @@ contains
       SAFE_DEALLOCATE_A(psi)
       SAFE_DEALLOCATE_A(gpsi)
 
-      if(mod(iter, this%tdsteps) == 0 .or. iter == this%max_iter) then
+      if(this%itstep == this%tdsteps .or. mod(iter, this%save_iter) == 0 .or. iter == this%max_iter) then
         if(this%shape == M_CUBIC .or. this%shape == M_PLANES) then
           call pes_flux_integrate_cub(this, mesh, st, dt)
         else
           call pes_flux_integrate_sph(this, mesh, st, dt)
         end if
+
+        ! clean up fields
+         this%wf  = M_z0
+        this%gwf  = M_z0
+        this%veca = M_ZERO
+        this%itstep = 0
       end if
 
     end if
@@ -1163,15 +1163,15 @@ contains
     integer            :: iomk
     CMPLX, allocatable :: phase_act(:,:)
     FLOAT              :: vec
-    integer            :: tdstep_node
+    integer            :: tdstep_on_node
 
     PUSH_SUB(pes_flux_integrate_sph)
 
     ! this routine is parallelized over time steps
 
-    tdstep_node = 1
+    tdstep_on_node = 1
 #if defined(HAVE_MPI)
-    if(mesh%parallel_in_domains) tdstep_node = mesh%mpi_grp%rank + 1
+    if(mesh%parallel_in_domains) tdstep_on_node = mesh%mpi_grp%rank + 1
 #endif
 
     stst   = st%st_start
@@ -1193,7 +1193,7 @@ contains
     SAFE_ALLOCATE(s1_act(0:lmax, -lmax:lmax, 1:3))
     SAFE_ALLOCATE(s2_act(0:lmax, -lmax:lmax))
 
-    do itstep = 1, this%tdsteps
+    do itstep = 1, this%itstep
 
       do ik = kptst, kptend
         do ist = stst, stend
@@ -1222,7 +1222,7 @@ contains
               call comm_allreduce(mesh%mpi_grp%comm, s2_act)
             end if
 #endif
-            if(itstep == tdstep_node) then
+            if(itstep == tdstep_on_node) then
               s1_node(ist, isdim, ik, :, :, :) = s1_act(:,:,:)
               s2_node(ist, isdim, ik, :, :)    = s2_act(:,:)
             end if
@@ -1249,7 +1249,7 @@ contains
       phase_act(ikk_start:ikk_end, :) = M_z0
     end if
 
-    do itstep = 1, this%tdsteps
+    do itstep = 1, this%itstep
       ! calculate the current Volkov phase
       do ikk = ikk_start, ikk_end
         do iomk = 1, this%nstepsomegak
@@ -1263,7 +1263,7 @@ contains
           do isdim = 1, sdim
 
             ! communicate the current surface integrals
-            if(itstep == tdstep_node) then
+            if(itstep == tdstep_on_node) then
               s1_act(:,:,:) = s1_node(ist, isdim, ik, :, :, :)
               s2_act(:,:) = s2_node(ist, isdim, ik, :, :)
             end if
@@ -1400,8 +1400,8 @@ contains
 #endif
 
     SAFE_ALLOCATE(this%srfcpnt(1:this%nsrfcpnts))
-    SAFE_ALLOCATE(this%srfcnrml(1:mdim, 1:this%nsrfcpnts))
-    SAFE_ALLOCATE(this%rcoords(1:mdim, 1:this%nsrfcpnts))
+    SAFE_ALLOCATE(this%srfcnrml(1:mdim, 0:this%nsrfcpnts))
+    SAFE_ALLOCATE(this%rcoords(1:mdim, 0:this%nsrfcpnts))
     SAFE_ALLOCATE(this%rankmin(1:this%nsrfcpnts))
 
     this%srfcnrml = M_ZERO
@@ -1467,7 +1467,6 @@ contains
     ! initializing spherical grid
     isp = 0
     do ith = 0, nstepsthetar
-
       thetar  = ith * dthetar
 
       if(ith == 0 .or. ith == nstepsthetar) then
@@ -1548,7 +1547,7 @@ contains
 
 #include "pes_flux_out_inc.F90"
 
-end module pes_flux_m
+end module pes_flux_oct_m
 
 !! Local Variables:
 !! mode: f90

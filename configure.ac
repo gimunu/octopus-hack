@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: configure.ac 15170 2016-03-02 22:10:35Z xavier $
+## $Id: configure.ac 15205 2016-03-19 14:43:28Z xavier $
 
 AC_PREREQ(2.59)
 # Note: the version string is written into ETSF_IO files, so when you update
@@ -63,6 +63,9 @@ fi
 
 AC_PROG_CC($octopus_default_cc)
 AC_PROG_CC_C99
+
+AC_PROG_CXX
+AC_CXX_LIBRARY_LDFLAGS
 
 # optimizations extensions supported by the compiler
 AC_C_INLINE
@@ -183,6 +186,8 @@ ACX_FCFLAGS
 
 dnl octopus needs the preprocessor. The result goes to FCCPP
 ACX_FCCPP
+
+AC_FC_LIBRARY_LDFLAGS
 
 dnl how Fortran mangles function names
 AC_FC_WRAPPERS

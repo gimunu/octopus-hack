@@ -15,25 +15,25 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: infrared.F90 13816 2015-04-09 05:50:22Z dstrubbe $
+!! $Id: infrared.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
   program infrared
-    use batch_m
-    use command_line_m
-    use geometry_m
-    use global_m
-    use io_m
-    use math_m
-    use messages_m
-    use parser_m
-    use profiling_m
-    use simul_box_m
-    use space_m
-    use unit_m
-    use unit_system_m
-    use varinfo_m
+    use batch_oct_m
+    use command_line_oct_m
+    use geometry_oct_m
+    use global_oct_m
+    use io_oct_m
+    use math_oct_m
+    use messages_oct_m
+    use parser_oct_m
+    use profiling_oct_m
+    use simul_box_oct_m
+    use space_oct_m
+    use unit_oct_m
+    use unit_system_oct_m
+    use varinfo_oct_m
 
     implicit none
 

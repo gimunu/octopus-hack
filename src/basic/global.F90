@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: global.F90 15148 2016-02-29 20:57:38Z dstrubbe $
+!! $Id: global.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module global_m
-  use hardware_m
-  use loct_m
-  use mpi_m
-  use varinfo_m
+module global_oct_m
+  use hardware_oct_m
+  use loct_oct_m
+  use mpi_oct_m
+  use varinfo_oct_m
 #ifdef HAVE_OPENMP
   use omp_lib
 #endif
@@ -275,7 +275,7 @@ FCFLAGS
     
   end function cat
   
-end module global_m
+end module global_oct_m
 
 !! Local Variables:
 !! mode: f90

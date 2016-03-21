@@ -15,18 +15,18 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: index.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: index.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module index_m
-  use global_m
-  use hypercube_m
-  use io_m
-  use io_binary_m
-  use messages_m
-  use mpi_m
-  use simul_box_m
+module index_oct_m
+  use global_oct_m
+  use hypercube_oct_m
+  use io_oct_m
+  use io_binary_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use simul_box_oct_m
 
   implicit none
 
@@ -410,7 +410,7 @@ contains
     POP_SUB(index_subset_indices)
   end subroutine index_subset_indices
 
-end module index_m
+end module index_oct_m
 
 !! Local Variables:
 !! mode: f90

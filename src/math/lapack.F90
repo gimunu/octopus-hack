@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: lapack.F90 13995 2015-05-15 18:49:25Z dstrubbe $
+!! $Id: lapack.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -23,7 +23,7 @@
 !> This module contains interfaces for LAPACK routines
 ! -----------------------------------------------------------------------
 
-module lapack_m
+module lapack_oct_m
   implicit none
 
   public ! only interfaces in this module
@@ -496,7 +496,7 @@ module lapack_m
     end subroutine chegvx
   end interface lapack_hegvx
 
-end module lapack_m
+end module lapack_oct_m
 
 !! Local Variables:
 !! mode: f90

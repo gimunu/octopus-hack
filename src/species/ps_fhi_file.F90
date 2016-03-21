@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: ps_fhi_file.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: ps_fhi_file.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module ps_fhi_file_m
-  use global_m
-  use messages_m
-  use profiling_m
+module ps_fhi_file_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -91,7 +91,7 @@ contains
     POP_SUB(read_file_data)
   end subroutine ps_fhi_file_read
 
-end module ps_fhi_file_m
+end module ps_fhi_file_oct_m
 
 !! Local Variables:
 !! mode: f90

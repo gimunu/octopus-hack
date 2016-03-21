@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: blas.F90 11443 2013-11-02 01:55:09Z dstrubbe $
+!! $Id: blas.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -23,7 +23,7 @@
 !> This module contains interfaces for BLAS routines
 !! You should not use these routines directly. Please use the lalg_XXXX
 ! -----------------------------------------------------------------------
-module blas_m
+module blas_oct_m
 
   implicit none
 
@@ -676,7 +676,7 @@ module blas_m
     end subroutine ztrsm
   end interface blas_trsm
 
-end module blas_m
+end module blas_oct_m
 
 
 !! Local Variables:

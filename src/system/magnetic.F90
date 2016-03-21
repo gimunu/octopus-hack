@@ -15,25 +15,25 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: magnetic.F90 14220 2015-06-05 15:51:28Z xavier $
+!! $Id: magnetic.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module magnetic_m
-  use derivatives_m
-  use geometry_m
-  use global_m
-  use mesh_function_m
-  use mesh_m
-  use messages_m
-  use mpi_m
-  use poisson_m
-  use profiling_m
-  use species_m
-  use states_m
-  use states_dim_m
-  use unit_m
-  use unit_system_m
+module magnetic_oct_m
+  use derivatives_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use mesh_function_oct_m
+  use mesh_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use poisson_oct_m
+  use profiling_oct_m
+  use species_oct_m
+  use states_oct_m
+  use states_dim_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
 
   implicit none
 
@@ -251,7 +251,7 @@ contains
   end subroutine magnetic_induced
 
 
-end module magnetic_m
+end module magnetic_oct_m
 
 !! Local Variables:
 !! mode: f90

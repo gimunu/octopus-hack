@@ -15,24 +15,24 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: smear.F90 14578 2015-09-21 08:58:48Z huebener $
+!! $Id: smear.F90 15204 2016-03-19 13:17:02Z xavier $
 
 ! Some pieces glued from PW/w(0,1)gauss.f90 from PWSCF
 
 #include "global.h"
 
-module smear_m
-  use cmplxscl_m
-  use global_m
-  use kpoints_m
-  use loct_math_m
-  use messages_m
-  use parser_m
-  use profiling_m
-  use sort_om
-  use unit_m
-  use unit_system_m
-  use varinfo_m
+module smear_oct_m
+  use cmplxscl_oct_m
+  use global_oct_m
+  use kpoints_oct_m
+  use loct_math_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use profiling_oct_m
+  use sort_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use varinfo_oct_m
 
   implicit none
   
@@ -672,7 +672,7 @@ contains
     POP_SUB(smear_is_semiconducting)
   end function smear_is_semiconducting
 
-end module smear_m
+end module smear_oct_m
 
 !! Local Variables:
 !! mode: f90

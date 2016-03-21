@@ -15,21 +15,21 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: harmonic_spectrum.F90 13172 2015-02-24 09:19:47Z micael $
+!! $Id: harmonic_spectrum.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 program harmonic_spectrum
-  use command_line_m
-  use fft_m
-  use global_m
-  use io_m
-  use messages_m
-  use parser_m
-  use spectrum_m
-  use unit_m
-  use unit_system_m
-  use varinfo_m
+  use command_line_oct_m
+  use fft_oct_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use parser_oct_m
+  use spectrum_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use varinfo_oct_m
 
   implicit none
 

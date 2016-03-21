@@ -15,16 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: young.F90 13812 2015-04-09 01:25:06Z dstrubbe $
+!! $Id: young.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module young_m
-  use global_m
-  use loct_pointer_m
-  use math_m
-  use messages_m
-  use profiling_m
+module young_oct_m
+  use global_oct_m
+  use loct_pointer_oct_m
+  use math_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -321,7 +321,7 @@ contains
     POP_SUB(young_end)
   end subroutine young_end
 
-end module young_m
+end module young_oct_m
 
 !! Local Variables:
 !! mode: f90

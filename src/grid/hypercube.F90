@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hypercube.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: hypercube.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module hypercube_m
-  use global_m
-  use messages_m
-  use profiling_m
+module hypercube_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
   
   implicit none
 
@@ -276,7 +276,7 @@ contains
     number = sum(this%boxdim)
   end function hypercube_number_total_points
   
-end module hypercube_m
+end module hypercube_oct_m
 
 !! Local Variables:
 !! mode: f90

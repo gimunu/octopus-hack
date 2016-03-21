@@ -15,34 +15,34 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: modelmb_exchange_syms.F90 14095 2015-05-27 15:16:52Z dstrubbe $
+!! $Id: modelmb_exchange_syms.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module modelmb_exchange_syms_m
+module modelmb_exchange_syms_oct_m
 
-  use batch_m
-  use geometry_m
-  use global_m
-  use grid_m
-  use hypercube_m
-  use index_m
-  use io_m
-  use lalg_adv_m
-  use loct_m
-  use math_m
-  use mesh_batch_m
-  use mesh_function_m
-  use messages_m
-  use modelmb_particles_m
-  use modelmb_density_matrix_m
-  use mpi_m
-  use mpi_lib_m
-  use parser_m
-  use permutations_m
-  use profiling_m
-  use states_m
-  use young_m
+  use batch_oct_m
+  use geometry_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use hypercube_oct_m
+  use index_oct_m
+  use io_oct_m
+  use lalg_adv_oct_m
+  use loct_oct_m
+  use math_oct_m
+  use mesh_batch_oct_m
+  use mesh_function_oct_m
+  use messages_oct_m
+  use modelmb_particles_oct_m
+  use modelmb_density_matrix_oct_m
+  use mpi_oct_m
+  use mpi_lib_oct_m
+  use parser_oct_m
+  use permutations_oct_m
+  use profiling_oct_m
+  use states_oct_m
+  use young_oct_m
 
   implicit none
 
@@ -81,7 +81,7 @@ subroutine modelmb_sym_all_states (gr, st, geo)
   POP_SUB(modelmb_sym_all_states)
 end subroutine modelmb_sym_all_states
 
-end module modelmb_exchange_syms_m
+end module modelmb_exchange_syms_oct_m
 
 !! Local Variables:
 !! mode: f90

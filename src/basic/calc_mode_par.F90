@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: calc_mode_par.F90 13462 2015-03-21 21:31:06Z dstrubbe $
+!! $Id: calc_mode_par.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -25,10 +25,10 @@
 !! accessed elsewhere. It does not, and should not, contain the definitions
 !! of the calculation modes themselves, to avoid writing code explicitly
 !! dependent on the calculation mode elsewhere.
-module calc_mode_par_m
-  use global_m
-  use messages_m
-  use multicomm_m
+module calc_mode_par_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use multicomm_oct_m
 
   public ::                             &
        calc_mode_par_t,                     &
@@ -134,7 +134,7 @@ contains
     POP_SUB(calc_mode_par_default_parallel_mask)
   end function calc_mode_par_default_parallel_mask
   
-end module calc_mode_par_m
+end module calc_mode_par_oct_m
 
 !! Local Variables:
 !! mode: f90

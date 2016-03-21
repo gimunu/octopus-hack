@@ -15,18 +15,18 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: ps_upf.F90 14164 2015-06-01 17:08:20Z dstrubbe $
+!! $Id: ps_upf.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module ps_upf_m
-  use atomic_m
-  use global_m
-  use io_m
-  use messages_m
-  use profiling_m
-  use ps_in_grid_m
-  use xml_m
+module ps_upf_oct_m
+  use atomic_oct_m
+  use global_oct_m
+  use io_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use ps_in_grid_oct_m
+  use xml_oct_m
   
   implicit none
 
@@ -790,7 +790,7 @@ contains
     POP_SUB(ps_upf_check_rphi)
   end subroutine ps_upf_check_rphi
 
-end module ps_upf_m
+end module ps_upf_oct_m
 
 !! Local Variables:
 !! mode: f90

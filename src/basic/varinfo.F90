@@ -15,13 +15,13 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: varinfo.F90 14266 2015-06-12 20:05:42Z dstrubbe $
+!! $Id: varinfo.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module varinfo_m
+module varinfo_oct_m
   use iso_c_binding
-  use string_m
+  use string_oct_m
 
   implicit none
 
@@ -311,7 +311,7 @@ contains
   end function varinfo_exists
   
 
-end module varinfo_m
+end module varinfo_oct_m
 
 !! Local Variables:
 !! mode: f90

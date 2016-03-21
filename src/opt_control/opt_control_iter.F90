@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: opt_control_iter.F90 13640 2015-03-28 23:49:50Z xavier $
+!! $Id: opt_control_iter.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module opt_control_iter_m
-  use global_m
-  use grid_m
-  use output_m
-  use io_m
-  use parser_m
-  use messages_m
-  use controlfunction_m
-  use profiling_m
-  use states_m
-  use system_m
-  use varinfo_m
+module opt_control_iter_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use output_oct_m
+  use io_oct_m
+  use parser_oct_m
+  use messages_oct_m
+  use controlfunction_oct_m
+  use profiling_oct_m
+  use states_oct_m
+  use system_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -433,7 +433,7 @@ contains
   ! ---------------------------------------------------------
 
 
-end module opt_control_iter_m
+end module opt_control_iter_oct_m
 
 !! Local Variables:
 !! mode: f90

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: stencil_variational.F90 14362 2015-06-24 17:02:22Z xavier $
+!! $Id: stencil_variational.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 ! ---------------------------------------------------------
@@ -40,11 +40,11 @@
 !! \todo This module should look like stencil_star, allowing for
 !! coefficients on non-uniform grids.
 ! ---------------------------------------------------------
-module stencil_variational_m
-  use global_m
-  use messages_m
-  use profiling_m
-  use nl_operator_m
+module stencil_variational_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use nl_operator_oct_m
 
   implicit none
 
@@ -146,7 +146,7 @@ contains
     POP_SUB(stencil_variational_extent)
   end function stencil_variational_extent
 
-end module stencil_variational_m
+end module stencil_variational_oct_m
 
 !! Local Variables:
 !! mode: f90

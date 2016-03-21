@@ -15,16 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: blacs_proc_grid.F90 14944 2016-01-01 19:46:20Z xavier $
+!! $Id: blacs_proc_grid.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module blacs_proc_grid_m
-  use global_m
-  use blacs_m
-  use mpi_m
-  use messages_m
-  use profiling_m
+module blacs_proc_grid_oct_m
+  use global_oct_m
+  use blacs_oct_m
+  use mpi_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -204,7 +204,7 @@ contains
     blacs_proc_grid_null = this%context == -1
   end function blacs_proc_grid_null
   
-end module blacs_proc_grid_m
+end module blacs_proc_grid_oct_m
 
 
 !! Local Variables:

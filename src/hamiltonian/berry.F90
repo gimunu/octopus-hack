@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: berry.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: berry.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module berry_m
-  use global_m
-  use grid_m
-  use lalg_adv_m
-  use mesh_m
-  use mesh_function_m
-  use messages_m
-  use profiling_m
-  use simul_box_m
-  use smear_m
-  use states_m
-  use states_dim_m
+module berry_oct_m
+  use global_oct_m
+  use grid_oct_m
+  use lalg_adv_oct_m
+  use mesh_oct_m
+  use mesh_function_oct_m
+  use messages_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
+  use smear_oct_m
+  use states_oct_m
+  use states_dim_oct_m
 
   implicit none
 
@@ -250,7 +250,7 @@ contains
     POP_SUB(berry_energy_correction)
   end function berry_energy_correction
 
-end module berry_m
+end module berry_oct_m
 
 !! Local Variables:
 !! mode: f90

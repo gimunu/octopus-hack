@@ -15,18 +15,18 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: box_union.F90 12114 2014-05-12 16:39:09Z dstrubbe $
+!! $Id: box_union.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module box_union_m
-  use global_m
-  use io_m
-  use loct_m
-  use messages_m
-  use mpi_m
-  use profiling_m
-  use box_m
+module box_union_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use profiling_oct_m
+  use box_oct_m
 
   implicit none
 
@@ -152,7 +152,7 @@ contains
     x = box_get_center(union%boxes(ibox))
     
   end function box_union_get_center
-end module box_union_m
+end module box_union_oct_m
 
 
 !! Local Variables:

@@ -15,22 +15,22 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: xyzanim.F90 14361 2015-06-24 16:26:28Z xavier $
+!! $Id: xyzanim.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 program xyzanim
-  use command_line_m
-  use global_m
-  use messages_m
-  use loct_m
-  use parser_m
-  use io_m
-  use unit_m
-  use unit_system_m
-  use simul_box_m
-  use space_m
-  use geometry_m
+  use command_line_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use loct_oct_m
+  use parser_oct_m
+  use io_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use simul_box_oct_m
+  use space_oct_m
+  use geometry_oct_m
 
   implicit none
 

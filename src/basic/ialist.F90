@@ -15,17 +15,17 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: ialist.F90 14457 2015-07-24 06:42:41Z dannert $
+!! $Id: ialist.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
 !> This module implements a simple associative list for integer keys and
 !! values. It is used by the separate changing hash-table implementation.
 
-module ialist_m
-  use global_m
-  use messages_m
-  use profiling_m
+module ialist_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -221,7 +221,7 @@ contains
     nullify(l%head)
 
   end subroutine ialist_end
-end module ialist_m
+end module ialist_oct_m
 
 
 !! Local Variables:

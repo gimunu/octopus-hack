@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: splines.F90 14286 2015-06-18 21:59:16Z dstrubbe $
+!! $Id: splines.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -196,12 +196,12 @@
 ! [14] DIFFERENTIATE A FUNCTION:
 !
 !----------------------------------------------------------------------------*/!
-module splines_m
-  use global_m
+module splines_oct_m
+  use global_oct_m
   use iso_c_binding
-  use loct_math_m
-  use messages_m
-  use profiling_m
+  use loct_math_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -1197,7 +1197,7 @@ contains
 
   end function spline_range_max
     
-end module splines_m
+end module splines_oct_m
 
 !! Local Variables:
 !! mode: f90

@@ -15,15 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: atomic.F90 14362 2015-06-24 17:02:22Z xavier $
+!! $Id: atomic.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module atomic_m
-  use global_m
-  use logrid_m
-  use messages_m
-  use profiling_m
+module atomic_oct_m
+  use global_oct_m
+  use logrid_oct_m
+  use messages_oct_m
+  use profiling_oct_m
   use XC_F90(lib_m)
 
   implicit none
@@ -1177,7 +1177,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   end subroutine numout
 
-end module atomic_m
+end module atomic_oct_m
 
 !! Local Variables:
 !! mode: f90

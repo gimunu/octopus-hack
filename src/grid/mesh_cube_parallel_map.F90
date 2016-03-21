@@ -15,23 +15,23 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_cube_parallel_map.F90 12862 2015-02-06 17:48:44Z xavier $
+!! $Id: mesh_cube_parallel_map.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module mesh_cube_parallel_map_m
-  use cube_m
-  use global_m
-  use index_m
-  use mesh_m
-  use mesh_cube_map_m
-  use messages_m
-  use mpi_m
-  use partition_m
-  use partition_transfer_m
-  use par_vec_m
-  use profiling_m
-  use simul_box_m
+module mesh_cube_parallel_map_oct_m
+  use cube_oct_m
+  use global_oct_m
+  use index_oct_m
+  use mesh_oct_m
+  use mesh_cube_map_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use partition_oct_m
+  use partition_transfer_oct_m
+  use par_vec_oct_m
+  use profiling_oct_m
+  use simul_box_oct_m
 
   implicit none
 
@@ -254,7 +254,7 @@ contains
     POP_SUB(mesh_cube_parallel_map_end)
   end subroutine mesh_cube_parallel_map_end
 
-end module mesh_cube_parallel_map_m
+end module mesh_cube_parallel_map_oct_m
 
 !! Local Variables:
 !! mode: f90

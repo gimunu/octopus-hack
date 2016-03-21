@@ -15,16 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: element.F90 15067 2016-01-15 11:06:14Z jjornet $
+!! $Id: element.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module element_m
-  use global_m
-  use io_m
-  use loct_m
-  use messages_m
-  use profiling_m
+module element_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use profiling_oct_m
   
   implicit none
 
@@ -136,7 +136,7 @@ contains
     atomic_number = this%atomic_number
   end function element_atomic_number
   
-end module element_m
+end module element_oct_m
 
 !! Local Variables:
 !! mode: f90

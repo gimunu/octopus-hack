@@ -15,18 +15,18 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: minimizer.F90 14423 2015-07-06 17:03:34Z jjornet $
+!! $Id: minimizer.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module minimizer_m
-  use global_m
-  use lalg_basic_m
-  use profiling_m
-  use messages_m
-  use mpi_m
+module minimizer_oct_m
+  use global_oct_m
+  use lalg_basic_oct_m
+  use profiling_oct_m
+  use messages_oct_m
+  use mpi_oct_m
 #if defined(HAVE_NEWUOA)
-  use newuoa_m
+  use newuoa_oct_m
 #endif
 
   implicit none
@@ -464,7 +464,7 @@ contains
   
   end subroutine minimize_fire
 
-end module minimizer_m
+end module minimizer_oct_m
 
 !! Local Variables:
 !! mode: f90

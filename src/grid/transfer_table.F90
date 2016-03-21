@@ -15,11 +15,11 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: transfer_table.F90 14687 2015-10-22 10:05:15Z jrfsousa $
+!! $Id: transfer_table.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module transfer_table_m
+module transfer_table_oct_m
 
   implicit none
 
@@ -57,7 +57,7 @@ contains
 
   end subroutine transfer_table_nullify
 
-end module transfer_table_m
+end module transfer_table_oct_m
 
 !! Local Variables:
 !! mode: f90

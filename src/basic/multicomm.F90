@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: multicomm.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: multicomm.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -48,19 +48,19 @@
 !! You can use the routine multicomm_strategy_is_parallel to know if a certain
 !! index is parallelized.
 
-module multicomm_m
-  use global_m
-  use io_m
-  use loct_m
-  use messages_m
-  use mpi_m
+module multicomm_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use mpi_oct_m
 #if defined(HAVE_OPENMP)
   use omp_lib
 #endif
-  use parser_m
-  use profiling_m
-  use utils_m
-  use varinfo_m
+  use parser_oct_m
+  use profiling_oct_m
+  use utils_oct_m
+  use varinfo_oct_m
   
   implicit none
   
@@ -1020,7 +1020,7 @@ contains
     have_slaves = this%have_slaves
   end function multicomm_have_slaves
 
-end module multicomm_m
+end module multicomm_oct_m
 
 
 !! Local Variables:

@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: poisson_cutoff.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: poisson_cutoff.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module poisson_cutoff_m
-  use global_m
-  use loct_math_m
-  use messages_m
+module poisson_cutoff_oct_m
+  use global_oct_m
+  use loct_math_oct_m
+  use messages_oct_m
 
   implicit none
 
@@ -206,7 +206,7 @@ contains
   end function poisson_cutoff_3D_2D
   ! ---------------------------------------------------------
 
-end module poisson_cutoff_m
+end module poisson_cutoff_oct_m
 
 !! Local Variables:
 !! mode: f90

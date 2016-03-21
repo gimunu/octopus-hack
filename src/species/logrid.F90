@@ -15,14 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: logrid.F90 10978 2013-07-11 15:28:46Z micael $
+!! $Id: logrid.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module logrid_m
-  use global_m
-  use messages_m
-  use profiling_m
+module logrid_oct_m
+  use global_oct_m
+  use messages_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -205,7 +205,7 @@ contains
     radius = grid%rofi(grid%nrval)
   end function logrid_radius
 
-end module logrid_m
+end module logrid_oct_m
 
 !! Local Variables:
 !! mode: f90

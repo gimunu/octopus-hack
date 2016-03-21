@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: common-rules.make 15145 2016-02-29 19:57:16Z dstrubbe $
+## $Id: common-rules.make 15211 2016-03-20 23:36:57Z xavier $
 
 # ---------------------------------------------------------------
 # Include paths.
@@ -108,7 +108,7 @@ outside_LIBS = @LIBS_PSPIO@ @LIBS_ISF@ @LIBS_NFFT@ @LIBS_PNFFT@ @LIBS_PFFT@ \
   @LIBS_BERKELEYGW@ @LIBS_PARPACK@ @LIBS_ARPACK@ @GD_LIBS@ \
   @LIBS_PARMETIS@ @LIBS_METIS@ @LIBS_FEAST@ @LIBS_MPI@
 
-other_LIBS = $(external_LIBS) $(scalapack_LIBS) $(outside_LIBS) $(core_LIBS) 
+other_LIBS = $(external_LIBS) $(scalapack_LIBS) $(outside_LIBS) $(core_LIBS) @CXXLIBS@
 all_LIBS = $(octopus_LIBS) $(other_LIBS)
 
 # ---------------------------------------------------------------

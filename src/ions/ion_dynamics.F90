@@ -15,29 +15,29 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: ion_dynamics.F90 14220 2015-06-05 15:51:28Z xavier $
+!! $Id: ion_dynamics.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module ion_dynamics_m
+module ion_dynamics_oct_m
   use iso_c_binding
-  use geometry_m
-  use global_m
-  use io_m
-  use loct_m
-  use loct_math_m
-  use math_m
-  use messages_m
-  use mpi_m
-  use parser_m
-  use read_coords_m
-  use simul_box_m
-  use species_m
-  use tdfunction_m
-  use profiling_m
-  use unit_m
-  use unit_system_m
-  use varinfo_m
+  use geometry_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use loct_math_oct_m
+  use math_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use parser_oct_m
+  use read_coords_oct_m
+  use simul_box_oct_m
+  use species_oct_m
+  use tdfunction_oct_m
+  use profiling_oct_m
+  use unit_oct_m
+  use unit_system_oct_m
+  use varinfo_oct_m
 
   implicit none
 
@@ -745,7 +745,7 @@ contains
   end subroutine ion_dynamics_unfreeze
 
 
-end module ion_dynamics_m
+end module ion_dynamics_oct_m
 
 !! Local Variables:
 !! mode: f90

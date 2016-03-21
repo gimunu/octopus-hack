@@ -16,17 +16,17 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: box.F90 11973 2014-04-01 14:52:18Z joseba $
+!! $Id: box.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
-module box_m
-  use global_m
-  use io_m
-  use loct_m
-  use messages_m
-  use mpi_m
-  use profiling_m
+module box_oct_m
+  use global_oct_m
+  use io_oct_m
+  use loct_oct_m
+  use messages_oct_m
+  use mpi_oct_m
+  use profiling_oct_m
 
   implicit none
 
@@ -201,7 +201,7 @@ contains
     x(1:box%dim) = box%center(1:box%dim)
 
   end function box_get_center
-end module box_m
+end module box_oct_m
 
 
 !! Local Variables:

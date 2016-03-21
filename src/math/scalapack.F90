@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: scalapack.F90 13230 2015-02-26 23:23:24Z dstrubbe $
+!! $Id: scalapack.F90 15203 2016-03-19 13:15:05Z xavier $
 
 #include "global.h"
 
@@ -36,7 +36,7 @@
 !!  "of the global array".
 ! -----------------------------------------------------------------------
 
-module scalapack_m
+module scalapack_oct_m
   implicit none
 #ifdef HAVE_SCALAPACK
 
@@ -428,7 +428,7 @@ module scalapack_m
   end interface scalapack_potrf
 
 #endif
-end module scalapack_m
+end module scalapack_oct_m
 
 !! local Variables:
 !! mode: f90
