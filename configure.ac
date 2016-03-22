@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: configure.ac 15205 2016-03-19 14:43:28Z xavier $
+## $Id: configure.ac 15216 2016-03-21 15:48:22Z acastro $
 
 AC_PREREQ(2.59)
 # Note: the version string is written into ETSF_IO files, so when you update
@@ -142,10 +142,6 @@ else
 fi
 AC_SUBST(F90_FORALL)
   
-dnl check for NEWUOA
-ACX_NEWUOA
-AM_CONDITIONAL(COMPILE_NEWUOA, test x${HAVE_NEWUOA} = x1)
-
 dnl check for C MPI
 if test x"$enable_mpi" == x"yes"; then
   AC_CHECK_HEADER(mpi.h,,AC_MSG_ERROR([cannot find mpi.h]))
@@ -296,6 +292,9 @@ ACX_BERKELEYGW
 
 dnl check for SPARSKIT
 ACX_SPARSKIT
+
+dnl check for NLOPT
+ACX_NLOPT
   
 dnl check for Fortran MPI support
 if test x"$enable_mpi" != x"no"; then
@@ -352,7 +351,6 @@ AC_CONFIG_FILES([Makefile
   external_libs/qshep/Makefile
   external_libs/spglib-1.5.2/Makefile
   external_libs/spglib-1.5.2/src/Makefile
-  external_libs/newuoa/Makefile
   external_libs/fortrancl/Makefile
   external_libs/bpdn/Makefile
   external_libs/yaml-0.1.4/Makefile

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 04-box.07-oct_long.inp 13978 2015-05-14 16:03:03Z xavier $
+# $Id: 04-box.07-oct_long.inp 15216 2016-03-21 15:48:22Z acastro $
 
 CalculationMode = opt_control
 ExperimentalFeatures = yes
@@ -32,7 +32,7 @@ OCTTargetOperator = oct_tg_gstransformation
 0 | 1
 %
 
-OCTScheme = oct_algorithm_direct
+OCTScheme = oct_direct
 OCTControlFunctionRepresentation = control_fourier_series
 OCTControlFunctionOmegaMax = 0.05
 #OCTFixFluenceTo = -1

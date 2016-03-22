@@ -15,7 +15,21 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: opt_control_c_inc.F90 12715 2015-01-25 21:04:51Z acastro $
+!! $Id: opt_control_c_inc.F90 15216 2016-03-21 15:48:22Z acastro $
+
+  subroutine opt_control_nlopt_func(val, n, x, grad, need_gradient, f_data)
+    integer :: n, need_gradient
+    FLOAT :: val, x(n), grad(n), f_data
+
+    integer :: getgrad
+    PUSH_SUB(opt_control_nlopt_func)
+
+    getgrad = 0; if(need_gradient.ne.0) getgrad = 1
+    call opt_control_cg_calc(n, x, val, getgrad, grad) 
+
+    POP_SUB(opt_control_nlopt_func)
+  end subroutine opt_control_nlopt_func
+
 
   !> ---------------------------------------------------------
   !! The following routines are to be called by C routines, which in turn

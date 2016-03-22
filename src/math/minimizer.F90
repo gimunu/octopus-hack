@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: minimizer.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: minimizer.F90 15223 2016-03-22 12:24:24Z acastro $
 
 #include "global.h"
 
@@ -25,9 +25,6 @@ module minimizer_oct_m
   use profiling_oct_m
   use messages_oct_m
   use mpi_oct_m
-#if defined(HAVE_NEWUOA)
-  use newuoa_oct_m
-#endif
 
   implicit none
 
@@ -36,7 +33,9 @@ module minimizer_oct_m
     loct_1dminimize,           &
     minimize_fire,             &
     minimize_multidim,         &
-    minimize_multidim_nograd
+    minimize_multidim_nograd,  &
+    minimize_multidim_nlopt
+
 
   integer, public, parameter ::      &
     MINMETHOD_STEEPEST_DESCENT =  1, &
@@ -46,8 +45,9 @@ module minimizer_oct_m
     MINMETHOD_BFGS2            =  5, &
     MINMETHOD_NMSIMPLEX        =  6, &
     MINMETHOD_SD_NATIVE        = -1, &
-    MINMETHOD_NEWUOA           =  7, &
-    MINMETHOD_FIRE             =  8
+    MINMETHOD_NLOPT_BOBYQA     =  7, &
+    MINMETHOD_FIRE             =  8, &
+    MINMETHOD_NLOPT_LBFGS      =  9
 
   interface loct_1dminimize
     subroutine oct_1dminimize(a, b, m, f, status)
@@ -111,6 +111,7 @@ module minimizer_oct_m
       integer, intent(in)    :: maxiter
       !> No intents here is unfortunately required because the same dummy function will be passed
       !! also to newuoa routines in opt_control, and there the interface has no intents.
+      !! UPDATE: The newuoa interfaces are gone, so probably this can be fixed.
       interface
         subroutine f(n, x, val)
           implicit none
@@ -142,6 +143,7 @@ contains
     integer, intent(in)    :: maxiter
     !> No intents here is unfortunately required because the same dummy function will be passed
     !! also to newuoa routines in opt_control, and there the interface has no intents.
+    !! UPDATE: The newoua interface is gone, and therefore probably this can be fixed.
     interface
       subroutine f(n, x, val)
         implicit none
@@ -171,26 +173,70 @@ contains
     select case(method)
     case(MINMETHOD_NMSIMPLEX) 
       ierr = loct_minimize_direct(method, dim, x(1), step, toldr, maxiter, f, write_iter_info, minimum)
-#if defined(HAVE_NEWUOA)
-    case(MINMETHOD_NEWUOA)
-      npt = 2*dim + 1
-      iprint = 2
-      sizeofw = (npt + 13)*(npt + dim) + 3 * dim*(dim + 3)/2 
-      SAFE_ALLOCATE(w(1:sizeofw))
-      w = M_ZERO
-      call newuoa(dim, npt, x, step, toldr, iprint, maxiter, w, f)
-      call f(dim, x, minimum)
-      SAFE_DEALLOCATE_A(w)
-      ierr = 0
-#endif
     end select
 
     POP_SUB(minimize_multidim_nograd)
 
   end subroutine minimize_multidim_nograd
 
-  !----------------------------------------------
 
+  subroutine minimize_multidim_nlopt(ierr, method, dim, x, step, toldr, maxiter, f, minimum, lb, ub)
+    integer, intent(out)   :: ierr
+    integer, intent(in)    :: method
+    integer, intent(in)    :: dim
+    real(8), intent(inout) :: x(:)
+    real(8), intent(in)    :: step
+    real(8), intent(in)    :: toldr
+    integer, intent(in)    :: maxiter
+    interface
+      subroutine f(val, n, x, grad, need_gradient, f_data)
+        FLOAT    :: val
+        integer  :: n
+        FLOAT    :: x(n), grad(n)
+        integer  :: need_gradient
+        FLOAT    :: f_data
+      end subroutine f
+    end interface
+    real(8), intent(out)   :: minimum
+    real(8), intent(in), optional :: lb(:), ub(:)
+#if defined(HAVE_NLOPT)
+
+    integer(8) :: opt
+    real(8) :: minf
+    integer :: ires
+    include 'nlopt.f'
+
+    select case(method)
+    case(MINMETHOD_NLOPT_BOBYQA)
+      call nlo_create(opt, NLOPT_LN_BOBYQA, dim)
+    case(MINMETHOD_NLOPT_LBFGS)
+      call nlo_create(opt, NLOPT_LD_LBFGS, dim)
+    end select
+
+    if(present(lb)) then
+      call nlo_set_lower_bounds(ires, opt, lb)
+    end if
+    if(present(ub)) then
+      call nlo_set_upper_bounds(ires, opt, ub)
+    end if
+
+    call nlo_set_min_objective(ires, opt, f, 0)
+    ! This would set an inequality constraint (TODO)
+    !call nlo_add_inequality_constraint(ires, opt, myconstraint, d1, CNST(1.0e-8))
+
+    call nlo_set_xtol_abs(ires, opt, toldr)
+    call nlo_set_initial_step1(ires, opt, step)
+    call nlo_set_maxeval(ires, opt, maxiter)
+
+    call nlo_optimize(ires, opt, x, minimum)
+    ierr = ires
+    call nlo_destroy(opt)
+
+#endif
+  end subroutine minimize_multidim_nlopt
+
+
+  !----------------------------------------------
   subroutine minimize_multidim(method, dim, x, step, line_tol, tolgrad, toldr, maxiter, f, write_iter_info, minimum, ierr)
     integer, intent(in)    :: method
     integer, intent(in)    :: dim

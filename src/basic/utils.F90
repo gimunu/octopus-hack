@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: utils.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: utils.F90 15217 2016-03-21 16:39:10Z acastro $
 
 #include "global.h"
 
@@ -299,9 +299,6 @@ contains
 #ifdef HAVE_NETCDF
     get_optional_libraries = trim(get_optional_libraries)//' netcdf'
 #endif
-#ifdef HAVE_NEWUOA
-    get_optional_libraries = trim(get_optional_libraries)//' newuoa'
-#endif
 #ifdef HAVE_NFFT
     get_optional_libraries = trim(get_optional_libraries)//' nfft'
 #endif
@@ -325,6 +322,9 @@ contains
 #endif
 #ifdef HAVE_SPARSKIT
     get_optional_libraries = trim(get_optional_libraries)//' sparskit'
+#endif
+#ifdef HAVE_NLOPT
+    get_optional_libraries = trim(get_optional_libraries)//' nlopt'
 #endif
 
   end function get_optional_libraries

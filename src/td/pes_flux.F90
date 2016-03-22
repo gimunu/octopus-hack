@@ -1068,8 +1068,10 @@ contains
         kpoint(1:mdim) = kpoints_get_point(mesh%sb%kpoints, ik)
       end if
       
+      kpoint(:) = M_ZERO
       
       do ikp = ikp_start, ikp_end
+        ! integrate over time
         do itstep = 1, this%tdsteps
           vec = sum((this%kcoords_cub(1:mdim, ikp, ik) - kpoint(1:mdim) - this%veca(1:mdim, itstep) / P_c)**2)
           conjgphase_cub(ikp, itstep, ik) = conjgphase_cub(ikp, itstep - 1, ik) & 
@@ -1091,6 +1093,12 @@ contains
         Jk_cub = M_z0
 
         do ik = kptst, kptend
+  
+          kpoint(:) = M_ZERO
+          if(simul_box_is_periodic(mesh%sb)) then
+            kpoint(1:mdim) = kpoints_get_point(mesh%sb%kpoints, ik)
+          end if
+          
 
           if(.not. this%usememory) then            
             k_dot_aux(:) = M_ZERO
@@ -1102,15 +1110,17 @@ contains
 
           do ist = stst, stend
             do isdim = 1, sdim
-
+              
+              ! integrate over time
               do itstep = 1, this%tdsteps
                 Jk_cub(ist, isdim, ik, 1:this%nkpnts) = &
                   Jk_cub(ist, isdim, ik, 1:this%nkpnts) + conjgphase_cub(1:this%nkpnts, itstep, ik) * &
                   (this%wf(ist, isdim, ik, isp, itstep) * &
-                   (M_TWO * this%veca(idir, itstep) / P_c - this%kcoords_cub(idir, 1:this%nkpnts, ik)) + &
+                   (M_TWO * (this%veca(idir, itstep) / P_c + kpoint(idir)) - this%kcoords_cub(idir, 1:this%nkpnts, ik)) + &
                     this%gwf(ist, isdim, ik, isp, itstep, idir) * M_zI)
               end do
 
+              ! Add the phase contribute at the surface point isp
               if(this%usememory) then
                 Jk_cub(ist, isdim, ik, 1:this%nkpnts) = &
                   Jk_cub(ist, isdim, ik, 1:this%nkpnts) * this%conjgplanewf_cub(1:this%nkpnts, isp, ik)

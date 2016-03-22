@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 02-sym_doublewell.03-oct.inp 14662 2015-10-09 16:28:49Z xavier $
+# $Id: 02-sym_doublewell.03-oct.inp 15216 2016-03-21 15:48:22Z acastro $
 
 
 Dimensions = 1
@@ -64,7 +64,7 @@ OCTTargetOperator = oct_tg_gstransformation
 1/sqrt(2) | -1/sqrt(2)
 %
 
-OCTScheme  = oct_algorithm_zbr98
+OCTScheme  = oct_zbr98
 OCTDoubleCheck = no
 
 

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian.F90 15214 2016-03-21 12:47:45Z umberto $
+!! $Id: hamiltonian.F90 15224 2016-03-22 15:34:25Z umberto $
 
 #include "global.h"
 
@@ -833,7 +833,7 @@ contains
       complex_potential = this%cmplxscl%space .or. this%bc%abtype == IMAGINARY_ABSORBING)
 
     if(this%d%nspin > 2 .and. this%bc%abtype == IMAGINARY_ABSORBING) then
-      call messages_not_implemented('AbsorbingBoundaries = sin2 for spinors')
+      call messages_not_implemented('AbsorbingBoundaries = cap for spinors')
     end if
 
     do ispin = 1, this%d%nspin

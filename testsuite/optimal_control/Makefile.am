@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 12778 2015-01-29 22:01:32Z xavier $
+## $Id: Makefile.am 15218 2016-03-21 18:25:08Z acastro $
 
 sharedir = $(pkgdatadir)/testsuite/optimal_control
 
@@ -73,6 +73,8 @@ dist_share_DATA = \
 	11-classical.02-oct.inp                \
 	12-spintarget.test                     \
 	12-spintarget.01-ground_state.inp      \
-	12-spintarget.02-oct.inp
+	12-spintarget.02-oct.inp               \
+	13-box-nlopt.test                      \
+	13-box.03-bobyqa.inp
 
 CLEANFILES = *~ *.bak

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 04-box.05-oct_long.inp 15216 2016-03-21 15:48:22Z acastro $
+# $Id: 04-box.06-oct_long.inp 15216 2016-03-21 15:48:22Z acastro $
 
 CalculationMode = opt_control
 ExperimentalFeatures = yes
@@ -22,19 +22,24 @@ TDTimeStep = dt
 # OCT parameters
 # --------------
 
-OCTPenalty =1.0
-OCTEps   = 0.000001
-OCTMaxIter = 5
+OCTPenalty = 1.0
+OCTEps = 0.001
+OCTMaxIter = 50
 
 OCTInitialState = oct_is_groundstate
 OCTTargetOperator = oct_tg_gstransformation
 %OCTTargetTransformStates
 0 | 1
 %
-OCTScheme  = oct_wg05
-OCTDoubleCheck = No	
-gamma1 = 0.1
-gamma2 = 80
+
+OCTDirectStep = 0.25*pi
+OCTScheme = oct_nlopt_bobyqa
+OCTControlFunctionRepresentation = control_fourier_series
+OCTControlFunctionOmegaMax = 0.10
+#OCTFixFluenceTo = -1
+
+OCTDoubleCheck = no
+
 
 
 #----------------------------
@@ -42,9 +47,9 @@ gamma2 = 80
 #-----------------------------
 
 ampl = 0.06
-freq = 0.157
+freq = (2*pi/stime)
 %TDExternalFields
-electric_field | 1 | 0 | 0 | freq | "envelope_function"
+  electric_field | 1 | 0 | 0 | freq | "envelope_function" 
 %
 
 %TDFunctions

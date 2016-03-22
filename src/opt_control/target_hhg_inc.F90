@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: target_hhg_inc.F90 14900 2015-12-27 01:30:00Z xavier $
+!! $Id: target_hhg_inc.F90 15216 2016-03-21 15:48:22Z acastro $
 
 
   ! ----------------------------------------------------------------------
@@ -225,7 +225,7 @@
     type(target_t),   intent(inout) :: tg
     type(oct_t), intent(in)       :: oct
     PUSH_SUB(target_init_hhgnew)
-    if((oct%algorithm  ==  oct_algorithm_cg) .or. (oct%algorithm == oct_algorithm_bfgs)) then
+    if((oct%algorithm  ==  OPTION__OCTSCHEME__OCT_CG) .or. (oct%algorithm == OPTION__OCTSCHEME__OCT_BFGS)) then
       SAFE_DEALLOCATE_P(tg%grad_local_pot)
       SAFE_DEALLOCATE_P(tg%rho)
       SAFE_DEALLOCATE_P(tg%vel)

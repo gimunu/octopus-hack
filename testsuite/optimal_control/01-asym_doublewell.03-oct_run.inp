@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 01-asym_doublewell.03-oct_run.inp 13978 2015-05-14 16:03:03Z xavier $
+# $Id: 01-asym_doublewell.03-oct_run.inp 15216 2016-03-21 15:48:22Z acastro $
 
 Dimensions = 1
 fromScratch = yes
@@ -58,7 +58,7 @@ OCTTargetOperator = oct_tg_gstransformation
 0 | 1
 %
 
-OCTScheme  = oct_algorithm_zbr98
+OCTScheme  = oct_zbr98
 OCTDoubleCheck = no
 
 

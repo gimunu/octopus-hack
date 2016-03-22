@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 03-localtarget.03-tdoct.inp 13978 2015-05-14 16:03:03Z xavier $
+# $Id: 03-localtarget.03-tdoct.inp 15216 2016-03-21 15:48:22Z acastro $
 
 
 Dimensions = 1
@@ -59,7 +59,7 @@ OCTTargetOperator = oct_tg_td_local
 "exp(-(x-1)^2)"
 %
 
-OCTScheme = oct_algorithm_bfgs
+OCTScheme = oct_bfgs
 OCTControlFunctionOmegaMax = 0.40
 
 OCTDirectStep = 0.1

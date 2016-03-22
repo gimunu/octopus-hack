@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: opt_control.F90 15214 2016-03-21 12:47:45Z umberto $
+!! $Id: opt_control.F90 15223 2016-03-22 12:24:24Z acastro $
 
 #include "global.h"
 
@@ -74,7 +74,7 @@ module opt_control_oct_m
   type(opt_control_state_t), save :: initial_st
   
 
-  !> For the direct, newuoa, and cg schemes:
+  !> For the direct, nlopt, and cg schemes:
   type(controlfunction_t), save :: par_
   type(system_t), pointer :: sys_
   type(hamiltonian_t), pointer :: hm_
@@ -134,7 +134,10 @@ contains
 
     ! Initialization of the propagation_oct_m module.
     call propagation_mod_init(td%max_iter, oct%eta, oct%delta, oct%number_checkpoints, &
-      (oct%algorithm == oct_algorithm_zbr98), (oct%algorithm == oct_algorithm_cg) .or. (oct%algorithm == oct_algorithm_bfgs))
+      (oct%algorithm == OPTION__OCTSCHEME__OCT_ZBR98), &
+      (oct%algorithm == OPTION__OCTSCHEME__OCT_CG) .or. &
+      (oct%algorithm == OPTION__OCTSCHEME__OCT_BFGS) .or. &
+      (oct%algorithm == OPTION__OCTSCHEME__OCT_NLOPT_LBFGS) )
 
 
     ! If filters are to be used, they also have to be initialized.
@@ -159,46 +162,50 @@ contains
 
     ! mode switcher; here is where the real run is made.
     select case(oct%algorithm)
-      case(oct_algorithm_zbr98)
+      case(OPTION__OCTSCHEME__OCT_ZBR98)
         message(1) = "Info: Starting OCT iteration using scheme: ZBR98"
         call messages_info(1)
         call scheme_zbr98()
-      case(oct_algorithm_wg05)
+      case(OPTION__OCTSCHEME__OCT_WG05)
         message(1) = "Info: Starting OCT iteration using scheme: WG05"
         call messages_info(1)
         call scheme_wg05()
-      case(oct_algorithm_zr98)
+      case(OPTION__OCTSCHEME__OCT_ZR98)
         message(1) = "Info: Starting OCT iteration using scheme: ZR98"
         call messages_info(1)
         call scheme_mt03()
-      case(oct_algorithm_mt03)
+      case(OPTION__OCTSCHEME__OCT_MT03)
         message(1) = "Info: Starting OCT iteration using scheme: MT03"
         call messages_info(1)
         call scheme_mt03()
-      case(oct_algorithm_krotov)
+      case(OPTION__OCTSCHEME__OCT_KROTOV)
         message(1) = "Info: Starting OCT iteration using scheme: KROTOV"
         call messages_info(1)
         call scheme_mt03()
-      case(oct_algorithm_str_iter)
+      case(OPTION__OCTSCHEME__OCT_STRAIGHT_ITERATION)
         message(1) = "Info: Starting OCT iterations using scheme: STRAIGHT ITERATION"
         call messages_info(1)
         call scheme_straight_iteration()
-      case(oct_algorithm_cg)
+      case(OPTION__OCTSCHEME__OCT_CG)
         message(1) = "Info: Starting OCT iterations using scheme: CONJUGATE GRADIENTS"
         call messages_info(1)
         call scheme_cg()
-      case(oct_algorithm_bfgs)
+      case(OPTION__OCTSCHEME__OCT_BFGS)
         message(1) = "Info: Starting OCT iterations using scheme: BFGS"
         call messages_info(1)
         call scheme_cg()
-      case(oct_algorithm_direct)
+      case(OPTION__OCTSCHEME__OCT_DIRECT)
         message(1) = "Info: Starting OCT iterations using scheme: DIRECT OPTIMIZATION (NELDER-MEAD)"
         call messages_info(1)
         call scheme_direct()
-      case(oct_algorithm_newuoa)
-        message(1) = "Info: Starting OCT iterations using scheme: DIRECT OPTIMIZATION (NEWUOA)"
+      case(OPTION__OCTSCHEME__OCT_NLOPT_BOBYQA)
+        message(1) = "Info: Starting OCT iterations using scheme: DIRECT OPTIMIZATION (NLOPT - BOBYQA)"
         call messages_info(1)
-        call scheme_newuoa()
+        call scheme_nlopt()
+      case(OPTION__OCTSCHEME__OCT_NLOPT_LBFGS)
+        message(1) = "Info: Starting OCT iterations using scheme: DIRECT OPTIMIZATION (NLOPT - LBFGS)"
+        call messages_info(1)
+        call scheme_nlopt()
     case default
       call messages_input_error('OCTScheme')
     end select
@@ -384,11 +391,11 @@ contains
       maxiter = oct_iterator_maxiter(iterator) - 1
 
       select case(oct%algorithm)
-      case(oct_algorithm_bfgs)
+      case(OPTION__OCTSCHEME__OCT_BFGS)
         call minimize_multidim(MINMETHOD_BFGS2, dof, x, step, real(0.1, 8), &
           real(oct_iterator_tolerance(iterator), 8), real(oct_iterator_tolerance(iterator), 8), &
           maxiter, opt_control_cg_calc, opt_control_cg_write_info, minvalue, ierr)
-      case(oct_algorithm_cg)
+      case(OPTION__OCTSCHEME__OCT_CG)
         call minimize_multidim(MINMETHOD_FR_CG, dof, x, step, real(0.1, 8), &
           real(oct_iterator_tolerance(iterator), 8), real(oct_iterator_tolerance(iterator), 8), &
           maxiter, opt_control_cg_calc, opt_control_cg_write_info, minvalue, ierr)
@@ -483,21 +490,19 @@ contains
 
 
     ! ---------------------------------------------------------
-    subroutine scheme_newuoa()
-#if defined(HAVE_NEWUOA)
-      integer :: dim, ierr, maxfun
-      REAL_DOUBLE :: minvalue, step
-      FLOAT, allocatable :: xl(:), xu(:)
-      REAL_DOUBLE, allocatable :: x(:), w(:)
-      FLOAT, allocatable :: theta(:)
-      FLOAT :: f
+    subroutine scheme_nlopt()
+#if defined(HAVE_NLOPT)
+      integer :: method, dim, maxiter, ierr
+      FLOAT, allocatable :: x(:), xl(:), xu(:)
+      FLOAT :: step, toldr, minimum, f
       type(opt_control_state_t) :: qcpsi
-      PUSH_SUB(opt_control_run.scheme_newuoa)
+      PUSH_SUB(opt_control_run.scheme_nlopt)
 
       call controlfunction_set_rep(par)
 
+      call opt_control_state_null(qcpsi)
       call opt_control_state_copy(qcpsi, initial_st)
-      call propagate_forward(sys, hm, td, par, oct_target,qcpsi)
+      call propagate_forward(sys, hm, td, par, oct_target, qcpsi)
       f = - target_j1(oct_target, sys%gr, qcpsi, sys%geo) - controlfunction_j2(par)
       call opt_control_state_end(qcpsi)
       call iteration_manager_direct(-f, par, iterator, sys)      
@@ -508,8 +513,7 @@ contains
       end if
 
       dim = controlfunction_dof(par)
-      SAFE_ALLOCATE( x(1:dim))
-      SAFE_ALLOCATE(theta(1:dim))
+      SAFE_ALLOCATE(x(dim))
       SAFE_ALLOCATE(xl(1:dim))
       SAFE_ALLOCATE(xu(1:dim))
       call controlfunction_bounds(par, xl, xu)
@@ -523,24 +527,32 @@ contains
       hm_       => hm
       td_       => td
 
-      call controlfunction_get_theta(par, theta)
-      x = theta
+      call controlfunction_get_theta(par, x)
 
-      maxfun = oct_iterator_maxiter(iterator)
-      step = oct%direct_step * M_PI
-      call minimize_multidim_nograd(MINMETHOD_NEWUOA, dim, x, step, &
-        real(oct_iterator_tolerance(iterator), 8), maxfun, &
-        opt_control_direct_calc, opt_control_direct_message_info, minvalue, ierr)
+      maxiter = oct_iterator_maxiter(iterator)
+      step = oct%direct_step
+      select case(oct%algorithm)
+      case(OPTION__OCTSCHEME__OCT_NLOPT_BOBYQA)
+        method = MINMETHOD_NLOPT_BOBYQA
+      case(OPTION__OCTSCHEME__OCT_NLOPT_LBFGS)
+        method = MINMETHOD_NLOPT_LBFGS
+      end select
+      toldr = oct_iterator_tolerance(iterator)
 
-      call controlfunction_end(par_)
-      SAFE_DEALLOCATE_A(x)
-      SAFE_DEALLOCATE_A(theta)
+      call minimize_multidim_nlopt(ierr, method, dim, x, step, toldr, maxiter, opt_control_nlopt_func, minimum, &
+        xl, xu)
+      if(ierr < 1 .or. ierr > 4) then
+         message(1) = "The nlopt minimization procedure did not find convergence, or found an error"
+         write(message(2),'(a,i5)') "Error code =", ierr
+         call messages_info(2)
+      end if
+
       SAFE_DEALLOCATE_A(xl)
       SAFE_DEALLOCATE_A(xu)
-      SAFE_DEALLOCATE_A(w)
-      POP_SUB(opt_control_run.scheme_newuoa)
+      SAFE_DEALLOCATE_A(x)
+      POP_SUB(opt_control_run.scheme_nlopt)
 #endif
-    end subroutine scheme_newuoa
+    end subroutine scheme_nlopt
     ! ---------------------------------------------------------
 
   end subroutine opt_control_run

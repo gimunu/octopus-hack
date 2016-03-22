@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 05-adw.03-filter_fixed.inp 13978 2015-05-14 16:03:03Z xavier $
+# $Id: 05-adw.03-filter_fixed.inp 15216 2016-03-21 15:48:22Z acastro $
 
 CalculationMode = opt_control
 
@@ -54,7 +54,7 @@ OCTTargetOperator = oct_tg_gstransformation
 0 | 1
 %
 
-OCTScheme  = oct_algorithm_wg05
+OCTScheme  = oct_wg05
 OCTDoubleCheck = no
 
 #----------------------------

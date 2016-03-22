@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sort.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: sort.F90 15220 2016-03-22 02:08:35Z xavier $
 
 #include "global.h"
 
@@ -79,6 +79,12 @@ contains
 
     n = size(a)
 
+    if(.not. present(ind)) then
+      call dsort1(n, a(1))
+      POP_SUB(shellsort)
+      return
+    end if
+    
     if(present(ind)) then
       do i = 1, n
         ind(i) = i
@@ -132,6 +138,12 @@ contains
     PUSH_SUB(ishellsort)
 
     n = size(a)
+
+    if(.not. present(ind)) then
+      call isort1(n, a(1))
+      POP_SUB(shellsort)
+      return
+    end if
 
     if(present(ind)) then
       do i = 1, n

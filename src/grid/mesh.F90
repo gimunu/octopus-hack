@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: mesh.F90 15224 2016-03-22 15:34:25Z umberto $
 
 #include "global.h"
 
@@ -308,7 +308,8 @@ contains
       dist = sqrt(dist)
 
     case(BOX_IMAGE, BOX_USDEF)
-      call messages_not_implemented('Absorbing boundaries for user-defined box')
+    ! not implemented
+      dist = -1 
 
     end select
     

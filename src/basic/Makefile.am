@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 15206 2016-03-19 17:46:16Z xavier $
+## $Id: Makefile.am 15219 2016-03-21 21:21:28Z xavier $
 
 noinst_LIBRARIES = libbasic.a
 
@@ -76,6 +76,7 @@ libbasic_a_SOURCES =     \
 	xml_low.c            \
 	test_parameters.F90  \
 	sort.F90             \
+	sort_low.cc          \
 	debug.F90
 
 noinst_HEADERS =               \

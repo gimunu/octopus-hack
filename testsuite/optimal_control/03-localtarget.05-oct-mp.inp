@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 03-localtarget.05-oct-mp.inp 14775 2015-11-14 19:05:32Z xavier $
+# $Id: 03-localtarget.05-oct-mp.inp 15216 2016-03-21 15:48:22Z acastro $
 
 
 Dimensions = 1
@@ -70,7 +70,7 @@ OCTInitialState = oct_is_groundstate
 OCTTargetOperator = oct_tg_jdensity
 OCTTargetDensity = "exp(-x^2)"
 
-OCTScheme  = oct_algorithm_zr98
+OCTScheme  = oct_zr98
 OCTDoubleCheck = no
 
 #----------------------------

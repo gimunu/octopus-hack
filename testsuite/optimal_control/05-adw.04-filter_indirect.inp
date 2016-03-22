@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 05-adw.04-filter_indirect.inp 13978 2015-05-14 16:03:03Z xavier $
+# $Id: 05-adw.04-filter_indirect.inp 15216 2016-03-21 15:48:22Z acastro $
 
 CalculationMode = opt_control
 
@@ -59,7 +59,7 @@ w0 = 0.1568
 frequency_filter | "exp(-gamma*(w-w0)^2) + exp(-gamma*(w+w0)^2)"
 %
 
-OCTScheme  = oct_algorithm_wg05
+OCTScheme  = oct_wg05
 OCTDoubleCheck = no
 
 #----------------------------

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: geom_opt.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: geom_opt.F90 15216 2016-03-21 15:48:22Z acastro $
 
 #include "global.h"
 
@@ -498,6 +498,7 @@ contains
   !> Same as calc_point, but without the gradients.
   !! No intents here is unfortunately required because the same dummy function will be passed
   !! also to newuoa routines in opt_control, and there the interface has no intents.
+  !! UPDATE: Because the newuoa routine have disappeared, probably this can be changed.
   subroutine calc_point_ng(size, coords, objective)
     integer     :: size         !< intent(in)
     REAL_DOUBLE :: coords(size) !< intent(in)

@@ -17,6 +17,6 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 13703 2015-04-02 13:45:57Z xavier $
+## $Id: Makefile.am 15216 2016-03-21 15:48:22Z acastro $
 
-SUBDIRS = metis-5.1 qshep newuoa spglib-1.5.2 fortrancl bpdn yaml-0.1.4
+SUBDIRS = metis-5.1 qshep spglib-1.5.2 fortrancl bpdn yaml-0.1.4
