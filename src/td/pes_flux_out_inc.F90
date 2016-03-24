@@ -399,11 +399,11 @@ subroutine pes_flux_map_from_states_pln(this, restart, st, ll, pesP, krng, Lp, i
           itot = ist + (ik-1) * st%nst +  (idim-1) * st%nst * st%d%kpt%nglobal
           call pes_flux_map_from_state_1(restart, itot, this%nkpnts, psiG1)
         
-          if (itot == 1) then
-            do ig = 1, this%nkpnts
-              print *, ig, abs(psiG1(ig))**2
-            end do
-          end if  
+!           if (itot == 1) then
+!             do ig = 1, this%nkpnts
+!               print *, ig, abs(psiG1(ig))**2
+!             end do
+!           end if
         
           do i1=1, ll(1)
             do i2=1, ll(2)
@@ -414,7 +414,9 @@ subroutine pes_flux_map_from_states_pln(this, restart, st, ll, pesP, krng, Lp, i
                   pesP(ip(1),ip(2),ip(3), ispin) = pesP(ip(1),ip(2),ip(3), ispin) &
                                                  + abs(psiG1(ig))**2 * weight 
                 
-                print *, ip(:), ig, itot, "abs(psiG1(ig))**2 * weight = ", abs(psiG1(ig))**2 * weight, abs(psiG1(ig))**2                                  
+!                 print *, ip(:), ig, itot, "abs(psiG1(ig))**2 * weight = ", &
+!                           abs(psiG1(ig))**2 * weight, abs(psiG1(ig))**2
+
 !                   if (all(ip(1:2)==(/155,17/))) then
 !                     print *, itot, ig, ip(1:2), "psiG1(ig) =", psiG1(ig), & 
 !                              "pesP(ip(1),ip(2),ip(3), ispin) =", pesP(ip(1),ip(2),ip(3), ispin) ,&
@@ -781,6 +783,7 @@ subroutine pes_flux_output(this, mesh, sb, st, dt)
 !   case (M_PLANES)
 !     POP_SUB(pes_flux_output)
 !     return
+    
   end select
 
   ! calculate spectra & total distribution
@@ -1167,19 +1170,19 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
             call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
               this%nkpnts, psi1(:), err)
 
-            if (itot == 1) then
-              
-              do ig = 1, this%nkpnts
-                print *, ig,  this%spctramp_cub(ist, isdim, ik, ig) !psi1(ig)
-              end do
-              call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-                this%nkpnts, psi(:), err)
-                
-              do ig = 1, this%nkpnts
-                print *, ig, psi(ig)
-              end do
-              
-            end if  
+!             if (itot == 1) then
+!
+!               do ig = 1, this%nkpnts
+!                 print *, ig,  this%spctramp_cub(ist, isdim, ik, ig) !psi1(ig)
+!               end do
+!               call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
+!                 this%nkpnts, psi(:), err)
+!
+!               do ig = 1, this%nkpnts
+!                 print *, ig, psi(ig)
+!               end do
+!
+!             end if
               
           end if
         end if
