@@ -1067,9 +1067,7 @@ contains
       if(simul_box_is_periodic(mesh%sb)) then
         kpoint(1:mdim) = kpoints_get_point(mesh%sb%kpoints, ik)
       end if
-      
-      kpoint(:) = M_ZERO
-      
+            
       do ikp = ikp_start, ikp_end
         ! integrate over time
         do itstep = 1, this%tdsteps
