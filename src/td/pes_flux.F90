@@ -358,9 +358,11 @@ contains
     call pes_flux_distribute(1, this%nsrfcpnts, this%nsrfcpnts_start, this%nsrfcpnts_end, mesh%mpi_grp%comm)
 #if defined(HAVE_MPI)
     call MPI_Barrier(mpi_world%comm, mpi_err)
-    write(*,*) &
-      'Number of surface points on node ', mesh%mpi_grp%rank, ' : ', this%nsrfcpnts_start, this%nsrfcpnts_end
-    call MPI_Barrier(mpi_world%comm, mpi_err)
+    if (debug%info .and. mpi_grp_is_root(mpi_world)) then
+      write(*,*) &
+        'Number of surface points on node ', mesh%mpi_grp%rank, ' : ', this%nsrfcpnts_start, this%nsrfcpnts_end
+    end if  
+    call MPI_Barrier(mpi_world%comm, mpi_err)    
 #endif
 
     if(this%shape == M_PLANES) then
@@ -422,8 +424,11 @@ contains
     !%Section Time-Dependent::PhotoElectronSpectrum
     !%Description
     !% Use memory to tabulate Volkov plane-wave components on the surface.
+    !% This option speeds up calculations precomputing plane wave phases on 
+    !% the suface. 
+    !% By default true when PES_Flux_Shape = cub.
     !%End
-    if(this%shape == M_CUBIC .or. this%shape == M_PLANES ) then
+    if(this%shape == M_CUBIC) then
       call parse_variable('PES_Flux_UseMemory', .true., this%usememory)
       call messages_print_var_value(stdout, "PES_Flux_UseMemory", this%usememory)            
     end if
