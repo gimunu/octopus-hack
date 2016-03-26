@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_flux.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: pes_flux.F90 15237 2016-03-26 15:34:18Z philipp $
 
 #include "global.h"
 
@@ -410,7 +410,7 @@ contains
     if(this%shape == M_CUBIC .or. this%shape == M_PLANES) then
       this%tdsteps = save_iter
     else
-      this%tdsteps = M_ONE
+      this%tdsteps = 1
 #if defined(HAVE_MPI)
       if(mesh%parallel_in_domains) this%tdsteps = mesh%mpi_grp%size
 #endif
@@ -461,9 +461,8 @@ contains
         SAFE_ALLOCATE(this%conjgplanewf_cub(1:this%nkpnts, 1:this%nsrfcpnts, kptst:kptend))
         this%conjgplanewf_cub = M_z0
 
-        do isp = this%nsrfcpnts_start, this%nsrfcpnts_end
-          do ik = kptst, kptend
-
+        do ik = kptst, kptend
+          do isp = this%nsrfcpnts_start, this%nsrfcpnts_end
 
             k_dot_aux = M_ZERO
             do imdim = 1, mdim
@@ -471,12 +470,17 @@ contains
             end do
 
             this%conjgplanewf_cub(:, isp, ik) = exp(-M_zI * k_dot_aux(:)) / (M_TWO * M_PI)**(mdim/M_TWO)
+
+            ! reduce should be surface points and momentum pons only
+            if(mesh%parallel_in_domains) then
+              call comm_allreduce(mpi_world%comm, this%conjgplanewf_cub(:,:,ik))
+            end if
+            
           end do
         end do
         SAFE_DEALLOCATE_A(k_dot_aux)
-#if defined(HAVE_MPI)
-        call comm_allreduce(mpi_world%comm, this%conjgplanewf_cub)
-#endif
+
+
       end if
     end if
 
@@ -915,7 +919,12 @@ contains
     PUSH_SUB(pes_flux_calc)
 
     if(iter > 0) then
-
+      
+      if (debug%info) then
+        call messages_write("Debug: Calculating pes_flux")
+        call messages_info()
+      end if
+      
       stst   = st%st_start
       stend  = st%st_end
       kptst  = st%d%kpt%start
@@ -977,12 +986,10 @@ contains
                 end if
               end do
               if(mesh%parallel_in_domains) then
-#if defined(HAVE_MPI)
                 call comm_allreduce(mesh%mpi_grp%comm, this%wf(ist, isdim, ik, :, this%itstep))
                 do imdim = 1, mdim
                   call comm_allreduce(mesh%mpi_grp%comm, this%gwf(ist, isdim, ik, :, this%itstep, imdim))
                 end do
-#endif
               end if
             end if
           end do
@@ -1038,6 +1045,12 @@ contains
 
     call profiling_in(prof_init, 'PES_FLUX_INTEGRATE_CUB') 
 
+    if (debug%info) then
+      call messages_write("Debug: calculating pes_flux surface integral")
+      call messages_info()
+    end if
+
+
     stst      = st%st_start
     stend     = st%st_end
     kptst     = st%d%kpt%start
@@ -1066,6 +1079,13 @@ contains
 
     ! calculate Volkov phase using the previous time step
     conjgphase_cub(:, 0,:) = this%conjgphase_prev_cub(:,:)
+    
+!     do ik = kptst, kptend
+!       do ikp= ikp_start, ikp_end
+!         print *, "in",  mpi_world%rank, ik, ikp, this%conjgphase_prev_cub(ikp,ik)
+!       end do
+!     end do
+    
     do ik = kptst, kptend
       
       kpoint(:) = M_ZERO
@@ -1081,11 +1101,18 @@ contains
                                             * exp(M_zI * vec * dt / M_TWO)
         end do
       end do
+
+      call comm_allreduce(mpi_world%comm, conjgphase_cub(:,:,ik))
     end do
-#if defined(HAVE_MPI)
-    call comm_allreduce(mpi_world%comm, conjgphase_cub)
-#endif
+!     call comm_allreduce(mpi_world%comm, conjgphase_cub)
+
     this%conjgphase_prev_cub(:,:) = conjgphase_cub(:, this%tdsteps,:)
+
+!     do ik = kptst, kptend
+!       do ikp= ikp_start, ikp_end
+!         print *, "out",  mpi_world%rank, ik, ikp, this%conjgphase_prev_cub(ikp,ik)
+!       end do
+!     end do
 
     ! integrate over time & surface (on node)
     do isp = isp_start, isp_end
@@ -1131,16 +1158,25 @@ contains
                 Jk_cub(ist, isdim, ik, 1:this%nkpnts) = &
                   Jk_cub(ist, isdim, ik, 1:this%nkpnts) * conjgplanewf_cub(1:this%nkpnts, ik)
               end if
-            end do
+              
+            end do ! spin-dimension loop
+          end do ! states loop
+          
+        end do ! kpoint loop 
+        spctramp_cub(:,:,:,:) = spctramp_cub(:,:,:,:) + Jk_cub(:,:,:,:) * this%srfcnrml(idir, isp) / M_TWO
+        
+      end do ! dimension loop
+    end do ! surface point loop
+
+    if(mesh%parallel_in_domains) then
+      do ist = stst, stend
+        do isdim = 1, sdim    
+          do ik = kptst, kptend
+            call comm_allreduce(mesh%mpi_grp%comm, spctramp_cub(ist, isdim, ik, :))
           end do
         end do
-        spctramp_cub(:,:,:,:) = spctramp_cub(:,:,:,:) + Jk_cub(:,:,:,:) * this%srfcnrml(idir, isp) / M_TWO
       end do
-    end do
-
-#if defined(HAVE_MPI)
-    call comm_allreduce(mesh%mpi_grp%comm, spctramp_cub)
-#endif
+    end if
 
     this%spctramp_cub = this%spctramp_cub + spctramp_cub
 
@@ -1229,12 +1265,11 @@ contains
               end do
             end do
 
-#if defined(HAVE_MPI)
             if(mesh%parallel_in_domains) then
               call comm_allreduce(mesh%mpi_grp%comm, s1_act)
               call comm_allreduce(mesh%mpi_grp%comm, s2_act)
             end if
-#endif
+
             if(itstep == tdstep_on_node) then
               s1_node(ist, isdim, ik, :, :, :) = s1_act(:,:,:)
               s2_node(ist, isdim, ik, :, :)    = s2_act(:,:)
@@ -1345,12 +1380,12 @@ contains
       this%conjgphase_prev_sph(ikk_start:ikk_end, :) = phase_act(ikk_start:ikk_end, :)
     end if
     SAFE_DEALLOCATE_A(phase_act)
-#if defined(HAVE_MPI)
+
     if(mesh%parallel_in_domains) then
       call comm_allreduce(mesh%mpi_grp%comm, this%conjgphase_prev_sph)
       call comm_allreduce(mesh%mpi_grp%comm, spctramp_sph)
     end if
-#endif
+
     this%spctramp_sph(:,:,:,1:this%nk,:) = this%spctramp_sph(:,:,:,1:this%nk,:) + spctramp_sph(:,:,:,1:this%nk,:)
     SAFE_DEALLOCATE_A(spctramp_sph)
 
