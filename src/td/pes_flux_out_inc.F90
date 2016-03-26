@@ -388,9 +388,10 @@ subroutine pes_flux_map_from_states_pln(this, restart, st, ll, pesP, krng, Lp, i
 
       if (st%d%kweights(ik) < M_EPSILON) then
         ! we have a zero-weight path
-        weight = st%occ(ist, ik)!/nkpt
+        ! the st%occ(ist, ik) factor is already in psiG[1,2]
+        weight = M_ONE !/nkpt
       else
-        weight = st%occ(ist, ik) * st%d%kweights(ik)
+        weight = M_ONE * st%d%kweights(ik)
       end if
       
       if(st%d%ispin /= SPINORS) then 
@@ -634,9 +635,9 @@ subroutine pes_flux_map_from_states_sph(this, restart, st, ll, pesP, krng, Lp, i
 
       if (st%d%kweights(ik) < M_EPSILON) then
         ! we have a zero-weight path
-        weight = st%occ(ist, ik)!/nkpt
+        weight = M_ONE!/nkpt
       else
-        weight = st%occ(ist, ik) * st%d%kweights(ik)
+        weight = M_ONE * st%d%kweights(ik)
       end if
       
       if(st%d%ispin /= SPINORS) then 
@@ -780,9 +781,9 @@ subroutine pes_flux_output(this, mesh, sb, st, dt)
     SAFE_ALLOCATE(spctrout_cub(1:this%nkpnts))
     spctrout_cub = M_ZERO
 
-  case (M_PLANES)
-    POP_SUB(pes_flux_output)
-    return
+!   case (M_PLANES)
+!     POP_SUB(pes_flux_output)
+!     return
     
   end select
 
@@ -975,7 +976,7 @@ subroutine pes_flux_output(this, mesh, sb, st, dt)
         end do
 
       case(2)
-        write(iunittwo, '(a29)') '# k, phi, distribution'
+        write(iunittwo, '(a22)') '# k, phi, distribution'
         ikp = 0
         do ikk = 1, this%nk
           kact = ikk * this%dk
@@ -988,6 +989,8 @@ subroutine pes_flux_output(this, mesh, sb, st, dt)
           end do
           ! just repeat the result for output
           write(iunittwo,'(3(1x,e18.10E3))') kact, M_TWO * M_PI, spctrout_cub(ikp_save)
+          write(iunittwo, '(1x)', advance='yes')
+
           write(iunitone, '(2(1x,e18.10E3))', advance='no') &
             kact**M_TWO / M_TWO, sum(sum(sum(spctrsum(:,:,:,ikk),1),1),1) * kact
           
@@ -1131,11 +1134,6 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
   sdim   = st%d%dim
   mdim   = mesh%sb%dim
 
-  if(this%shape == M_SPHERICAL) then
-    SAFE_ALLOCATE(psi2(1:this%nk, 1:this%nstepsomegak))
-  else 
-!     cSAFE_ALLOCATE(psi1(1:this%nkpnts))
-  end if
 
 
   if(debug%info) then
@@ -1146,9 +1144,6 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
   do ik = kptst, kptend
     do ist = stst, stend
       do isdim = 1, sdim
-!   do ik = st%d%kpt%start, st%d%kpt%end
-!     do ist = st%st_start, st%st_end
-!       do isdim = 1, st%d%dim
         
         itot = ist + (ik-1) * st%nst+  (isdim-1) * st%nst*st%d%kpt%nglobal
 
@@ -1160,43 +1155,42 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
           if(this%shape == M_SPHERICAL) then
 !             call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
 !               this%nk * this%nstepsomegak, this%spctramp_sph(ist, isdim, ik, :, :), err)
-
+            SAFE_ALLOCATE(psi2(1:this%nk, 1:this%nstepsomegak))
             psi2(:, :) = this%spctramp_sph(ist, isdim, ik, :, :)
             call io_binary_write(trim(filename), this%nk * this%nstepsomegak, psi2(:,:), err)
             
-!             call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-!               this%nk * this%nstepsomegak, psi2(:,:), err)
+            SAFE_DEALLOCATE_P(psi2)
+            
 
           else
 
 !             call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
 !               this%nkpnts, this%spctramp_cub(ist, isdim, ik, 1:this%nkpnts), err)
-            SAFE_ALLOCATE(psi1(1:this%nkpnts))
-            
+
+!             if (itot >= 120) then
+!               print *, "write: ", filename
+!             end if
+
+            SAFE_ALLOCATE(psi1(1:this%nkpnts))            
             psi1(:) = this%spctramp_cub(ist, isdim, ik, :)
-            if (itot >= 120) then
-              print *, "write: ", filename
-            end if
             call io_binary_write(trim(filename), this%nkpnts, psi1(:), err)
             
-!             call io_binary_write(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-!               this%nkpnts, psi1(:), err)
             
             SAFE_DEALLOCATE_P(psi1)
             
 
-            if (itot == 121) then
-
-              do ig = 1, this%nkpnts
-                print *, ig,  this%spctramp_cub(ist, isdim, ik, ig) !psi1(ig)
-              end do
-              call io_binary_read(trim(filename), this%nkpnts, psi(:), err)
-
-              do ig = 1, this%nkpnts
-                print *, ig, psi(ig)
-              end do
-
-            end if
+!             if (itot == 121) then
+!
+!               do ig = 1, this%nkpnts
+!                 print *, ig,  this%spctramp_cub(ist, isdim, ik, ig) !psi1(ig)
+!               end do
+!               call io_binary_read(trim(filename), this%nkpnts, psi(:), err)
+!
+!               do ig = 1, this%nkpnts
+!                 print *, ig, psi(ig)
+!               end do
+!
+!             end if
 
           end if
         end if
@@ -1228,13 +1222,6 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
     call messages_info(1)
   end if
   
-  call MPI_Barrier(mpi_world%comm, mpi_err)
-  
-  if(this%shape == M_SPHERICAL) then
-    SAFE_DEALLOCATE_P(psi2)
-  else 
-!     cSAFE_DEALLOCATE_P(psi1)
-  end if
 
   POP_SUB(pes_flux_dump)
 end subroutine pes_flux_dump
@@ -1296,9 +1283,9 @@ subroutine pes_flux_load(restart, this, mesh, st, ierr)
   end do
 
   if(this%shape == M_SPHERICAL) then
-    call zrestart_read_binary(restart, 'pesflux4', this%nk * this%nstepsomegak, this%conjgphase_prev_sph, err)
+    call zrestart_read_binary(restart, 'pesflux4', this%nk * this%nstepsomegak, this%conjgphase_prev_sph(:,:), err)
   else
-    call zrestart_read_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub, err)
+    call zrestart_read_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub(:,:), err)
   end if
   if(err /= 0) ierr = ierr + 2
  
