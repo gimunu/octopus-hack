@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: convert.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: convert.F90 15229 2016-03-23 18:08:51Z jjornet $
 
 !> This utility runs in parallel and can be used for post-processing of the results of Output.
 
@@ -518,6 +518,7 @@ contains
 
     !TODO: check if e_point can be used instead of e_point+1
     SAFE_ALLOCATE(read_ft(0:time_steps))
+    read_ft = M_ZERO
     SAFE_ALLOCATE(read_rff(1:mesh%np))
 
     select case(ft_method)
@@ -760,7 +761,7 @@ contains
 
     !%Variable ConvertScalarOperation
     !%Type block
-    !%Section Utilities::oct-local_multipoles
+    !%Section Utilities::oct-convert
     !%Description
     !% This variable is used to generate a new mesh function as a linear combination
     !% different mesh function having the same mesh. Each row defines an operation for
