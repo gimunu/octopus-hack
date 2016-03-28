@@ -781,9 +781,9 @@ subroutine pes_flux_output(this, mesh, sb, st, dt)
     SAFE_ALLOCATE(spctrout_cub(1:this%nkpnts))
     spctrout_cub = M_ZERO
 
-!   case (M_PLANES)
-!     POP_SUB(pes_flux_output)
-!     return
+  case (M_PLANES)
+    POP_SUB(pes_flux_output)
+    return
     
   end select
 

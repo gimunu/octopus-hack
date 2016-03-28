@@ -110,6 +110,8 @@ module pes_flux_oct_m
 
     logical          :: usememory                      !< whether conjgplanewf should be kept in memory
     type(mesh_interpolation_t) :: interp
+      
+    logical          :: parallel_in_momentum           !< whether we are parallelizing over the k-mesh  
 
   end type pes_flux_t
 
@@ -471,12 +473,14 @@ contains
 
             this%conjgplanewf_cub(:, isp, ik) = exp(-M_zI * k_dot_aux(:)) / (M_TWO * M_PI)**(mdim/M_TWO)
 
-            ! reduce should be surface points and momentum pons only
-            if(mesh%parallel_in_domains) then
-              call comm_allreduce(mpi_world%comm, this%conjgplanewf_cub(:,:,ik))
-            end if
             
           end do
+
+          ! reduce should be surface points and momentum pons only
+          if(mesh%parallel_in_domains .and. this%parallel_in_momentum) then
+            call comm_allreduce(mpi_world%comm, this%conjgplanewf_cub(:,:,ik))
+          end if
+
         end do
         SAFE_DEALLOCATE_A(k_dot_aux)
 
@@ -551,7 +555,8 @@ contains
     kptend = st%d%kpt%end
     mdim   = sb%dim
     pdim   = sb%periodic_dim
-
+    
+    
     if (this%shape == M_SPHERICAL .or. this%shape == M_CUBIC) then
       ! -----------------------------------------------------------------
       ! Setting up k-mesh
@@ -738,6 +743,7 @@ contains
 
   
 
+    this%parallel_in_momentum = .false.
 
     ! Create the grid
     select case (this%shape)
@@ -750,6 +756,8 @@ contains
     
       ! we split the k-mesh in radial & angular part
       call pes_flux_distribute(1, this%nk, this%nk_start, this%nk_end, comm)
+      if ( (this%nk_end - this%nk_start + 1 ) < this%nk)  this%parallel_in_momentum = .true.
+      
 #if defined(HAVE_MPI)
       call MPI_Barrier(mpi_world%comm, mpi_err)
       call MPI_Comm_rank(mpi_world%comm, mpirank, mpi_err)
@@ -799,7 +807,9 @@ contains
 
     case (M_CUBIC)
       ! we do not split the k-mesh
-      call pes_flux_distribute(1, this%nkpnts, this%nkpnts_start, this%nkpnts_end, mpi_world%comm)
+      call pes_flux_distribute(1, this%nkpnts, this%nkpnts_start, this%nkpnts_end, comm)
+      if ( (this%nkpnts_end - this%nkpnts_start + 1 ) < this%nkpnts)  this%parallel_in_momentum = .true.
+      
 #if defined(HAVE_MPI)
       call MPI_Barrier(mpi_world%comm, mpi_err)
       call MPI_Comm_rank(mpi_world%comm, mpirank, mpi_err)
@@ -891,6 +901,8 @@ contains
 
 
     end select
+
+    
     
     
     call messages_print_var_value(stdout, "Total number of momentum points", this%nkpnts)
@@ -1080,11 +1092,6 @@ contains
     ! calculate Volkov phase using the previous time step
     conjgphase_cub(:, 0,:) = this%conjgphase_prev_cub(:,:)
     
-!     do ik = kptst, kptend
-!       do ikp= ikp_start, ikp_end
-!         print *, "in",  mpi_world%rank, ik, ikp, this%conjgphase_prev_cub(ikp,ik)
-!       end do
-!     end do
     
     do ik = kptst, kptend
       
@@ -1093,26 +1100,19 @@ contains
         kpoint(1:mdim) = kpoints_get_point(mesh%sb%kpoints, ik)
       end if
             
-      do ikp = ikp_start, ikp_end
-        ! integrate over time
-        do itstep = 1, this%tdsteps
+      ! integrate over time
+      do itstep = 1, this%tdsteps
+        do ikp = ikp_start, ikp_end
           vec = sum((this%kcoords_cub(1:mdim, ikp, ik) - kpoint(1:mdim) - this%veca(1:mdim, itstep) / P_c)**2)
           conjgphase_cub(ikp, itstep, ik) = conjgphase_cub(ikp, itstep - 1, ik) & 
                                             * exp(M_zI * vec * dt / M_TWO)
         end do
+        if (this%parallel_in_momentum) call comm_allreduce(mesh%mpi_grp%comm, conjgphase_cub(:,itstep,ik))
       end do
 
-      call comm_allreduce(mpi_world%comm, conjgphase_cub(:,:,ik))
     end do
-!     call comm_allreduce(mpi_world%comm, conjgphase_cub)
 
     this%conjgphase_prev_cub(:,:) = conjgphase_cub(:, this%tdsteps,:)
-
-!     do ik = kptst, kptend
-!       do ikp= ikp_start, ikp_end
-!         print *, "out",  mpi_world%rank, ik, ikp, this%conjgphase_prev_cub(ikp,ik)
-!       end do
-!     end do
 
     ! integrate over time & surface (on node)
     do isp = isp_start, isp_end
@@ -1168,7 +1168,7 @@ contains
       end do ! dimension loop
     end do ! surface point loop
 
-    if(mesh%parallel_in_domains) then
+    if(this%parallel_in_momentum) then
       do ist = stst, stend
         do isdim = 1, sdim    
           do ik = kptst, kptend
