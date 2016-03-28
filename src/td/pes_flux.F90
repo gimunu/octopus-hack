@@ -262,8 +262,8 @@ contains
         call parse_block_end(blk)
 
       else if (simul_box_is_periodic(mesh%sb)) then
-        ! the cube sides along the periodi directions are out of the simulation box
-        border(1:pdim)= mesh%sb%lsize(pdim + 1:mdim) * M_TWO 
+        ! the cube sides along the periodic directions are out of the simulation box
+        border(1:pdim)= mesh%sb%lsize(1:pdim) * M_TWO 
         border(mdim)  = mesh%sb%lsize(mdim) * M_HALF
         call parse_variable('PES_Flux_Lsize', border(mdim), border(mdim))
         ! Snap the plane to the closest grid point
@@ -536,7 +536,7 @@ contains
 
     integer           :: mdim, pdim
     integer           :: kptst, kptend  
-    integer           :: isp, ikp, ikpt, ibz
+    integer           :: isp, ikp, ikpt, ibz1,ibz2
     integer           :: il, ll, mm, idim
     integer           :: ikk, ith, iph, iomk
     FLOAT             :: kmax, kmin, kact, thetak, phik
@@ -868,20 +868,45 @@ contains
           if (ikk == 0 ) cycle !this way I have 2*this%nk elements  
       
           ! loop over periodic directions
-          do idim = 1, pdim
-            do ibz = -(NBZ(idim)-1), (NBZ(idim)-1) 
+          select case (pdim)
+            case (1)
+            do ibz1 = -(NBZ(1)-1), (NBZ(1)-1) 
+              !                   print *, "ikpt, ikk, ibz1, ikp", ikpt, ikk, ibz1, ikp
 
-              kvec(1:pdim) = ibz * sb%klattice(1:pdim, idim)                
-          
-              ! Fill the non-periodic direction
-              kvec(mdim) = ikk * this%dk + ikk/abs(ikk) * kmin
+              kvec(1) = ibz1 * sb%klattice(1, 1)                
+              call fill_non_periodic_dimension(this)
       
-              ikp = ikp + 1
-  !                 print *, "ikpt, ikk, ibz, ikp", ikpt, ikk, ibz, ikp
-              this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
-
             end do
-          end do
+
+            case (2)
+            
+            do ibz2 = -(NBZ(2)-1), (NBZ(2)-1) 
+              do ibz1 = -(NBZ(1)-1), (NBZ(1)-1) 
+                !                     print *, "ikpt, ikk, ibz1, ibz2, ikp", ikpt, ikk, ibz1, ibz2,ikp
+
+                kvec(1:2) = (/ibz1 * sb%klattice(1, 1), ibz2 * sb%klattice(2, 2)/)                
+                call fill_non_periodic_dimension(this)
+
+              end do
+            end do
+            
+            
+          end select
+
+!           do idim = 1, pdim
+!             do ibz = -(NBZ(idim)-1), (NBZ(idim)-1)
+!
+!               kvec(idim) = kvec(idim) + ibz * sb%klattice(idim, idim)
+!
+!               ! Fill the non-periodic direction
+!               kvec(mdim) = ikk * this%dk + ikk/abs(ikk) * kmin
+!
+!               ikp = ikp + 1
+!                   print *, "ikpt, ikk, ibz, ikp", ikpt, ikk, ibz, ikp
+!               this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
+!
+!             end do
+!           end do
 
       
         end do
@@ -890,7 +915,7 @@ contains
       if (debug%info .and. mpi_grp_is_root(mpi_world)) then
         ! this does not work for parallel in kpoint 
         ! you need to gather kcoords_pln
-        write(229,*) "#   ikpt,   ikp,   this%kcoords_pln(1:mdim, ikp, ikpt)"
+        write(229,*) "#   ikpt (kpoint index),   ikp (momentum index),   this%kcoords_pln(1:mdim, ikp, ikpt)"
         do ikpt = kptst, kptend
           do ikp = 1, this%nkpnts
             write(229,*) ikpt, ikp, this%kcoords_cub(1:mdim, ikp, ikpt)
@@ -908,6 +933,21 @@ contains
     call messages_print_var_value(stdout, "Total number of momentum points", this%nkpnts)
 
     POP_SUB(pes_flux_reciprocal_mesh_gen)
+    
+  contains 
+    
+    subroutine fill_non_periodic_dimension(this)
+      type(pes_flux_t),   intent(inout) :: this
+            
+      ! Fill the non-periodic direction
+      kvec(mdim) = ikk * this%dk + ikk/abs(ikk) * kmin
+
+      ikp = ikp + 1
+      this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
+      
+    end subroutine fill_non_periodic_dimension
+          
+    
   end subroutine pes_flux_reciprocal_mesh_gen
 
   ! ---------------------------------------------------------

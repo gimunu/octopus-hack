@@ -132,8 +132,8 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
   type(pes_flux_t),  intent(in)    :: this
   integer,           intent(in)    :: dim
   type(kpoints_t),   intent(inout) :: kpoints 
-  integer,           intent(in)    :: ll(:)             !< ll(1:dim): the dimensions of the mask-mesh
-  FLOAT,             intent(in)    :: LG(:,:)           !< LG(1:maxval(ll),1:dim): the mask-mesh points  
+  integer,           intent(in)    :: ll(:)             !< ll(1:dim): the dimensions of the gpoint-mesh
+  FLOAT,             intent(in)    :: LG(:,:)           !< LG(1:maxval(ll),1:dim): the  gpoints  
   FLOAT,             intent(out)   :: pmesh(:,:,:,:)    !< pmesh(i1,i2,i3,1:dim): contains the positions of point
                                                         !< in the final mesh in momentum space "p" combining the 
   integer,           intent(out) :: idxZero(:)          !< The triplet identifying the zero of the coordinates           
@@ -267,9 +267,10 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
           pmesh(ip1, ip2, ip3, 1:dim) = GG(1:dim) - kpt(1:dim)
           pmesh(ip1, ip2, ip3, dim+1) = pmesh(ip1, ip2, ip3, dim+1) + 1 
           
-!           print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
-!                   "pmesh = ",pmesh(ip1, ip2, ip3, 1:3)
-
+          if (debug%info) then
+            print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
+                    "pmesh = ",pmesh(ip1, ip2, ip3, 1:3)
+          end if
 
 
           ! Sanity checks
