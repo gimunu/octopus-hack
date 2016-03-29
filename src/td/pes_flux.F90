@@ -112,6 +112,7 @@ module pes_flux_oct_m
     type(mesh_interpolation_t) :: interp
       
     logical          :: parallel_in_momentum           !< whether we are parallelizing over the k-mesh  
+    logical          :: arpes_grid
 
   end type pes_flux_t
 
@@ -638,12 +639,25 @@ contains
     else 
       ! PLANES 
       
+      !%Variable PES_Flux_ARPES_grid
+      !%Type logical
+      !%Section Time-Dependent::PhotoElectronSpectrum
+      !%Description
+      !% Use a curvilinear momentum space grid that compensates the transformation 
+      !% used to obtain ARPES. With this choice ARPES data is lay out on a cartesian 
+      !% regular grid.
+      !% By default true when PES_Flux_Shape = pln.
+      !%End
+      call parse_variable('PES_Flux_ARPES_grid', .true., this%arpes_grid)
+      call messages_print_var_value(stdout, "PES_Flux_ARPES_grid", this%arpes_grid)       
+      
+      
       !%Variable PES_Flux_EnergyGrid
       !%Type block
       !%Section Time-Dependent
       !%Description
       !% The block <tt>PES_Flux_EnergyGrid</tt> specifies the energy grid to 
-      !% be used.
+      !% be used. Only for <tt> PES_Flux_Shape = pln</tt>.
       !% <tt>%PES_Flux_EnergyGrid
       !% <br>&nbsp;&nbsp; Emin | Emax | DeltaE
       !% <br>%</tt>
@@ -679,12 +693,19 @@ contains
       call messages_info()
             
       
-      kmax = sqrt(M_TWO*Emax)
-      kmin = sqrt(M_TWO*Emin)
-      this%dk = sqrt(M_TWO*DE)
+      if (this%arpes_grid) then
+        
+        this%nk = nint((Emax-Emin)/DE)
 
-      this%nk = nint((kmax-kmin)/this%dk)
+      else 
+      
+        kmax = sqrt(M_TWO*Emax)
+        kmin = sqrt(M_TWO*Emin)
+        this%dk = sqrt(M_TWO*DE)
 
+        this%nk = nint((kmax-kmin)/this%dk)
+        
+      end if
     
     
       !%Variable PES_Flux_BZones
@@ -736,6 +757,8 @@ contains
       
       ! Total number of points
       this%nkpnts = product(this%ll(1:mdim))
+      
+      
       
       
 
@@ -893,21 +916,6 @@ contains
             
           end select
 
-!           do idim = 1, pdim
-!             do ibz = -(NBZ(idim)-1), (NBZ(idim)-1)
-!
-!               kvec(idim) = kvec(idim) + ibz * sb%klattice(idim, idim)
-!
-!               ! Fill the non-periodic direction
-!               kvec(mdim) = ikk * this%dk + ikk/abs(ikk) * kmin
-!
-!               ikp = ikp + 1
-!                   print *, "ikpt, ikk, ibz, ikp", ikpt, ikk, ibz, ikp
-!               this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
-!
-!             end do
-!           end do
-
       
         end do
       end do
@@ -936,13 +944,26 @@ contains
     
   contains 
     
+    ! Fill the non-periodic direction
     subroutine fill_non_periodic_dimension(this)
       type(pes_flux_t),   intent(inout) :: this
-            
-      ! Fill the non-periodic direction
-      kvec(mdim) = ikk * this%dk + ikk/abs(ikk) * kmin
+        
+      integer :: sign
+      FLOAT   :: kpar(1:pdim), kpoint(1:3)
 
       ikp = ikp + 1
+              
+      sign = ikk/abs(ikk)        
+      
+      if (this%arpes_grid) then
+!         print *, DE, Emin
+        kpoint = kpoints_get_point(sb%kpoints, ikpt)
+        kpar(1:pdim) = kvec(1:pdim) - kpoint(1:pdim)  
+        kvec(mdim) =  sign * sqrt((abs(ikk)*DE + Emin) * M_TWO - sum(kpar(1:pdim)**2) )
+      else         
+        kvec(mdim) = ikk * this%dk + sign * kmin
+      end if
+
       this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
       
     end subroutine fill_non_periodic_dimension
