@@ -267,10 +267,10 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
           pmesh(ip1, ip2, ip3, 1:dim) = GG(1:dim) - kpt(1:dim)
           pmesh(ip1, ip2, ip3, dim+1) = pmesh(ip1, ip2, ip3, dim+1) + 1 
           
-          if (debug%info) then
-            print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
-                    "pmesh = ",pmesh(ip1, ip2, ip3, 1:3)
-          end if
+!           if (debug%info) then
+!             print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
+!                     "pmesh = ",pmesh(ip1, ip2, ip3, 1:3)
+!           end if
 
 
           ! Sanity checks
@@ -298,14 +298,16 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
   ! to slice with pes_flux_output_full_mapM_cut. Since on this direction we only 
   ! have G points I simply need to look for the zero index of the G-grid.
   ! Note that the G-grid must always include the (0,0,0) point. 
-    do j1 = 1, ll(1) 
-      do j2 = 1, ll(2) 
-        do j3 = 1, ll(3) 
+    do ik = krng(1),krng(2)
+      do j1 = 1, ll(1) 
+        do j2 = 1, ll(2) 
+          do j3 = 1, ll(3) 
 
-          ig = flatten_indices(j1,j2,j3, ll) 
-          GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
-          if (sum(GG(1:dim-1)**2)<=M_EPSILON) idxZero(1:3) = (/j1,j2,j3/)
+            ig = flatten_indices(j1,j2,j3, ll) 
+            GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
+            if (sum(GG(1:dim-1)**2)<=M_EPSILON) idxZero(1:3) = (/j1,j2,j3/)
         
+          end do
         end do
       end do
     end do
