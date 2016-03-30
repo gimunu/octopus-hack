@@ -289,9 +289,12 @@ program photoelectron_spectrum
   else
     llp(1:dim) = llg(1:dim) * sb%kpoints%nik_axis(1:dim)    
   endif  
-
-  print *, "llp(:)= ", llp(:) 
-  print *, "llg(:)= ", llg(:) 
+  
+  if (debug%info) then
+    print *, "llp(:)= ", llp(:) 
+    print *, "llg(:)= ", llg(:) 
+  end if
+  
   SAFE_ALLOCATE(pmesh(1:llp(1),1:llp(2),1:llp(3),1:3 + 1))
   SAFE_ALLOCATE(pesP(1:llp(1),1:llp(2),1:llp(3),1:st%d%nspin))
 

@@ -320,7 +320,8 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
     end if 
 
     if (err > 1) then
-      call messages_write('Illformed momentum-space mesh: more than one point with p = 0 coordinate.')
+      call messages_write('More than one point with p = 0 coordinate.')
+      call messages_new_line()
       call messages_write('This can happen only if the kpoint mesh does not contain gamma.')
       call messages_warning()
     end if 

@@ -956,7 +956,6 @@ contains
       sign = ikk/abs(ikk)        
       
       if (this%arpes_grid) then
-!         print *, DE, Emin
         kpoint = kpoints_get_point(sb%kpoints, ikpt)
         kpar(1:pdim) = kvec(1:pdim) - kpoint(1:pdim)  
         kvec(mdim) =  sign * sqrt((abs(ikk)*DE + Emin) * M_TWO - sum(kpar(1:pdim)**2) )
