@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: messages.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: messages.F90 15244 2016-03-29 20:08:03Z dstrubbe $
 
 #include "global.h"
 
@@ -1060,7 +1060,7 @@ contains
         write(message(2), '(a)') ' '
         write(message(3), '(a)') 'Equivalent functionality can be obtained with the '//trim(rep)
         write(message(4), '(a)') 'variable. Check the documentation for details.'
-        write(message(5), '(a)') '(You can use the `oct-help -s '//trim(rep)//'` command).'
+        write(message(5), '(a)') '(You can use the `oct-help -p '//trim(rep)//'` command).'
         call messages_fatal(5, only_root_writes = .true.)
       else
         call messages_fatal(1, only_root_writes = .true.)

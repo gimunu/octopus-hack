@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_flux.F90 15237 2016-03-26 15:34:18Z philipp $
+!! $Id: pes_flux.F90 15247 2016-03-30 12:15:07Z umberto $
 
 #include "global.h"
 
@@ -461,7 +461,7 @@ contains
 
       if(this%usememory) then
         SAFE_ALLOCATE(k_dot_aux(1:this%nkpnts))
-        SAFE_ALLOCATE(this%conjgplanewf_cub(1:this%nkpnts, 1:this%nsrfcpnts, kptst:kptend))
+        SAFE_ALLOCATE(this%conjgplanewf_cub(1:this%nkpnts, this%nsrfcpnts_start:this%nsrfcpnts_end, kptst:kptend))
         this%conjgplanewf_cub = M_z0
 
         do ik = kptst, kptend
@@ -474,17 +474,10 @@ contains
 
             this%conjgplanewf_cub(:, isp, ik) = exp(-M_zI * k_dot_aux(:)) / (M_TWO * M_PI)**(mdim/M_TWO)
 
-            
           end do
-
-          ! reduce should be surface points and momentum pons only
-          if(mesh%parallel_in_domains .and. this%parallel_in_momentum) then
-            call comm_allreduce(mpi_world%comm, this%conjgplanewf_cub(:,:,ik))
-          end if
-
         end do
-        SAFE_DEALLOCATE_A(k_dot_aux)
 
+        SAFE_DEALLOCATE_A(k_dot_aux)
 
       end if
     end if
@@ -1230,7 +1223,7 @@ contains
 
     if(this%parallel_in_momentum) then
       do ist = stst, stend
-        do isdim = 1, sdim    
+        do isdim = 1, sdim
           do ik = kptst, kptend
             call comm_allreduce(mesh%mpi_grp%comm, spctramp_cub(ist, isdim, ik, :))
           end do
