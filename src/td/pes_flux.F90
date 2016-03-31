@@ -996,12 +996,14 @@ contains
       integer,           intent(out) :: kpth_dir
 
       FLOAT                :: kpt(3)
+      integer              :: ikzero_start
          
+      ikzero_start = kpoints_number(sb%kpoints) - sb%kpoints%nik_skip  + 1   
       
       kpth_dir = -1
          
       kpt = M_ZERO
-      kpt(1:mdim) = kpoints_get_point(kpoints, kptend)-kpoints_get_point(kpoints, kptst)
+      kpt(1:mdim) = kpoints_get_point(kpoints, ikzero_start+1)-kpoints_get_point(kpoints, ikzero_start)
       kpt(1:mdim) = kpt(1:mdim)/sqrt(sum(kpt(1:mdim)**2))  
            
       
