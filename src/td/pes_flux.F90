@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_flux.F90 15247 2016-03-30 12:15:07Z umberto $
+!! $Id: pes_flux.F90 15251 2016-04-01 07:39:30Z umberto $
 
 #include "global.h"
 
@@ -690,7 +690,6 @@ contains
   
         nkmax = floor(Emax/DE)
         nkmin = floor(Emin/DE)
-!         this%nk = nint((Emax-Emin)/DE)
 
       else 
       
@@ -700,8 +699,6 @@ contains
 
         nkmax = floor(kmax/this%dk)
         nkmin = floor(kmin/this%dk)
-
-!         this%nk = nint((kmax-kmin)/this%dk)
         
       end if
     
@@ -893,8 +890,6 @@ contains
       do ikpt = kptst, kptend
         ikp = 0
         do ikk = nkmin, nkmax
-!         do ikk = -this%nk, this%nk
-!           if (ikk == 0 ) cycle !this way I have 2*this%nk elements
       
           ! loop over periodic directions
           select case (pdim)
@@ -942,8 +937,6 @@ contains
       call messages_write(this%nkpnts*kpoints_number(sb%kpoints))
       call messages_write("]")
       call messages_info()
-      
-!       call messages_print_var_value(stdout, "Number of points with E<p//^2/2 ", nkp_out)
 
     end select
 
@@ -974,7 +967,6 @@ contains
         val = abs(ikk)*DE * M_TWO - sum(kpar(1:pdim)**2)
         if (val >= 0) then
           kvec(mdim) =  sign * sqrt(val)
-!         kvec(mdim) =  sign * sqrt((abs(ikk)*DE + Emin) * M_TWO - sum(kpar(1:pdim)**2) )
         else  ! if E < p//^2/2
           !FIXME: Should handle the exception setting doing something smarter than this
           kvec(mdim) = sqrt(val) ! set to NaN
@@ -983,7 +975,6 @@ contains
         end if
       else         
         kvec(mdim) = ikk * this%dk 
-!         kvec(mdim) = ikk * this%dk + sign * kmin
       end if
       
       this%kcoords_cub(1:mdim, ikp, ikpt) =  kvec(1:mdim)
