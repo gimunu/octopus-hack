@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagation.F90 15214 2016-03-21 12:47:45Z umberto $
+!! $Id: propagation.F90 15262 2016-04-08 21:13:28Z xavier $
 
 #include "global.h"
 
@@ -42,6 +42,7 @@ module propagation_oct_m
   use mesh_function_oct_m
   use messages_oct_m
   use mpi_oct_m
+  use oct_exchange_oct_m
   use opt_control_state_oct_m
   use propagator_oct_m
   use propagator_base_oct_m
@@ -818,7 +819,7 @@ contains
 
     if( hm%theory_level /= INDEPENDENT_PARTICLES .and. (.not.ks%frozen_hxc) ) then
       call density_calc(st, gr, st%rho)
-      call hamiltonian_set_oct_exchange(hm, st, gr%mesh)
+      call oct_exchange_set(hm%oct_exchange, st, gr%mesh)
     end if
 
     call hamiltonian_adjoint(hm)
@@ -861,7 +862,7 @@ contains
     end if
 
     if(hm%theory_level /= INDEPENDENT_PARTICLES .and. (.not.ks%frozen_hxc) ) then
-      call hamiltonian_remove_oct_exchange(hm)
+      call oct_exchange_remove(hm%oct_exchange)
     end if
 
     call hamiltonian_not_adjoint(hm)

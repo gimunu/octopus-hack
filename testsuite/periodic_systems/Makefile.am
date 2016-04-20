@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 12777 2015-01-29 21:41:45Z xavier $
+## $Id: Makefile.am 15291 2016-04-20 10:46:20Z umberto $
 
 sharedir = $(pkgdatadir)/testsuite/periodic_systems
 
@@ -41,7 +41,7 @@ dist_share_DATA =                                \
 	05-lithium.01-gs.inp                     \
 	05-lithium.02-td.inp                     \
 	05-lithium.03-td-restart.inp             \
-        05-lithium.04-dielectric_function.inp    \
+  05-lithium.04-dielectric_function.inp    \
 	06-h2o_pol_lr.01_gs.inp                  \
 	06-h2o_pol_lr.02_kdotp.inp               \
 	06-h2o_pol_lr.03_emresp.inp              \
@@ -49,16 +49,22 @@ dist_share_DATA =                                \
 	07-tb09.test	                         \
 	07-tb09.01-gs_symm.inp                   \
 	07-tb09.02-gs_nosymm.inp                 \
-        08-benzene_supercell.test                \
-        08-benzene_supercell.01-gs.inp           \
-        09-etsf_io.test                          \
-        09-etsf_io.01-gs.inp                     \
-        10-berkeleygw.test                       \
-        10-berkeleygw.01-gs.inp                  \
-        10-berkeleygw.02-unocc.inp               \
-        11-silicon_force.test                    \
-        11-silicon_force.01-gs.inp               \
-        12-boron_nitride.test                    \
-        12-boron_nitride.01-gs.inp
+  08-benzene_supercell.test                \
+  08-benzene_supercell.01-gs.inp           \
+  09-etsf_io.test                          \
+  09-etsf_io.01-gs.inp                     \
+  10-berkeleygw.test                       \
+  10-berkeleygw.01-gs.inp                  \
+  10-berkeleygw.02-unocc.inp               \
+  11-silicon_force.test                    \
+  11-silicon_force.01-gs.inp               \
+  12-boron_nitride.test                    \
+  12-boron_nitride.01-gs.inp               \
+  13-primitive.test                        \
+  13-primitive.01-diamond.inp              \
+  13-primitive.02-graphene.inp
+  
+  
+  
 
 CLEANFILES = *~ *.bak

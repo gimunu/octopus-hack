@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 14-fullerene_packed.test 13244 2015-02-28 23:19:28Z dstrubbe $
+# $Id: 14-fullerene_packed.test 15277 2016-04-16 06:05:40Z xavier $
 
 Test       : Fullerene, packed
 Program    : octopus

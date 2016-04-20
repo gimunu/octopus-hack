@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 08-benzene_supercell.test 15037 2016-01-11 17:59:46Z irina $
+# $Id: 08-benzene_supercell.test 15277 2016-04-16 06:05:40Z xavier $
 
 Test       : Benzene supercell
 Program    : octopus

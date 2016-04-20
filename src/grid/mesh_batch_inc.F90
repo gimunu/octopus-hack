@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_batch_inc.F90 15020 2016-01-09 00:56:37Z xavier $
+!! $Id: mesh_batch_inc.F90 15259 2016-04-08 12:08:37Z xavier $
 
 subroutine X(mesh_batch_dotp_matrix)(mesh, aa, bb, dot, symm, reduce)
   type(mesh_t),      intent(in)    :: mesh
@@ -466,12 +466,14 @@ subroutine X(mesh_batch_dotp_vector)(mesh, aa, bb, dot, reduce, cproduct)
     
     if(mesh%use_curvilinear) then
       if(.not. cproduct_) then
+        !$omp parallel do private(ip, ist) reduction(+:tmp)
         do ip = 1, mesh%np
           do ist = 1, aa%nst_linear
             tmp(ist) = tmp(ist) + mesh%vol_pp(ip)*R_CONJ(aa%pack%X(psi)(ist, ip))*bb%pack%X(psi)(ist, ip)
           end do
         end do
       else
+        !$omp parallel do private(ip, ist) reduction(+:tmp)
         do ip = 1, mesh%np
           do ist = 1, aa%nst_linear
             tmp(ist) = tmp(ist) + mesh%vol_pp(ip)*aa%pack%X(psi)(ist, ip)*bb%pack%X(psi)(ist, ip)
@@ -480,12 +482,14 @@ subroutine X(mesh_batch_dotp_vector)(mesh, aa, bb, dot, reduce, cproduct)
       end if
     else
       if(.not. cproduct_) then
+        !$omp parallel do private(ip, ist) reduction(+:tmp)
         do ip = 1, mesh%np
           do ist = 1, aa%nst_linear
             tmp(ist) = tmp(ist) + R_CONJ(aa%pack%X(psi)(ist, ip))*bb%pack%X(psi)(ist, ip)
           end do
         end do
       else
+        !$omp parallel do private(ip, ist) reduction(+:tmp)
         do ip = 1, mesh%np
           do ist = 1, aa%nst_linear
             tmp(ist) = tmp(ist) + aa%pack%X(psi)(ist, ip)*bb%pack%X(psi)(ist, ip)

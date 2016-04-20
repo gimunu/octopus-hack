@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: eigen_rmmdiis_inc.F90 15063 2016-01-14 23:34:18Z xavier $
+!! $Id: eigen_rmmdiis_inc.F90 15278 2016-04-16 06:19:20Z xavier $
 
 ! ---------------------------------------------------------
 !> See http://prola.aps.org/abstract/PRB/v54/i16/p11169_1
@@ -371,8 +371,7 @@ subroutine X(eigensolver_rmmdiis_min) (gr, st, hm, pre, niter, converged, ik)
   integer,                intent(in)    :: ik
 
   integer, parameter :: sweeps = 5
-  integer, parameter :: sd_steps = 2
-
+  integer :: sd_steps
   integer :: isd, ist, minst, maxst, ib, ii
   R_TYPE  :: ca, cb, cc
   R_TYPE, allocatable :: lambda(:), diff(:)
@@ -382,6 +381,8 @@ subroutine X(eigensolver_rmmdiis_min) (gr, st, hm, pre, niter, converged, ik)
 
   PUSH_SUB(X(eigensolver_rmmdiis_min))
 
+  sd_steps = niter
+  
   pack = hamiltonian_apply_packed(hm, gr%mesh)
 
   SAFE_ALLOCATE(me1(1:2, 1:st%d%block_size))

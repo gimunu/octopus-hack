@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: curvilinear.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: curvilinear.F90 15287 2016-04-20 09:56:52Z umberto $
 
 #include "global.h"
 
@@ -218,13 +218,12 @@ contains
 
     ! No PUSH_SUB, called too often
 
-    if(cv%method /= CURV_METHOD_UNIFORM) then
-      SAFE_ALLOCATE(Jac(1:sb%dim, 1:sb%dim))
-    end if
+    SAFE_ALLOCATE(Jac(1:sb%dim, 1:sb%dim))
 
     select case(cv%method)
     case(CURV_METHOD_UNIFORM)
-      jdet = sb%volume_element
+      Jac(1:sb%dim, 1:sb%dim) = sb%rlattice_primitive(1:sb%dim, 1:sb%dim)
+      jdet = lalg_determinant(sb%dim, Jac, invert = .false.)      
     case(CURV_METHOD_GYGI)
       call curv_gygi_jacobian(sb, cv%gygi, x, dummy, Jac)
       jdet = M_ONE/lalg_determinant(sb%dim, Jac, invert = .false.)
@@ -239,9 +238,7 @@ contains
       jdet = M_ONE*lalg_determinant(sb%dim, Jac, invert = .false.)
     end select
 
-    if(cv%method /= CURV_METHOD_UNIFORM) then
-      SAFE_DEALLOCATE_A(Jac)
-    end if
+    SAFE_DEALLOCATE_A(Jac)
 
   end function curvilinear_det_Jac
 

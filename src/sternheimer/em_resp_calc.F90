@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: em_resp_calc.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: em_resp_calc.F90 15253 2016-04-06 14:20:07Z irina $
 
 #include "global.h"
 
@@ -59,8 +59,6 @@ module em_resp_calc_oct_m
      zcalc_polarizability_periodic,    &
      dinhomog_B,                       &
      zinhomog_B,                       &
-     dinhomog_BE_tot,                  &
-     zinhomog_BE_tot,                  &
      dinhomog_KB_tot,                  &
      zinhomog_KB_tot,                  &
      dinhomog_KE_tot,                  &
@@ -293,8 +291,6 @@ contains
       case(4)
         ch = 'KE'
       case(5)
-        ch = 'BE'
-      case(6)
         ch = 'E'
     end select
 

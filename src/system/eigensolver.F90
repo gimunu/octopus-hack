@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: eigensolver.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: eigensolver.F90 15279 2016-04-16 07:44:47Z xavier $
 
 #include "global.h"
 
@@ -99,8 +99,9 @@ module eigensolver_oct_m
        RS_LOBPCG  =  8,         &
        RS_RMMDIIS = 10,         &
        RS_ARPACK  = 12,         &
-       RS_FEAST   = 13
-
+       RS_FEAST   = 13,         &
+       RS_PSD      = 14
+  
 contains
 
   subroutine cmplxscl_choose_state_order(eigens, st, gr)
@@ -309,6 +310,8 @@ contains
     !% (Experimental) Implicitly Restarted Arnoldi Method. Requires the ARPACK package.
     !%Option feast 13
     !% (Experimental) Non-Hermitian FEAST eigensolver. Requires the FEAST package.
+    !%Option psd 14
+    !% (Experimental) Precondtioned steepest descent optimization of the eigenvectors.
     !%End
 
     if(st%parallel_in_states) then
@@ -428,6 +431,10 @@ contains
       call messages_fatal(1)
 #endif
 
+    case(RS_PSD)
+      default_iter = 18
+      call messages_experimental("preconditioned steepest descent (PSD) eigensolver")
+
     case default
       call messages_input_error('Eigensolver')
     end select
@@ -525,7 +532,7 @@ contains
     PUSH_SUB(eigensolver_end)
 
     select case(eigens%es_type)
-    case(RS_PLAN, RS_CG, RS_LOBPCG, RS_RMMDIIS)
+    case(RS_PLAN, RS_CG, RS_LOBPCG, RS_RMMDIIS, RS_PSD)
       call preconditioner_end(eigens%pre)
 
     case(RS_FEAST)
@@ -572,11 +579,15 @@ contains
     ik_loop: do ik = st%d%kpt%start, st%d%kpt%end
       maxiter = eigens%es_maxiter
 
-      if(eigens%converged(ik) == 0 .and. hm%theory_level /= INDEPENDENT_PARTICLES) then
-        if (states_are_real(st)) then
-          call dsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
-        else
-          call zsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+      if(st%calc_eigenval) then
+        if(eigens%es_type == RS_RMMDIIS .or. eigens%es_type /= RS_PSD &
+          .or. (eigens%converged(ik) == 0 .and. hm%theory_level /= INDEPENDENT_PARTICLES)) then
+          
+          if (states_are_real(st)) then
+            call dsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+          else
+            call zsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+          end if
         end if
       end if
 
@@ -598,6 +609,7 @@ contains
             eigens%converged(ik), ik, eigens%diff(:, ik), hm%d%block_size)
         case(RS_RMMDIIS)
           if(iter <= eigens%rmmdiis_minimization_iter) then
+            maxiter = 2
             call deigensolver_rmmdiis_min(gr, st, hm, eigens%pre, maxiter, eigens%converged(ik), ik)
           else
             call deigensolver_rmmdiis(gr, st, hm, eigens%pre, eigens%tolerance, maxiter, &
@@ -610,13 +622,17 @@ contains
         case(RS_FEAST)
           ! same as for ARPACK
           call messages_not_implemented('FEAST solver for Hermitian problems')
+        case(RS_PSD)
+          call deigensolver_rmmdiis_min(gr, st, hm, eigens%pre, maxiter, eigens%converged(ik), ik)
         end select
 
         ! FEAST: subspace diag or not?
-        if(eigens%es_type /= RS_RMMDIIS .and. eigens%es_type /= RS_ARPACK) then
-          call dsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+        if(st%calc_eigenval) then
+          if(eigens%es_type /= RS_RMMDIIS .and. eigens%es_type /= RS_ARPACK .and. eigens%es_type /= RS_PSD) then
+            call dsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+          end if
         end if
-
+        
       else
 
         select case(eigens%es_type)
@@ -635,6 +651,7 @@ contains
             eigens%converged(ik), ik, eigens%diff(:, ik), hm%d%block_size)
         case(RS_RMMDIIS)
           if(iter <= eigens%rmmdiis_minimization_iter) then
+            maxiter = 2
             call zeigensolver_rmmdiis_min(gr, st, hm, eigens%pre, maxiter, eigens%converged(ik), ik)
           else
             call zeigensolver_rmmdiis(gr, st, hm, eigens%pre, eigens%tolerance, maxiter, &
@@ -647,24 +664,30 @@ contains
 #endif 
         case(RS_FEAST)
           call zeigensolver_feast(eigens%feast, gr, st, hm, eigens%converged(ik), ik, eigens%diff(:, ik))
+        case(RS_PSD)
+          call zeigensolver_rmmdiis_min(gr, st, hm, eigens%pre, maxiter, eigens%converged(ik), ik)
         end select
 
-        if(eigens%es_type /= RS_RMMDIIS .and.eigens%es_type /= RS_ARPACK) then
-          call zsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+        if(st%calc_eigenval) then
+          if(eigens%es_type /= RS_RMMDIIS .and. eigens%es_type /= RS_ARPACK .and. eigens%es_type /= RS_PSD) then
+            call zsubspace_diag(eigens%sdiag, gr%der, st, hm, ik, st%eigenval(:, ik), eigens%diff(:, ik))
+          end if
         end if
-
+        
       end if
 
-      ! recheck convergence after subspace diagonalization, since states may have reordered
-      eigens%converged(ik) = 0
-      do ist = 1, st%nst
-        if(eigens%diff(ist, ik) < eigens%tolerance) then
-          eigens%converged(ik) = ist
-        else
-          exit
-        end if
-      end do
-
+      if(st%calc_eigenval) then
+        ! recheck convergence after subspace diagonalization, since states may have reordered
+        eigens%converged(ik) = 0
+        do ist = 1, st%nst
+          if(eigens%diff(ist, ik) < eigens%tolerance) then
+            eigens%converged(ik) = ist
+          else
+            exit
+          end if
+        end do
+      end if
+      
       eigens%matvec = eigens%matvec + maxiter
     end do ik_loop
 

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states_io.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: states_io.F90 15279 2016-04-16 07:44:47Z xavier $
 
 #include "global.h"
 
@@ -78,6 +78,11 @@ contains
 
     PUSH_SUB(states_write_eigenvalues)
 
+    if(.not. st%calc_eigenval) then
+      POP_SUB(states_write_eigenvalues)
+      return
+    end if
+    
     st_start_ = 1
     if(present(st_start)) st_start_ = st_start
     ASSERT(nst <= st%nst)
