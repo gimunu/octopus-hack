@@ -968,7 +968,7 @@ contains
         if (val >= 0) then
           kvec(mdim) =  sign * sqrt(val)
         else  ! if E < p//^2/2
-          !FIXME: Should handle the exception setting doing something smarter than this
+          !FIXME: Should handle the exception doing something smarter than this
           kvec(mdim) = sqrt(val) ! set to NaN
 !           kvec(mdim) = M_HUGE ! set to infinity
           nkp_out = nkp_out + 1
