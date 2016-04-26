@@ -744,8 +744,8 @@ contains
         call messages_new_line()
         call messages_write("This may cause unphysical results if the path crosses the 1st BZ boundary.")
         call messages_warning()
-        call get_kpath_perp_direction(sb%kpoints, idim)
-        if (idim > 0 ) NBZ(idim) = 1
+!         call get_kpath_perp_direction(sb%kpoints, idim)
+!         if (idim > 0 ) NBZ(idim) = 1
       end if 
 
       ! This information is needed for postprocessing the data
