@@ -707,9 +707,9 @@ contains
     call hamiltonian_base_allocate(this%hm_base, mesh, FIELD_POTENTIAL, &
       complex_potential = this%cmplxscl%space .or. this%bc%abtype == IMAGINARY_ABSORBING)
 
-    if(this%d%nspin > 2 .and. this%bc%abtype == IMAGINARY_ABSORBING) then
-      call messages_not_implemented('AbsorbingBoundaries = cap for spinors')
-    end if
+!     if(this%d%nspin > 2 .and. this%bc%abtype == IMAGINARY_ABSORBING) then
+!       call messages_not_implemented('AbsorbingBoundaries = cap for spinors')
+!     end if
 
     do ispin = 1, this%d%nspin
       if(ispin <= 2) then
