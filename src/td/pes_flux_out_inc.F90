@@ -18,7 +18,7 @@
 
 
 ! Wrapper function
-subroutine pes_flux_pmesh(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
+subroutine pes_flux_pmesh(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp, Ekin)
   type(pes_flux_t),  intent(in)    :: this
   integer,           intent(in)    :: dim
   type(kpoints_t),   intent(inout) :: kpoints 
@@ -27,7 +27,9 @@ subroutine pes_flux_pmesh(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
   FLOAT,             intent(out)   :: pmesh(:,:,:,:)    
   integer,           intent(out)   :: idxZero(:)                
   integer,           intent(in)    :: krng(:)             
-  integer,  pointer, intent(inout) :: Lp(:,:,:,:,:)  
+  integer,  pointer, intent(inout) :: Lp(:,:,:,:,:) 
+  FLOAT,  optional,  intent(out)   :: Ekin(:,:,:)  
+  
 
   PUSH_SUB(pes_flux_pmesh)
 
@@ -41,7 +43,7 @@ subroutine pes_flux_pmesh(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
   ! not implemented
 
   case (M_PLANES)
-    call pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
+    call pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp, Ekin)
   
   end select
   
@@ -128,7 +130,7 @@ end function flatten_indices
 
 !< Generate the momentum-space mesh (p) and the arrays mapping the 
 !< the mask and the kpoint meshes in p.
-subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
+subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp, Ekin)
   type(pes_flux_t),  intent(in)    :: this
   integer,           intent(in)    :: dim
   type(kpoints_t),   intent(inout) :: kpoints 
@@ -144,6 +146,8 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
                                                         !< maps a mask-mesh triplet of indices together with a kpoint 
                                                         !< index into a triplet on the combined momentum space mesh.
 
+  FLOAT,  optional,  intent(out) :: Ekin(:,:,:)         !< The total kinetic energy associated with the momentum p
+                                                        !< this is needed when using a kpoint path 
    
 
 
@@ -174,14 +178,17 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
   kpt(:) = M_ZERO
       
   zero_thr = M_EPSILON    
+
       
-  if ( kpoints_have_zero_weight_path(kpoints)) then 
+  if ( kpoints_have_zero_weight_path(kpoints)) then     
     ! supporting paths only along the kx and ky directions in 
     ! reciprocal space
-    kpth_dir = -1 
-    if (size(pmesh, 1) > ll(1)) kpth_dir = 1
-    if (size(pmesh, 2) > ll(2)) kpth_dir = 2
-    ASSERT (kpth_dir /= -1 )
+!     kpth_dir = -1
+!     if (size(pmesh, 1) > ll(1)) kpth_dir = 1
+!     if (size(pmesh, 2) > ll(2)) kpth_dir = 2
+!     ASSERT (kpth_dir /= -1 )
+    
+    kpth_dir = 1
     
     nk(:) = 1  
     nk(kpth_dir) = nkpt
@@ -190,6 +197,7 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
       kpt(1:dim) = kpoints_get_point(kpoints, krng(1) + ik -1) 
     end do
         
+        
   else  
     
     call kpoints_grid_generate(dim, kpoints%nik_axis(1:dim), kpoints%shifts(1:dim), &
@@ -197,9 +205,10 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
 
 
   end if
-
+  
   SAFE_ALLOCATE(ikidx(maxval(nk(1:3)),1:3))
   call flip_sign_Lkpt_idx(dim, nk(:), ikidx(:,:))
+
   
   if (debug%info) then
     print *,"reordered"
@@ -267,11 +276,17 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
           pmesh(ip1, ip2, ip3, 1:dim) = GG(1:dim) - kpt(1:dim)
           pmesh(ip1, ip2, ip3, dim+1) = pmesh(ip1, ip2, ip3, dim+1) + 1 
           
-!           if (debug%info) then
-!             print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
-!                     "pmesh = ",pmesh(ip1, ip2, ip3, 1:3)
-!           end if
+          
+          if (present(Ekin)) Ekin(ip1, ip2, ip3) = sign(M_ONE,pmesh(ip1,ip2,ip3,dim)) &
+                                                   * sum(pmesh(ip1,ip2,ip3,1:dim)**2)/M_TWO
 
+          if (debug%info) then
+            print *,j1,j2,j3,ik, "pmesh = ",pmesh(ip1, ip2, ip3, 1:3), "Ekin=", Ekin(ip1, ip2, ip3)!,&
+!                   "kpt(1:dim)=", kpt(1:dim), "GG(1:dim)=", GG(1:dim)
+                  
+!             print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
+!                    "pmesh = ",pmesh(ip1, ip2, ip3, 1:3), "Ekin=", Ekin(ip1, ip2, ip3)
+          end if
 
           ! Sanity checks
           if (sum(pmesh(ip1, ip2, ip3, 1:dim-1)**2)<=zero_thr) then

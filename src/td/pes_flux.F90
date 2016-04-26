@@ -722,7 +722,7 @@ contains
       !%End
     
       NBZ(:) = 1
-      NBZ(1:pdim) = 2
+      if (.not. kpoints_have_zero_weight_path(sb%kpoints)) NBZ(1:pdim) = 2
       if(parse_block('PES_Flux_BZones', blk) == 0) then
 
         call parse_block_integer(blk, 0, 0, NBZ(1))
@@ -731,15 +731,19 @@ contains
         call parse_block_end(blk)
 
       else
-        call parse_variable('PES_Flux_BZones', 2, NBZ(1))
+        call parse_variable('PES_Flux_BZones', maxval(NBZ(:)), NBZ(1))
         NBZ(:) = NBZ(1)
 
       end if
       
       ! If we are using a path in reciprocal space 
-      ! we don't need to replicate the BZ in directions 
+      ! we do not need to replicate the BZ in directions 
       ! perpendicular to the path
-      if (kpoints_have_zero_weight_path(sb%kpoints)) then
+      if (kpoints_have_zero_weight_path(sb%kpoints) .and. any(NBZ(:)> 1) ) then
+        call messages_write("Using a path in reciprocal space with PES_Flux_BZones > 1.")
+        call messages_new_line()
+        call messages_write("This may cause unphysical results if the path crosses the 1st BZ boundary.")
+        call messages_warning()
         call get_kpath_perp_direction(sb%kpoints, idim)
         if (idim > 0 ) NBZ(idim) = 1
       end if 
@@ -906,7 +910,7 @@ contains
             do ibz2 = -(NBZ(2)-1), (NBZ(2)-1) 
               do ibz1 = -(NBZ(1)-1), (NBZ(1)-1) 
   
-                kvec(1:2) = (/ibz1 * sb%klattice(1, 1), ibz2 * sb%klattice(2, 2)/)                
+                kvec(1:2) = ibz1 * sb%klattice(1:2, 1) + ibz2 * sb%klattice(1:2, 2)                
                 call fill_non_periodic_dimension(this)
 
               end do
