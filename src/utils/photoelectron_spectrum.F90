@@ -220,7 +220,7 @@ program photoelectron_spectrum
       pol = (/0,0,1/) 
       pvec = (/0,1,0/)
 
-      pesout%what = OPTION__PHOTOELECTRONSPECTRUMOUTPUT__VELOCITY_MAP_CUT
+      pesout%what = OPTION__PHOTOELECTRONSPECTRUMOUTPUT__ARPES_CUT
       pesout%pol = (/0,0,1/) 
       pesout%pvec = (/0,1,0/)
     end if 
