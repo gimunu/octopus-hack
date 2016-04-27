@@ -155,9 +155,12 @@ subroutine X(hamiltonian_base_local_sub)(potential, mesh, std, ispin, psib, vpsi
           psi1 = psib%pack%zpsi(ist    , ip)
           psi2 = psib%pack%zpsi(ist + 1, ip)
           vpsib%pack%zpsi(ist    , ip) = vpsib%pack%zpsi(ist    , ip) + &
-            potential(ip, 1)*psi1 + (potential(ip, 3) + M_zI*potential(ip, 4))*psi2
+            potential(ip, 1)*psi1 + (potential(ip, 3) + M_zI*potential(ip, 4))*psi2 + &
+     M_zI*Impotential(ip, 1)*psi1
           vpsib%pack%zpsi(ist + 1, ip) = vpsib%pack%zpsi(ist + 1, ip) + &
-            potential(ip, 2)*psi2 + (potential(ip, 3) - M_zI*potential(ip, 4))*psi1
+            potential(ip, 2)*psi2 + (potential(ip, 3) - M_zI*potential(ip, 4))*psi1 + &
+     M_zI*Impotential(ip, 2)*psi2
+            
         end do
       end do
       !$omp end parallel do
@@ -199,9 +202,9 @@ subroutine X(hamiltonian_base_local_sub)(potential, mesh, std, ispin, psib, vpsi
         vpsi => vpsib%states(ist)%X(psi)
 
         forall(ip = 1:mesh%np)
-          vpsi(ip, 1) = vpsi(ip, 1) + potential(ip, 1)*psi(ip, 1) + &
+          vpsi(ip, 1) = vpsi(ip, 1) + potential(ip, 1)*psi(ip, 1) + M_zI*Impotential(ip, 1)*psi(ip, 1) +&
             (potential(ip, 3) + M_zI*potential(ip, 4))*psi(ip, 2)
-          vpsi(ip, 2) = vpsi(ip, 2) + potential(ip, 2)*psi(ip, 2) + &
+          vpsi(ip, 2) = vpsi(ip, 2) + potential(ip, 2)*psi(ip, 2) + M_zI*Impotential(ip, 2)*psi(ip, 2) +&
             (potential(ip, 3) - M_zI*potential(ip, 4))*psi(ip, 1)
         end forall
 
