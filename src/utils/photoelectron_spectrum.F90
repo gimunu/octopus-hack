@@ -673,7 +673,7 @@ program photoelectron_spectrum
       if(iand(pesout%what, OPTION__PHOTOELECTRONSPECTRUMOUTPUT__ARPES_CUT) /= 0) then
         call messages_print_stress(stdout, "ARPES cut on reciprocal space path")
         
-        filename = trim('./PES_ARPES.path')
+        filename = outfile('./PES_ARPES', ist, ispin, "path")
         call pes_out_arpes_cut(pesP_out, filename, llp, pmesh, Ekin)
         
       end if
