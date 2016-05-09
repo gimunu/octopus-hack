@@ -57,7 +57,7 @@ program photoelectron_spectrum
   end type pesoutput_t  
 
   integer              :: ierr, integrate
-  integer              :: dim, dir, how, idim
+  integer              :: dim, dir, how, idim, pdim, ngpt
   integer              :: llp(3), llg(3)   !< The size of the g-point and p-point cubic grids 
   FLOAT                :: Emax, Emin, Estep, uEstep,uEspan(2), pol(3)
   FLOAT                :: uThstep, uThspan(2), uPhstep, uPhspan(2), pvec(3)
@@ -118,9 +118,11 @@ program photoelectron_spectrum
   !Initialize variables
   llp(:) = 1 
   llg(:) = 1
+  ngpt = 1
 
   need_pmesh = .false. 
-  dim = sb%dim   ! The dimensionality dim = [1,2,3]
+  dim    = sb%dim   ! The dimensionality dim = [1,2,3]
+  pdim   = sb%periodic_dim
 
   call messages_print_stress(stdout,"Postprocessing")  
   
@@ -157,6 +159,7 @@ program photoelectron_spectrum
     call pes_flux_reciprocal_mesh_gen(pflux, sb, st, 0, post = .true.)
     
     llg(1:dim) = pflux%ll(1:dim)
+    ngpt = pflux%ngpt
     need_pmesh = .true.
     
   
@@ -295,6 +298,7 @@ program photoelectron_spectrum
   else
     llp(1:dim) = llg(1:dim) * sb%kpoints%nik_axis(1:dim)    
   endif  
+  llp(1:pdim) = llp(1:pdim) * ngpt
   
   if (debug%info) then
     print *, "llp(:)= ", llp(:) 
