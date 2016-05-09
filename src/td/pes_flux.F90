@@ -107,6 +107,7 @@ module pes_flux_oct_m
 
     integer          :: ll(3)                          !< the dimensions of a cubic mesh containing the momentum-space
                                                        !< mesh. Used when working with semi-periodic systems 
+    integer          :: ngpt                           !< Number of free Gpoints use to increase resoltion                        
 
     logical          :: usememory                      !< whether conjgplanewf should be kept in memory
     type(mesh_interpolation_t) :: interp
@@ -427,14 +428,12 @@ contains
     !%Section Time-Dependent::PhotoElectronSpectrum
     !%Description
     !% Use memory to tabulate Volkov plane-wave components on the surface.
-    !% This option speeds up calculations precomputing plane wave phases on 
-    !% the suface. 
+    !% This option speeds up calculations by precomputing plane wave phases 
+    !% on the suface. 
     !% By default true when PES_Flux_Shape = cub.
     !%End
-    if(this%shape == M_CUBIC) then
-      call parse_variable('PES_Flux_UseMemory', .true., this%usememory)
-      call messages_print_var_value(stdout, "PES_Flux_UseMemory", this%usememory)            
-    end if
+    call parse_variable('PES_Flux_UseMemory', .true., this%usememory)
+    call messages_print_var_value(stdout, "PES_Flux_UseMemory", this%usememory)            
 
     SAFE_ALLOCATE(this%wf(stst:stend, 1:sdim, kptst:kptend, 0:this%nsrfcpnts, 1:this%tdsteps))
     this%wf = M_z0
@@ -538,6 +537,10 @@ contains
       
     FLOAT             :: Emin, Emax, DE , kvec(1:3) 
     integer           :: NBZ(1:2), nkp_out, nkmin, nkmax
+    
+    integer             :: ig
+    FLOAT, allocatable  :: gpoints(:,:), gpoints_reduced(:,:)
+    FLOAT               :: dk(1:3)
       
 #if defined(HAVE_MPI)
     integer           :: mpirank
@@ -631,6 +634,32 @@ contains
 
     else 
       ! PLANES 
+
+      !%Variable PES_Flux_Gpoint_Upsample
+      !%Type integer
+      !%Section Time-Dependent::PhotoElectronSpectrum
+      !%Description
+      !% Increase resolution in momentum by adding Gpoints in between adiacent 
+      !% Kpoints. For each additional Gpoint G an entire Kpoint grid centered at 
+      !% G is added to the momentum grid. 
+      !%End
+      call parse_variable('PES_Flux_Gpoint_Upsample', 1, this%ngpt)
+      call messages_print_var_value(stdout, "PES_Flux_Gpoint_Upsample", this%ngpt)
+      
+      SAFE_ALLOCATE(gpoints(1:mdim,1:this%ngpt))
+      SAFE_ALLOCATE(gpoints_reduced(1:mdim,1:this%ngpt)) 
+      
+      gpoints(:,:) = M_ZERO
+      gpoints_reduced(:,:) = M_ZERO
+      
+      dk(1:mdim) = M_ONE/(sb%kpoints%nik_axis(1:mdim) * this%ngpt)
+      do ig =2, this%ngpt
+        gpoints_reduced(1:pdim, ig) = gpoints_reduced(1:pdim, ig-1) + dk(1:pdim)
+        call kpoints_to_absolute(sb%klattice, gpoints_reduced(1:pdim, ig), gpoints(1:pdim, ig), pdim)
+        print *, ig," gpoints_reduced(1:pdim, ig) =", gpoints_reduced(1:pdim, ig)
+        print *, ig," gpoints(1:pdim, ig) =", gpoints(1:pdim, ig)
+      end do 
+      
       
       !%Variable PES_Flux_ARPES_grid
       !%Type logical
@@ -760,10 +789,9 @@ contains
         if (.not. idim == pdim) call messages_write(" x ")        
       end do 
       call messages_info()
-      
-      
+            
       ! Total number of points
-      this%nkpnts = product(this%ll(1:mdim))
+      this%nkpnts = product(this%ll(1:mdim))*this%ngpt
       
       
       
@@ -899,20 +927,21 @@ contains
           select case (pdim)
             case (1)
             do ibz1 = -(NBZ(1)-1), (NBZ(1)-1) 
-
-              kvec(1) = ibz1 * sb%klattice(1, 1)                
-              call fill_non_periodic_dimension(this)
-      
+              do ig = 1, this%ngpt
+                kvec(1) = ibz1 * sb%klattice(1, 1) + gpoints(1,ig)               
+                call fill_non_periodic_dimension(this)
+              end do      
             end do
 
             case (2)
             
             do ibz2 = -(NBZ(2)-1), (NBZ(2)-1) 
               do ibz1 = -(NBZ(1)-1), (NBZ(1)-1) 
-  
-                kvec(1:2) = ibz1 * sb%klattice(1:2, 1) + ibz2 * sb%klattice(1:2, 2)                
-                call fill_non_periodic_dimension(this)
-
+                do ig = 1, this%ngpt
+                  kvec(1:2) = ibz1 * sb%klattice(1:2, 1) + ibz2 * sb%klattice(1:2, 2) &
+                            + gpoints(1:2,ig) 
+                  call fill_non_periodic_dimension(this)
+                end do
               end do
             end do
             
@@ -941,6 +970,9 @@ contains
       call messages_write(this%nkpnts*kpoints_number(sb%kpoints))
       call messages_write("]")
       call messages_info()
+      
+      SAFE_DEALLOCATE_A(gpoints)
+      SAFE_DEALLOCATE_A(gpoints_reduced)
 
     end select
 
@@ -1199,8 +1231,7 @@ contains
 
     ! calculate Volkov phase using the previous time step
     conjgphase_cub(:, 0,:) = this%conjgphase_prev_cub(:,:)
-    
-    
+
     do ik = kptst, kptend
       
       kpoint(:) = M_ZERO
@@ -1209,7 +1240,8 @@ contains
       end if
             
       ! integrate over time
-      do itstep = 1, this%tdsteps
+      do itstep = 1, this%itstep
+        
         do ikp = ikp_start, ikp_end
           vec = sum((this%kcoords_cub(1:mdim, ikp, ik) - kpoint(1:mdim) - this%veca(1:mdim, itstep) / P_c)**2)
           conjgphase_cub(ikp, itstep, ik) = conjgphase_cub(ikp, itstep - 1, ik) & 
@@ -1220,7 +1252,8 @@ contains
 
     end do
 
-    this%conjgphase_prev_cub(:,:) = conjgphase_cub(:, this%tdsteps,:)
+    this%conjgphase_prev_cub(:,:) = conjgphase_cub(:, this%itstep,:)
+
 
     ! integrate over time & surface (on node)
     do isp = isp_start, isp_end
@@ -1250,7 +1283,7 @@ contains
             do isdim = 1, sdim
               
               ! integrate over time
-              do itstep = 1, this%tdsteps
+              do itstep = 1, this%itstep
                 Jk_cub(ist, isdim, ik, 1:this%nkpnts) = &
                   Jk_cub(ist, isdim, ik, 1:this%nkpnts) + conjgphase_cub(1:this%nkpnts, itstep, ik) * &
                   (this%wf(ist, isdim, ik, isp, itstep) * &

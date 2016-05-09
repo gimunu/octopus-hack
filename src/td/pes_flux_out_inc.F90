@@ -116,14 +116,16 @@ subroutine flip_sign_Lkpt_idx( dim, nk, idx)
 end subroutine flip_sign_Lkpt_idx
 
 ! ---------------------------------------------------------
-integer pure function flatten_indices(i1,i2,i3, ll) result(ii)
+integer pure function flatten_indices(i1,i2,i3,igpt, ll, ngpt) result(ii)
   integer, intent(in) :: i1
   integer, intent(in) :: i2
   integer, intent(in) :: i3
+  integer, intent(in) :: igpt
   integer, intent(in) :: ll(:)
+  integer, intent(in) :: ngpt
   
-  ii = (i3-1)*ll(1)*ll(2) + (i2-1)*ll(1) + i1
-!   ii = (i1-1)*ll(3)*ll(2) + (i2-1)*ll(3) + i3
+  ii = (i3-1)*ll(1)*ll(2)*ngpt + (igpt-1)*ll(1)*ll(2) + (i2-1)*ll(1) + i1
+!   ii = (i3-1)*ll(1)*ll(2) + (i2-1)*ll(1) + i1
   
 end function flatten_indices
 
@@ -157,7 +159,7 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
   integer, allocatable :: Lkpt(:,:), idx(:,:), idx_inv(:,:), ikidx(:,:)
   FLOAT, allocatable   :: LG_(:,:)
 
-  integer :: nkpt, kpth_dir, ig
+  integer :: nkpt, kpth_dir, ig, igpt
   FLOAT :: zero_thr
 
 
@@ -250,60 +252,62 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
     do j1 = 1, ll(1) 
       do j2 = 1, ll(2) 
         do j3 = 1, ll(3) 
+          do igpt = 1, this%ngpt
           
-          GG(:) = M_ZERO 
-          ig = flatten_indices(j1,j2,j3, ll) 
+            GG(:) = M_ZERO 
+            ig = flatten_indices(j1,j2,j3, igpt, ll, this%ngpt) 
           
-          GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
-!           print *, ik, j1, j2, j3, "GG(:) = ", GG(:) , ig
-!           GG(1:3)= (/LG_(j1,1),LG_(j2,2),LG_(j3,3)/)
+            GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
+  !           print *, ik, j1, j2, j3, "GG(:) = ", GG(:) , ig
+  !           GG(1:3)= (/LG_(j1,1),LG_(j2,2),LG_(j3,3)/)
           
-          ip1 = (j1 - 1) * nk(1) + ikidx(Lkpt(ik,1), 1)
-          ip2 = (j2 - 1) * nk(2) + ikidx(Lkpt(ik,2), 2)
-          ip3 = (j3 - 1) * nk(3) + ikidx(Lkpt(ik,3), 3)
+            ip1 = (j1 - 1) * nk(1) + ikidx(Lkpt(ik,1), 1)
+            ip2 = (j2 - 1) * nk(2) + ikidx(Lkpt(ik,2), 2)
+            ip3 = (j3 - 1) * nk(3) + ikidx(Lkpt(ik,3), 3)
           
-!           Lp(idx_inv(j1,1),idx_inv(j2,2),idx_inv(j3,3),ik,1:3) =  (/ip1,ip2,ip3/)
-          Lp(j1,j2,j3,ik,1:3) =  (/ip1,ip2,ip3/)
+  !           Lp(idx_inv(j1,1),idx_inv(j2,2),idx_inv(j3,3),ik,1:3) =  (/ip1,ip2,ip3/)
+            Lp(j1,j2,j3,ik,1:3) =  (/ip1,ip2,ip3/)
           
-          ! The final momentum corresponds to p = G - K. 
-          ! This is due to the convention for the sign of the Bloch phase associated to 
-          ! each kpoint subspace in hamilonian_update wich is exp(-i K*r) instead of the 
-          ! most commonly used (in textbooks) exp(i K*r). 
-          ! Thus in order to solve the propagation equations only for the periodic part 
-          ! of each KS orbital u_K(r) I nees to project on plane waves with <p|=<G-K|. 
-          ! Note: in order to preserve the correct ordering of the final mesh in p 
-          ! we remap each kpoint grid-index with ikidx(:,1:3).
-          pmesh(ip1, ip2, ip3, 1:dim) = GG(1:dim) - kpt(1:dim)
-          pmesh(ip1, ip2, ip3, dim+1) = pmesh(ip1, ip2, ip3, dim+1) + 1 
+            ! The final momentum corresponds to p = G - K. 
+            ! This is due to the convention for the sign of the Bloch phase associated to 
+            ! each kpoint subspace in hamilonian_update wich is exp(-i K*r) instead of the 
+            ! most commonly used (in textbooks) exp(i K*r). 
+            ! Thus in order to solve the propagation equations only for the periodic part 
+            ! of each KS orbital u_K(r) I nees to project on plane waves with <p|=<G-K|. 
+            ! Note: in order to preserve the correct ordering of the final mesh in p 
+            ! we remap each kpoint grid-index with ikidx(:,1:3).
+            pmesh(ip1, ip2, ip3, 1:dim) = GG(1:dim) - kpt(1:dim)
+            pmesh(ip1, ip2, ip3, dim+1) = pmesh(ip1, ip2, ip3, dim+1) + 1 
           
           
-          if (present(Ekin)) Ekin(ip1, ip2, ip3) = sign(M_ONE,pmesh(ip1,ip2,ip3,dim)) &
-                                                   * sum(pmesh(ip1,ip2,ip3,1:dim)**2)/M_TWO
+            if (present(Ekin)) Ekin(ip1, ip2, ip3) = sign(M_ONE,pmesh(ip1,ip2,ip3,dim)) &
+                                                     * sum(pmesh(ip1,ip2,ip3,1:dim)**2)/M_TWO
 
-          if (debug%info) then
-            print *,j1,j2,j3,ik, "pmesh = ",pmesh(ip1, ip2, ip3, 1:3), "Ekin=", Ekin(ip1, ip2, ip3)!,&
-!                   "kpt(1:dim)=", kpt(1:dim), "GG(1:dim)=", GG(1:dim)
+            if (debug%info) then
+              print *,j1,j2,j3,ik, "pmesh = ",pmesh(ip1, ip2, ip3, :), "Ekin=", Ekin(ip1, ip2, ip3)!,&
+  !                   "kpt(1:dim)=", kpt(1:dim), "GG(1:dim)=", GG(1:dim)
                   
-!             print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
-!                    "pmesh = ",pmesh(ip1, ip2, ip3, 1:3), "Ekin=", Ekin(ip1, ip2, ip3)
-          end if
+  !             print *,j1,j2,j3,ik,"  Lp(i1,i2,i3,ik,1:dim) = ",  (/ip1,ip2,ip3/), &
+  !                    "pmesh = ",pmesh(ip1, ip2, ip3, 1:3), "Ekin=", Ekin(ip1, ip2, ip3)
+            end if
 
-          ! Sanity checks
-          if (sum(pmesh(ip1, ip2, ip3, 1:dim-1)**2)<=zero_thr) then
-            err = err + 1 
-            !Find the indices identifying the center of the coordinates 
-            idxZero(1:3) = (/ip1,ip2,ip3/)
-          end if
+            ! Sanity checks
+            if (sum(pmesh(ip1, ip2, ip3, 1:dim-1)**2)<=zero_thr) then
+              err = err + 1 
+              !Find the indices identifying the center of the coordinates 
+              idxZero(1:3) = (/ip1,ip2,ip3/)
+            end if
           
-          if (pmesh(ip1, ip2, ip3, dim+1) > 1 ) then
-            err = -2 
-          end if
-
+            if (pmesh(ip1, ip2, ip3, dim+1) > 1 ) then
+              err = -2 
+            end if
+      
+          end do
 
         end do 
       end do 
-
     end do 
+    
   end do
   
   
@@ -317,11 +321,13 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
       do j1 = 1, ll(1) 
         do j2 = 1, ll(2) 
           do j3 = 1, ll(3) 
-
-            ig = flatten_indices(j1,j2,j3, ll) 
-            GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
-            if (sum(GG(1:dim-1)**2)<=M_EPSILON) idxZero(1:3) = (/j1,j2,j3/)
-        
+            do igpt = 1, this%ngpt
+              
+              ig = flatten_indices(j1,j2,j3, igpt, ll, this%ngpt) 
+!               ig = flatten_indices(j1,j2,j3, ll)
+              GG(1:dim) = this%kcoords_cub(1:dim, ig, ik)
+              if (sum(GG(1:dim-1)**2)<=M_EPSILON) idxZero(1:3) = (/j1,j2,j3/)
+            end do
           end do
         end do
       end do
@@ -380,7 +386,7 @@ subroutine pes_flux_map_from_states_pln(this, restart, st, ll, pesP, krng, Lp, i
   integer :: idone, ntodo
   CMPLX   :: psiG1(1:this%nkpnts), psiG2(1:this%nkpnts)
   FLOAT   :: weight 
-  integer :: istart, iend, nst, ig
+  integer :: istart, iend, nst, ig, igpt
 
   PUSH_SUB(pes_flux_map_from_states_pln)
 
@@ -428,20 +434,23 @@ subroutine pes_flux_map_from_states_pln(this, restart, st, ll, pesP, krng, Lp, i
           do i1=1, ll(1)
             do i2=1, ll(2)
               do i3=1, ll(3)
-                ip(1:3) = Lp(i1, i2, i3, ik, 1:3) 
-                ig = flatten_indices(i1,i2,i3, ll) 
+                do igpt = 1, this%ngpt
+                  ip(1:3) = Lp(i1, i2, i3, ik, 1:3) 
+                  ig = flatten_indices(i1,i2,i3, igpt, ll, this%ngpt) 
+!                   ig = flatten_indices(i1,i2,i3, ll)
               
-                  pesP(ip(1),ip(2),ip(3), ispin) = pesP(ip(1),ip(2),ip(3), ispin) &
-                                                 + abs(psiG1(ig))**2 * weight 
+                    pesP(ip(1),ip(2),ip(3), ispin) = pesP(ip(1),ip(2),ip(3), ispin) &
+                                                   + abs(psiG1(ig))**2 * weight 
                 
-!                 print *, ip(:), ig, itot, "abs(psiG1(ig))**2 * weight = ", &
-!                           abs(psiG1(ig))**2 * weight, abs(psiG1(ig))**2
+  !                 print *, ip(:), ig, itot, "abs(psiG1(ig))**2 * weight = ", &
+  !                           abs(psiG1(ig))**2 * weight, abs(psiG1(ig))**2
 
-!                   if (all(ip(1:2)==(/155,17/))) then
-!                     print *, itot, ig, ip(1:2), "psiG1(ig) =", psiG1(ig), & 
-!                              "pesP(ip(1),ip(2),ip(3), ispin) =", pesP(ip(1),ip(2),ip(3), ispin) ,&
-!                               "abs(psiG1(ig))**2 * weight =", abs(psiG1(ig))**2 * weight
-!                   end if
+  !                   if (all(ip(1:2)==(/155,17/))) then
+  !                     print *, itot, ig, ip(1:2), "psiG1(ig) =", psiG1(ig), & 
+  !                              "pesP(ip(1),ip(2),ip(3), ispin) =", pesP(ip(1),ip(2),ip(3), ispin) ,&
+  !                               "abs(psiG1(ig))**2 * weight =", abs(psiG1(ig))**2 * weight
+  !                   end if
+                end do
               end do
             end do
           end do
@@ -458,20 +467,23 @@ subroutine pes_flux_map_from_states_pln(this, restart, st, ll, pesP, krng, Lp, i
         do i1=1, ll(1)
           do i2=1, ll(2)
             do i3=1, ll(3)
-              ip(1:3) = Lp(i1, i2, i3, ik, 1:3) 
-              ig = flatten_indices(i1,i2,i3, ll) 
+              do igpt = 1, this%ngpt
+                ip(1:3) = Lp(i1, i2, i3, ik, 1:3) 
+                ig = flatten_indices(i1,i2,i3, igpt, ll, this%ngpt) 
+!                 ig = flatten_indices(i1,i2,i3, ll)
             
-                pesP(ip(1),ip(2),ip(3), 1) = pesP(ip(1),ip(2),ip(3), 1) &
-                                               + abs(psiG1(ig))**2 * weight 
+                  pesP(ip(1),ip(2),ip(3), 1) = pesP(ip(1),ip(2),ip(3), 1) &
+                                                 + abs(psiG1(ig))**2 * weight 
 
-                pesP(ip(1),ip(2),ip(3), 2) = pesP(ip(1),ip(2),ip(3), 2) &
-                                               + abs(psiG2(ig))**2 * weight
+                  pesP(ip(1),ip(2),ip(3), 2) = pesP(ip(1),ip(2),ip(3), 2) &
+                                                 + abs(psiG2(ig))**2 * weight
 
-                pesP(ip(1),ip(2),ip(3), 3) = pesP(ip(1),ip(2),ip(3), 3) &
-                                               + real(psiG1(ig)*conjg(psiG2(ig)), REAL_PRECISION) * weight
+                  pesP(ip(1),ip(2),ip(3), 3) = pesP(ip(1),ip(2),ip(3), 3) &
+                                                 + real(psiG1(ig)*conjg(psiG2(ig)), REAL_PRECISION) * weight
                                                
-                pesP(ip(1),ip(2),ip(3), 3) = pesP(ip(1),ip(2),ip(3), 3) &
-                                               + aimag(psiG1(ig)*conjg(psiG2(ig))) * weight
+                  pesP(ip(1),ip(2),ip(3), 3) = pesP(ip(1),ip(2),ip(3), 3) &
+                                                 + aimag(psiG1(ig)*conjg(psiG2(ig))) * weight
+              end do
             end do
           end do
         end do
@@ -1140,8 +1152,6 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
   character(len=128) :: filename
 
   CMPLX, pointer    :: psi1(:), psi2(:,:)
-  integer           :: ig
-  CMPLX             :: psi(1:this%nkpnts)
   
   
   PUSH_SUB(pes_flux_dump)
@@ -1213,26 +1223,38 @@ subroutine pes_flux_dump(restart, this, mesh, st, ierr)
 
           end if
         end if
-#if defined(HAVE_MPI)
-        if(mesh%mpi_grp%size > 1) then
-          call MPI_Bcast(err, 1, MPI_INTEGER, 0, mesh%mpi_grp%comm, mpi_err)
-          call MPI_Barrier(mesh%mpi_grp%comm, mpi_err)
-        end if
-#endif
+
         if (err /= 0) then
-          message(1) = "Unable to write restart information to '"//trim(restart_dir(restart))//"/"//trim(filename)//"'."
+          message(1) = "Unable to write restart information to '"//trim(filename)//"'."
           call messages_warning(1)
           ierr = ierr + 1
         end if
         
       end do
     end do
+    if(this%shape == M_PLANES) then
+      write(filename,'(i5.5)') ik
+      write(filename,'(a)') trim(restart_dir(restart))//"/pesflux4-kpt"//trim(filename)//".obf"
+      
+      SAFE_ALLOCATE(psi1(this%nkpnts))
+      psi1(:)=this%conjgphase_prev_cub(:,ik)
+      call io_binary_write(filename, this%nkpnts, psi1(:), err)
+      SAFE_DEALLOCATE_P(psi1)
+
+      if (err /= 0) then
+        message(1) = "Unable to write restart information to '"//trim(filename)//"'."
+        call messages_warning(1)
+        ierr = ierr + 1
+      end if
+    end if
+    
   end do
 
   if(this%shape == M_SPHERICAL) then
     call zrestart_write_binary(restart, 'pesflux4', this%nk * this%nstepsomegak, this%conjgphase_prev_sph(:,:), err)
-  else
-    call zrestart_write_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub(:,:), err)
+  else 
+    if (this%shape /= M_PLANES) &
+        call zrestart_write_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub(:,:), err)
   end if
   if(err /= 0) ierr = ierr + 2
 
@@ -1258,6 +1280,8 @@ subroutine pes_flux_load(restart, this, mesh, st, ierr)
   integer          :: err
   character(len=128) :: filename
 
+  CMPLX, pointer    :: psi1(:), psi2(:,:)
+
   PUSH_SUB(pes_flux_load)
 
   stst   = st%st_start
@@ -1282,29 +1306,60 @@ subroutine pes_flux_load(restart, this, mesh, st, ierr)
     do ist = stst, stend
       do isdim = 1, sdim
         itot = ist + (ik-1) * st%nst+  (isdim-1) * st%nst*st%d%kpt%nglobal
+
         write(filename,'(i10.10)') itot
+        write(filename,'(a)') trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf"
 
         if(this%shape == M_SPHERICAL) then
-          call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-            this%nk * this%nstepsomegak, this%spctramp_sph(ist, isdim, ik, :, :), err)
+!           call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
+!             this%nk * this%nstepsomegak, this%spctramp_sph(ist, isdim, ik, :, :), err)
+          SAFE_ALLOCATE(psi2(1:this%nk, 1:this%nstepsomegak))
+          call io_binary_read(trim(filename),this%nk * this%nstepsomegak, psi2(:,:), err)
+          this%spctramp_sph(ist, isdim, ik, :, :) = psi2(:, :)
+          SAFE_DEALLOCATE_P(psi2)
+            
         else
-          call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
-            this%nkpnts, this%spctramp_cub(ist, isdim, ik, :), err)
+!           call io_binary_read(trim(restart_dir(restart))//"/pesflux1."//trim(filename)//".obf", &
+!             this%nkpnts, this%spctramp_cub(ist, isdim, ik, :), err)
+
+          SAFE_ALLOCATE(psi1(1:this%nkpnts))
+          call io_binary_read(trim(filename), this%nkpnts, psi1(:), err)
+          this%spctramp_cub(ist, isdim, ik, :) =  psi1(:)
+          SAFE_DEALLOCATE_P(psi1)
+
         end if
         if (err /= 0) then
-          message(1) = "Unable to read restart information from '"//trim(restart_dir(restart))//"/"//"pesflux1."
+          message(1) = "Unable to read restart information from '"//trim(filename)//"'."
           call messages_warning(1)
           ierr = ierr + 1
         end if
 
       end do
     end do
+    
+    if(this%shape == M_PLANES) then
+      write(filename,'(i5.5)') ik
+      write(filename,'(a)') trim(restart_dir(restart))//"/pesflux4-kpt"//trim(filename)//".obf"
+      
+      SAFE_ALLOCATE(psi1(this%nkpnts))
+      call io_binary_read(filename, this%nkpnts, psi1(:), err)
+      this%conjgphase_prev_cub(:,ik)=psi1(:)
+      SAFE_DEALLOCATE_P(psi1)
+
+      if (err /= 0) then
+        message(1) = "Unable to read restart information to '"//trim(filename)//"'."
+        call messages_warning(1)
+        ierr = ierr + 1
+      end if
+    end if
+        
   end do
 
   if(this%shape == M_SPHERICAL) then
     call zrestart_read_binary(restart, 'pesflux4', this%nk * this%nstepsomegak, this%conjgphase_prev_sph(:,:), err)
   else
-    call zrestart_read_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub(:,:), err)
+     if (this%shape /= M_PLANES) &
+          call zrestart_read_binary(restart, 'pesflux4', this%nkpnts, this%conjgphase_prev_cub(:,:), err)
   end if
   if(err /= 0) ierr = ierr + 2
  
@@ -1312,6 +1367,9 @@ subroutine pes_flux_load(restart, this, mesh, st, ierr)
     message(1) = "Debug: Reading pes_flux restart done."
     call messages_info(1)
   end if
+
+!   call pes_flux_dump(restart, this, mesh, st, ierr)
+!   stop
 
   POP_SUB(pes_flux_load)
 end subroutine pes_flux_load
