@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian.F90 15345 2016-05-11 07:53:39Z xavier $
+!! $Id: hamiltonian.F90 15352 2016-05-11 09:18:48Z umberto $
 
 #include "global.h"
 

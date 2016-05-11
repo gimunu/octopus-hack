@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 15192 2016-03-09 17:48:30Z umberto $
+## $Id: Makefile.am 15350 2016-05-11 09:14:49Z umberto $
 
 noinst_LIBRARIES = libtd.a
 
