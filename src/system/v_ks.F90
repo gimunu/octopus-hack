@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: v_ks.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: v_ks.F90 15339 2016-05-03 14:22:03Z nicolastd $
 
 #include "global.h"
  
@@ -698,7 +698,7 @@ contains
       logical, intent(in)                :: cmplxscl
       type(hamiltonian_t), intent(in)    :: hm
 
-      integer        :: ip, ispin, ist
+      integer        :: ip, ispin, ist, ik
       FLOAT, pointer :: vxc_sic(:,:),  Imvxc_sic(:, :), vh_sic(:), rho(:, :), Imrho(:, :), qsp(:)
       CMPLX, pointer :: zrho_total(:), zvh_sic(:)
       
@@ -720,7 +720,11 @@ contains
       vh_sic = M_ZERO
       qsp = M_ZERO
       do ist = 1, st%nst
-        qsp(:) = qsp(:)+ st%occ(ist, :) * st%d%kweights(:)
+        do ispin = 1,st%d%nspin
+          do ik = ispin, st%d%nik, st%d%nspin
+           qsp(ispin) = qsp(ispin)+ st%occ(ist, ik) * st%d%kweights(ik) 
+          enddo
+        enddo
       end do
 
       if(cmplxscl) then
@@ -772,6 +776,7 @@ contains
             vxc_sic = M_ZERO
 
             rho(:, ispin) = ks%calc%density(:, ispin) / qsp(ispin)
+            ! TODO : check for solid:   -minval(st%eigenval(st%nst,:))
             call xc_get_vxc(ks%gr%fine%der, ks%xc, &
                  st, rho, st%d%ispin, -minval(st%eigenval(st%nst,:)), qsp(ispin), &
                  vxc_sic)

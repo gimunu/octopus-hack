@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 15243 2016-03-28 21:18:08Z xavier $
+## $Id: Makefile.am 15323 2016-05-02 02:54:12Z xavier $
 
 noinst_LIBRARIES = libmath.a
 
@@ -62,7 +62,8 @@ libmath_a_SOURCES =                      \
 	minimizer.F90                    \
         pnfft.F90                        \
 	qshep.F90                        \
-	spline_low.cc
+	spline_low.cc                    \
+	quickrnd.F90
 
 noinst_HEADERS =                         \
 	fft_inc.F90                      \
@@ -122,3 +123,4 @@ compressed_sensing.o : compressed_sensing.F90 blas.o
 minimizer.o : minimizer.F90 lalg_basic.o
 qshep.o : qshep.F90
 spline_low.o : spline_low.cc
+quickrnd.o : quickrnd.F90 

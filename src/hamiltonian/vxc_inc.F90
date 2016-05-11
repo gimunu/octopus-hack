@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: vxc_inc.F90 15282 2016-04-16 17:16:03Z askhl $
+!! $Id: vxc_inc.F90 15307 2016-04-29 14:05:20Z askhl $
 
 subroutine xc_get_vxc(der, xcs, st, rho, ispin, ioniz_pot, qtot, vxc, ex, ec, deltaxc, vtau)
   type(derivatives_t),  intent(in)    :: der             !< Discretization and the derivative operators and details
@@ -454,7 +454,7 @@ contains
     logical             :: family_is_mgga
 
     PUSH_SUB(xc_get_vxc.family_is_mgga)
-    family_is_mgga = iand(xcs%family, XC_FAMILY_MGGA + XC_FAMILY_HYB_MGGA) /= 0
+    family_is_mgga = iand(family, XC_FAMILY_MGGA + XC_FAMILY_HYB_MGGA) /= 0
     POP_SUB(xc_get_vxc.family_is_mgga)
   end function family_is_mgga
 

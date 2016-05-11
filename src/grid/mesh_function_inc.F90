@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_function_inc.F90 14338 2015-06-23 19:44:50Z dstrubbe $
+!! $Id: mesh_function_inc.F90 15325 2016-05-02 04:48:39Z xavier $
 
 
 ! ---------------------------------------------------------
@@ -291,43 +291,35 @@ end function X(mf_moment)
 ! ---------------------------------------------------------
 !> This subroutine generates a Gaussian wavefunction at a
 !! random position in space.
-subroutine X(mf_random)(mesh, ff, seed)
+subroutine X(mf_random)(mesh, ff, seed, normalized)
   type(mesh_t),      intent(in)  :: mesh
   R_TYPE,            intent(out) :: ff(:)
   integer, optional, intent(in)  :: seed
-
+  logical, optional, intent(in)  :: normalized !< whether generate states should have norm 1, true by default
+  
   integer, save :: iseed = 123
   integer :: idim, ip
-  R_BASE  :: aa(MAX_DIM), rnd, rr
+  R_BASE  :: aa(MAX_DIM), rr
+  type(profile_t), save :: prof
 
   PUSH_SUB(X(mf_random))
+
+  call profiling_in(prof, "RANDOMIZE")
 
   if(present(seed)) then
     iseed = iseed + seed
   end if
 
-  aa = M_ZERO
-  do idim = 1, mesh%sb%dim
-    call quickrnd(iseed, rnd)
-    aa(idim) = M_TWO*(2*rnd - 1) * M_FOUR * mesh%spacing(idim)
-  end do
+  call quickrnd(iseed, mesh%np, ff(1:mesh%np))
 
-  !$omp parallel do private(rr)
-  do ip = 1, mesh%np
-    rr = sum( ((mesh%x(ip, 1:mesh%sb%dim) - aa(1:mesh%sb%dim)) / (M_FOUR * mesh%spacing(1:mesh%sb%dim)) ) **2)
-    if ( rr < CNST(100.0) ) then 
-      ff(ip) = exp(-M_HALF*rr)
-    else
-      ff(ip) = M_ZERO
-    end if
-  end do
-  !$omp end parallel do
+  if(optional_default(normalized, .true.)) then
+    rr = X(mf_nrm2)(mesh, ff)
+    call lalg_scal(mesh%np, R_TOTYPE(1.0)/rr, ff)
+  end if
 
-  rr = X(mf_nrm2)(mesh, ff)
-  call lalg_scal(mesh%np, R_TOTYPE(1.0)/rr, ff)
-
+  call profiling_out(prof)
+  
   POP_SUB(X(mf_random))
-
 end subroutine X(mf_random)
 
 ! --------------------------------------------------------- 

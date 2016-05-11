@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: species_pot_inc.F90 14221 2015-06-05 16:37:56Z xavier $
+!! $Id: species_pot_inc.F90 15313 2016-04-30 07:50:41Z xavier $
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Places, in the function phi (defined in each point of the mesh), the
@@ -166,7 +166,7 @@
 
     ASSERT(ubound(phi, dim = 1) >= submesh%np)
 
-    if(species_represents_real_atom(species)) then
+    if(species_represents_real_atom(species) .and. submesh%mesh%sb%dim == 3) then
       ps => species_ps(species)
       
       forall(ip = 1:submesh%np) phi(ip) = submesh%x(ip, 0)

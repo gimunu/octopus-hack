@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian_base.F90 15257 2016-04-07 15:23:21Z xavier $
+!! $Id: hamiltonian_base.F90 15345 2016-05-11 07:53:39Z xavier $
 
 #include "global.h"
 
@@ -81,6 +81,8 @@ module hamiltonian_base_oct_m
     hamiltonian_base_clear,                    &
     hamiltonian_base_build_proj,               &
     hamiltonian_base_update,                   &
+    dhamiltonian_base_phase,                   &
+    zhamiltonian_base_phase,                   &
     dhamiltonian_base_nlocal_force,            &
     zhamiltonian_base_nlocal_force,            &
     projection_t
@@ -117,6 +119,9 @@ module hamiltonian_base_oct_m
     type(opencl_mem_t)                    :: buff_pos
     type(opencl_mem_t)                    :: buff_invmap
     type(opencl_mem_t)                    :: buff_projector_phases
+
+    CMPLX, pointer     :: phase(:, :)
+    type(opencl_mem_t) :: buff_phase
   end type hamiltonian_base_t
 
   type projection_t

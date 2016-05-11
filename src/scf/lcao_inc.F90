@@ -16,14 +16,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: lcao_inc.F90 15004 2016-01-07 19:09:59Z xavier $
+!! $Id: lcao_inc.F90 15326 2016-05-02 07:18:41Z xavier $
 
 
 ! ---------------------------------------------------------
 !> This routine fills state psi with an atomic orbital -- provided
 !! by the pseudopotential structure in geo.
 ! ---------------------------------------------------------
-subroutine X(lcao_atomic_orbital) (this, iorb, mesh, st, geo, psi, spin_channel)
+subroutine X(lcao_atomic_orbital) (this, iorb, mesh, st, geo, psi, spin_channel, add)
   type(lcao_t),             intent(in)    :: this
   integer,                  intent(in)    :: iorb
   type(mesh_t),             intent(in)    :: mesh
@@ -31,12 +31,16 @@ subroutine X(lcao_atomic_orbital) (this, iorb, mesh, st, geo, psi, spin_channel)
   type(geometry_t), target, intent(in)    :: geo
   R_TYPE,                   intent(inout) :: psi(:, :)
   integer,                  intent(in)    :: spin_channel
+  logical, optional,        intent(in)    :: add
 
   type(species_t), pointer :: spec
   integer :: idim, iatom, jj, ip, ispin, ii, ll, mm
-  FLOAT, allocatable :: ao(:)
+  FLOAT, allocatable :: ao(:), dorbital(:)
+  R_TYPE, allocatable :: orbital(:)
+  FLOAT :: radius
   type(profile_t), save :: prof
-
+  type(submesh_t) :: sphere
+  
   call profiling_in(prof, "ATOMIC_ORBITAL")
   PUSH_SUB(X(lcao_atomic_orbital))
 
@@ -54,26 +58,42 @@ subroutine X(lcao_atomic_orbital) (this, iorb, mesh, st, geo, psi, spin_channel)
 
   call species_iwf_ilm(spec, jj, ispin, ii, ll, mm)
 
+  radius = this%orbital_scale_factor*species_get_iwf_radius(geo%atom(iatom)%species, ii, ispin)
+  ! make sure that if the spacing is too large, the orbitals fit in a few points at least
+  radius = max(radius, CNST(2.0)*maxval(mesh%spacing(1:mesh%sb%dim)))
+  
+  call submesh_init(sphere, mesh%sb, mesh, geo%atom(iatom)%x, radius)
+
 #ifdef R_TCOMPLEX
   if(.not. this%complex_ylms) then
     SAFE_ALLOCATE(ao(1:mesh%np))
 
-    call dspecies_get_orbital(spec, mesh, ii, ll, mm, &
-      ispin, geo%atom(iatom)%x, ao, scale = this%orbital_scale_factor)
+    SAFE_ALLOCATE(dorbital(1:sphere%np))
+    call dspecies_get_orbital_submesh(geo%atom(iatom)%species, sphere, ii, ll, mm, ispin, geo%atom(iatom)%x, dorbital)
+    if(.not. optional_default(add, .false.)) psi(1:mesh%np, idim) = CNST(0.0)
+    call submesh_add_to_mesh(sphere, dorbital, psi(:, idim))
 
-    do ip = 1, mesh%np
-      psi(ip, idim) = ao(ip)
-    end do
-
-    SAFE_DEALLOCATE_A(ao)
+    SAFE_DEALLOCATE_A(dorbital)
   else
 #endif
-    call X(species_get_orbital)(spec, mesh, ii, ll, mm, &
-      ispin, geo%atom(iatom)%x, psi(:, idim), scale = this%orbital_scale_factor)
+
+    SAFE_ALLOCATE(orbital(1:sphere%np))
+
+    call X(species_get_orbital_submesh)(geo%atom(iatom)%species, sphere, ii, ll, mm, ispin, geo%atom(iatom)%x, orbital)
+    
+    if(.not. optional_default(add, .false.)) psi(1:mesh%np, idim) = CNST(0.0)
+    call submesh_add_to_mesh(sphere, orbital, psi(:, idim))
+    
+    SAFE_DEALLOCATE_A(orbital)
+
 #ifdef R_TCOMPLEX
   end if
 #endif
+  
+  call submesh_end(sphere)
 
+
+  
   POP_SUB(X(lcao_atomic_orbital))
   call profiling_out(prof)
 
@@ -101,19 +121,24 @@ subroutine X(lcao_simple)(this, st, gr, geo, hm, start)
 
   SAFE_ALLOCATE(orbital(1:gr%mesh%np, 1:st%d%dim))
 
+  call states_set_zero(st)
+  
   do iqn = st%d%kpt%start, st%d%kpt%end
     ispin = states_dim_get_spin_index(st%d, iqn)
 
-    do ist = 1, st%nst
-      if(ist > this%norbs) exit
+    ist = 0
+    do iorb = 1, this%norbs
+      ist = ist + 1
+      if(ist > st%nst) ist = 1
 
       if(ist < st%st_start) cycle
       if(ist > st%st_end) cycle
       if(ist < lcao_start) cycle
 
-      call X(lcao_atomic_orbital)(this, ist, gr%mesh, st, geo, orbital, ispin)
+      call states_get_state(st, gr%mesh, ist, iqn, orbital)
+      call X(lcao_atomic_orbital)(this, iorb, gr%mesh, st, geo, orbital, ispin, add = .true.)
       call states_set_state(st, gr%mesh, ist, iqn, orbital)
-
+      
     end do
 
     ! if we don't have all states we can't orthogonalize right now
@@ -416,6 +441,8 @@ subroutine X(init_orbitals)(this, st, gr, geo, start)
 
   end if
 
+  this%initialized_orbitals = .true.
+  
   SAFE_DEALLOCATE_A(ao)
 
   POP_SUB(X(init_orbitals))
@@ -433,13 +460,13 @@ subroutine X(get_ao)(this, st, mesh, geo, iorb, ispin, ao, use_psi)
   integer,             intent(in)    :: ispin
   R_TYPE,              intent(out)   :: ao(:, :)
   logical,             intent(in)    :: use_psi
-  
+
   PUSH_SUB(X(get_ao))
   
-  if(this%ck(iorb, ispin) == 0) then
+  if(this%ck(iorb, ispin) == 0 .and. this%initialized_orbitals) then
     ao(1:mesh%np, 1:st%d%dim) = this%X(buff)(1:mesh%np, 1:st%d%dim, iorb, ispin)
   else
-    if(use_psi) then
+    if(use_psi .and. this%initialized_orbitals) then
       call states_get_state(st, mesh, this%cst(iorb, ispin), this%ck(iorb, ispin), ao)
     else
       call X(lcao_atomic_orbital)(this, iorb, mesh, st, geo, ao, ispin)

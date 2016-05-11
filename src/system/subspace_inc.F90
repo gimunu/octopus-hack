@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: subspace_inc.F90 15014 2016-01-08 21:16:46Z xavier $
+!! $Id: subspace_inc.F90 15308 2016-04-29 15:56:47Z nicolastd $
 
 ! ---------------------------------------------------------
 !> This routine diagonalises the Hamiltonian in the subspace defined by the states.
@@ -156,13 +156,14 @@ subroutine X(subspace_diag_scalapack)(der, st, hm, ik, eigenval, psi, diff)
   R_TYPE               :: rttmp
   integer              :: ist, lwork, size
   integer :: psi_block(1:2), total_np, psi_desc(BLACS_DLEN), hs_desc(BLACS_DLEN), info
-  integer :: nbl, nrow, ncol
+  integer :: nbl, nrow, ncol, ip, idim
   type(batch_t) :: psib, hpsib
 #ifdef R_TCOMPLEX
   integer :: lrwork
   CMPLX, allocatable :: rwork(:)
   CMPLX :: ftmp
 #endif
+  type(profile_t), save :: prof_diag, prof_gemm1, prof_gemm2
 
   PUSH_SUB(X(subspace_diag_scalapack))
 
@@ -217,6 +218,8 @@ subroutine X(subspace_diag_scalapack)(der, st, hm, ik, eigenval, psi, diff)
     hpsi(der%mesh%np + 1:der%mesh%np_part, 1:st%d%dim, st%st_start:st%st_end) = M_ZERO
   end if
   
+  call profiling_in(prof_gemm1, "SCALAPACK_GEMM1")
+
   ! get the matrix <psi|H|psi> = <psi|hpsi>
   call pblas_gemm('c', 'n', st%nst, st%nst, total_np, &
     R_TOTYPE(der%mesh%vol_pp(1)), psi(1, 1, st%st_start), 1, 1, psi_desc(1), &
@@ -224,6 +227,9 @@ subroutine X(subspace_diag_scalapack)(der, st, hm, ik, eigenval, psi, diff)
     R_TOTYPE(M_ZERO), hs(1, 1), 1, 1, hs_desc(1))
 
   SAFE_ALLOCATE(evectors(1:nrow, 1:ncol))
+  call profiling_out(prof_gemm1)
+
+  call profiling_in(prof_diag, "SCALAPACK_DIAG")
 
   ! now diagonalize
 #ifdef R_TCOMPLEX
@@ -280,14 +286,28 @@ subroutine X(subspace_diag_scalapack)(der, st, hm, ik, eigenval, psi, diff)
 
 #endif
 
+  call profiling_out(prof_diag)
+
   SAFE_DEALLOCATE_A(hs)
 
-  hpsi(1:der%mesh%np, 1:st%d%dim,  st%st_start:st%st_end) = psi(1:der%mesh%np, 1:st%d%dim, st%st_start:st%st_end)
+  !$omp parallel private(ist, idim, ip)
+  do ist = st%st_start, st%st_end
+    do idim = 1, st%d%dim
+      !$omp do
+      do ip = 1, der%mesh%np
+        hpsi(ip, idim, ist) = psi(ip, idim, ist)
+      end do
+      !$omp end do nowait
+    end do
+  end do
+  !$omp end parallel
 
+  call profiling_in(prof_gemm2, "SCALAPACK_GEMM2")
   call pblas_gemm('n', 'n', total_np, st%nst, st%nst, &
     R_TOTYPE(M_ONE), hpsi(1, 1, st%st_start), 1, 1, psi_desc(1), &
     evectors(1, 1), 1, 1, hs_desc(1), &
     R_TOTYPE(M_ZERO), psi(1, 1, st%st_start), 1, 1, psi_desc(1))
+  call profiling_out(prof_gemm2)
 
   ! Recalculate the residues if requested by the diff argument.
   if(present(diff)) then 

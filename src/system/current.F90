@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: current.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: current.F90 15346 2016-05-11 08:28:51Z xavier $
 
 #include "global.h"
 
@@ -86,7 +86,7 @@ contains
     PUSH_SUB(current_init)
 
     !%Variable CurrentDensity
-    !%Default hamiltonian
+    !%Default gradient_corrected
     !%Type integer
     !%Section Hamiltonian
     !%Description
@@ -98,16 +98,16 @@ contains
     !% The calculation of current is done using the gradient operator. (Experimental)
     !%Option gradient_corrected 2
     !% The calculation of current is done using the gradient operator
-    !% with additional corrections for the total current from non-local operators. (Experimental)
+    !% with additional corrections for the total current from non-local operators.
     !%Option hamiltonian 3
     !% The current density is obtained from the commutator of the
-    !% Hamiltonian with the position operator.
+    !% Hamiltonian with the position operator. (Experimental)
     !%End
 
-    call parse_variable('CurrentDensity', CURRENT_HAMILTONIAN, this%method)
+    call parse_variable('CurrentDensity', CURRENT_GRADIENT_CORR, this%method)
     if(.not.varinfo_valid_option('CurrentDensity', this%method)) call messages_input_error('CurrentDensity')
-    if(this%method /= CURRENT_HAMILTONIAN) then
-      call messages_experimental("CurrentDensity /= hamiltonian")
+    if(this%method /= CURRENT_GRADIENT_CORR) then
+      call messages_experimental("CurrentDensity /= gradient_corrected")
     end if
     
     POP_SUB(current_init)
@@ -225,12 +225,12 @@ contains
             call boundaries_set(der%boundaries, psi(:, idim))
           end do
 
-          if(associated(hm%phase)) then 
+          if(associated(hm%hm_base%phase)) then 
             ! Apply the phase that contains both the k-point and vector-potential terms.
             do idim = 1, st%d%dim
               !$omp parallel do
               do ip = 1, der%mesh%np_part
-                psi(ip, idim) = hm%phase(ip, ik)*psi(ip, idim)
+                psi(ip, idim) = hm%hm_base%phase(ip, ik)*psi(ip, idim)
               end do
               !$omp end parallel do
             end do

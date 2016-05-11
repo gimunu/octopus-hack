@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 04-vib_modes.022-vib_modes_restart.inp 14678 2015-10-19 06:40:46Z xavier $
+# $Id: 04-vib_modes.022-vib_modes_restart.inp 15319 2016-04-30 20:15:29Z xavier $
 
 CalculationMode = vib_modes
 FromScratch = no
@@ -14,4 +14,4 @@ Radius = 6
 %
 
 LRMaxIter = 1
-MixField = density
+

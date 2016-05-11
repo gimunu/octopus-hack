@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: submesh.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: submesh.F90 15314 2016-04-30 08:40:18Z xavier $
  
 #include "global.h"
   
@@ -72,7 +72,7 @@ module submesh_oct_m
   end type submesh_t
   
   interface submesh_add_to_mesh
-    module procedure ddsubmesh_add_to_mesh, zdsubmesh_add_to_mesh
+    module procedure ddsubmesh_add_to_mesh, zdsubmesh_add_to_mesh, zzsubmesh_add_to_mesh
   end interface submesh_add_to_mesh
 
   interface submesh_to_mesh_dotp
@@ -407,6 +407,30 @@ contains
 
   end function submesh_overlap
   
+  ! -----------------------------------------------------------
+  
+  subroutine zzsubmesh_add_to_mesh(this, sphi, phi, factor)
+    type(submesh_t),  intent(in)    :: this
+    CMPLX,            intent(in)    :: sphi(:)
+    CMPLX,            intent(inout) :: phi(:)
+    CMPLX,  optional, intent(in)    :: factor
+    
+    integer :: ip
+    
+    PUSH_SUB(zzdsubmesh_add_to_mesh)
+    
+    if(present(factor)) then
+      do ip = 1, this%np
+        phi(this%map(ip)) = phi(this%map(ip)) + factor*sphi(ip)
+      end do
+    else
+      do ip = 1, this%np
+        phi(this%map(ip)) = phi(this%map(ip)) + sphi(ip)
+      end do
+    end if
+    
+    POP_SUB(zzdsubmesh_add_to_mesh)
+  end subroutine zzsubmesh_add_to_mesh
 
 
 #include "undef.F90"

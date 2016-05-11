@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states.F90 15283 2016-04-17 03:24:06Z xavier $
+!! $Id: states.F90 15322 2016-05-02 01:13:18Z xavier $
 
 #include "global.h"
 
@@ -1547,11 +1547,13 @@ contains
 
   ! ---------------------------------------------------------
   !> generate a hydrogen s-wavefunction around a random point
-  subroutine states_generate_random(st, mesh, ist_start_, ist_end_)
+  subroutine states_generate_random(st, mesh, ist_start_, ist_end_, normalized)
     type(states_t),    intent(inout) :: st
     type(mesh_t),      intent(in)    :: mesh
-    integer, optional, intent(in)    :: ist_start_, ist_end_
-
+    integer, optional, intent(in)    :: ist_start_
+    integer, optional, intent(in)    :: ist_end_
+    logical, optional, intent(in)    :: normalized !< whether generate states should have norm 1, true by default
+    
     integer :: ist, ik, id, ist_start, ist_end, jst
     CMPLX   :: alpha, beta
     FLOAT, allocatable :: dpsi(:,  :)
@@ -1574,15 +1576,15 @@ contains
       do ik = 1, st%d%nik
         do ist = ist_start, ist_end
           if (states_are_real(st)) then
-            call dmf_random(mesh, dpsi(:, 1))
+            call dmf_random(mesh, dpsi(:, 1), normalized = normalized)
             if(.not. state_kpt_is_local(st, ist, ik)) cycle
             call states_set_state(st, mesh, ist,  ik, dpsi)
           else
-            call zmf_random(mesh, zpsi(:, 1))
+            call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
             if(.not. state_kpt_is_local(st, ist, ik)) cycle
             call states_set_state(st, mesh, ist,  ik, zpsi)
             if(st%have_left_states) then
-              call zmf_random(mesh, zpsi(:, 1))
+              call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
               if(.not. state_kpt_is_local(st, ist, ik)) cycle
               call states_set_state(st, mesh, ist,  ik, zpsi, left = .true.)
             end if
@@ -1598,7 +1600,7 @@ contains
 
         do ik = 1, st%d%nik
           do ist = ist_start, ist_end
-            call zmf_random(mesh, zpsi(:, 1))
+            call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
             if(.not. state_kpt_is_local(st, ist, ik)) cycle
             ! In this case, the spinors are made of a spatial part times a vector [alpha beta]^T in
             ! spin space (i.e., same spatial part for each spin component). So (alpha, beta)
@@ -1632,7 +1634,7 @@ contains
         do ik = 1, st%d%nik
           do ist = ist_start, ist_end
             do id = 1, st%d%dim
-              call zmf_random(mesh, zpsi(:, id))
+              call zmf_random(mesh, zpsi(:, id), normalized = normalized)
             end do
             if(.not. state_kpt_is_local(st, ist, ik)) cycle
             call states_set_state(st, mesh, ist,  ik, zpsi)

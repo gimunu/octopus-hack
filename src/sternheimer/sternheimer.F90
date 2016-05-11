@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sternheimer.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: sternheimer.F90 15340 2016-05-03 17:08:37Z xavier $
 
 #include "global.h"
 
@@ -146,9 +146,9 @@ contains
     end if
 
     if(wfs_are_cplx) then
-      call mix_init(this%mixer, sys%gr%mesh%np, sys%st%d%nspin, 1, func_type = TYPE_CMPLX)
+      call mix_init(this%mixer, sys%gr%der, sys%gr%mesh%np, sys%st%d%nspin, 1, func_type = TYPE_CMPLX)
     else
-      call mix_init(this%mixer, sys%gr%mesh%np, sys%st%d%nspin, 1, func_type = TYPE_FLOAT)
+      call mix_init(this%mixer, sys%gr%der, sys%gr%mesh%np, sys%st%d%nspin, 1, func_type = TYPE_FLOAT)
     end if
 
     if(present(set_occ_response)) then

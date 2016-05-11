@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 07-spin_orbit_coupling.01-hgh.inp 14728 2015-11-01 19:46:15Z xavier $
+# $Id: 07-spin_orbit_coupling.01-hgh.inp 15319 2016-04-30 20:15:29Z xavier $
 
 Units = ev_angstrom
 
@@ -32,7 +32,3 @@ GuessMagnetDensity = user_defined
  0.0 | 0.0 | 1.0 
  0.0 | 0.0 | 1.0
 %
-
-FilterPotentials = filter_none
-
-MixField = density

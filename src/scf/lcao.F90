@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: lcao.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: lcao.F90 15326 2016-05-02 07:18:41Z xavier $
 
 #include "global.h"
 
@@ -44,6 +44,7 @@ module lcao_oct_m
   use periodic_copy_oct_m
   use profiling_oct_m
   use ps_oct_m
+  use quickrnd_oct_m
   use simul_box_oct_m
   use scalapack_oct_m
   use species_oct_m
@@ -89,6 +90,7 @@ module lcao_oct_m
     integer, pointer  :: ck(:, :)
     real(4), pointer  :: dbuff(:, :, :, :) !< single-precision buffer
     complex(4), pointer :: zbuff(:, :, :, :) !< single-precision buffer
+    logical           :: initialized_orbitals
     FLOAT             :: orbital_scale_factor
 
     !> For the alternative LCAO
@@ -462,10 +464,13 @@ contains
         this%norbs = this%maxorbs
       end if
 
+      if(this%mode == OPTION__LCAOSTART__LCAO_SIMPLE) this%norbs = this%maxorbs
+      
       ASSERT(this%norbs <= this%maxorbs)
 
       SAFE_ALLOCATE(this%cst(1:this%norbs, 1:st%d%spin_channels))
       SAFE_ALLOCATE(this%ck(1:this%norbs, 1:st%d%spin_channels))
+      this%initialized_orbitals = .false.
     else
       call lcao2_init()
     end if
@@ -716,7 +721,9 @@ contains
 
     call lcao_init(lcao, sys%gr, sys%geo, sys%st)
 
-    call lcao_init_orbitals(lcao, sys%st, sys%gr, sys%geo, start = st_start)
+    if(lcao%mode /= OPTION__LCAOSTART__LCAO_SIMPLE) then
+      call lcao_init_orbitals(lcao, sys%st, sys%gr, sys%geo, start = st_start)
+    end if
 
     if (.not. present(st_start)) then
       call lcao_guess_density(lcao, sys%st, sys%gr, sys%gr%sb, sys%geo, sys%st%qtot, sys%st%d%nspin, &
@@ -790,7 +797,7 @@ contains
       end if
 
       ! Randomly generate the initial wavefunctions.
-      call states_generate_random(sys%st, sys%gr%mesh, ist_start_ = st_start_random)
+      call states_generate_random(sys%st, sys%gr%mesh, ist_start_ = st_start_random, normalized = .false.)
 
       call messages_write('Orthogonalizing wavefunctions.')
       call messages_info()

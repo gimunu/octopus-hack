@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_function.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: mesh_function.F90 15323 2016-05-02 02:54:12Z xavier $
 
 #include "global.h"
 
@@ -38,6 +38,7 @@ module mesh_function_oct_m
   use par_vec_oct_m
   use profiling_oct_m
   use qshep_oct_m
+  use quickrnd_oct_m
   use splines_oct_m
   use box_union_oct_m
 

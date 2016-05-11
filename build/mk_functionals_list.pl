@@ -17,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 #
-# $Id: mk_functionals_list.pl 14809 2015-11-21 15:26:00Z askhl $
+# $Id: mk_functionals_list.pl 15333 2016-05-02 17:27:51Z askhl $
 
 
 use Getopt::Std;
@@ -113,7 +113,7 @@ print OUT <<EOF;
 !%Option vdw_c_vdwdf2     919000
 !% van der Waals density functional vdW-DF2 correlation from libvdwxc (not from libxc).  Use with gga_x_rpw86.
 !%Option vdw_c_vdwdfcx    920000
-!% van der Waals density functional vdW-DF-CX correlation from libvdwxc (not from libxc).  Still lacks GGA exchange.
+!% van der Waals density functional vdW-DF-CX correlation from libvdwxc (not from libxc).  Use with gga_x_lv_rpw86.
 !%Option none                       0
 !% Exchange and correlation set to zero (not from libxc).
 !%End

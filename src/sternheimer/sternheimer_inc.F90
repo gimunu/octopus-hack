@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sternheimer_inc.F90 14376 2015-06-25 17:31:30Z dstrubbe $
+!! $Id: sternheimer_inc.F90 15341 2016-05-03 18:18:56Z xavier $
 
 !--------------------------------------------------------------
 !> This routine calculates the first-order variations of the wavefunctions 
@@ -61,8 +61,6 @@ subroutine X(sternheimer_solve)(                           &
   st => sys%st
 
   call mix_clear(this%mixer)
-
-  call mesh_init_mesh_aux(sys%gr%mesh)
 
   SAFE_ALLOCATE(dpsimod(1:nsigma, st%st_start:st%st_end))
   SAFE_ALLOCATE(residue(1:nsigma, st%st_start:st%st_end))
@@ -308,7 +306,7 @@ subroutine X(sternheimer_solve)(                           &
       call lalg_copy(mesh%np, lr(1)%X(dl_rho)(:, ispin), dl_rhotmp(:, ispin, 1))
     end do
 
-    call X(mixing)(this%mixer, dl_rhoin, dl_rhotmp, dl_rhonew, X(mf_dotp_aux))
+    call X(mixing)(this%mixer, dl_rhoin, dl_rhotmp, dl_rhonew)
 
     abs_dens = M_ZERO
 

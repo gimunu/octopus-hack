@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: forces_inc.F90 14692 2015-10-23 00:01:40Z xavier $
+!! $Id: forces_inc.F90 15345 2016-05-11 07:53:39Z xavier $
 
 subroutine X(forces_gather)(geo, force)
   type(geometry_t), intent(in)    :: geo
@@ -183,7 +183,7 @@ subroutine X(forces_from_potential)(gr, geo, hm, st, force)
 
       ! set the phase for periodic systems
       if(simul_box_is_periodic(gr%sb) .and. .not. kpoints_point_is_gamma(gr%sb%kpoints, ikpoint)) then
-        call X(hamiltonian_phase)(hm, gr%der, gr%mesh%np_part, iq, .false., psib)
+        call X(hamiltonian_base_phase)(hm%hm_base, gr%der, gr%mesh%np_part, iq, .false., psib)
       end if
 
       ! calculate the gradient

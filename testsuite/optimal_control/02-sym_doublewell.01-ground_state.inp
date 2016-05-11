@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 02-sym_doublewell.01-ground_state.inp 14662 2015-10-09 16:28:49Z xavier $
+# $Id: 02-sym_doublewell.01-ground_state.inp 15320 2016-05-01 18:26:07Z xavier $
 #
 # The two lowest eigenstates of the asymmetric double well,
 #  V(x) = 1/64*(x)^4-1/4*(x)^2+1/256*(x)^3
@@ -32,6 +32,5 @@ TheoryLevel = independent_particles
 
 Output = potential + wfs
 OutputFormat = axis_x
-
 
 

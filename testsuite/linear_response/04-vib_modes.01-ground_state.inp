@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 04-vib_modes.01-ground_state.inp 14678 2015-10-19 06:40:46Z xavier $
+# $Id: 04-vib_modes.01-ground_state.inp 15319 2016-04-30 20:15:29Z xavier $
 
 CalculationMode = gs
 fromScratch = yes
@@ -13,4 +13,4 @@ Radius = 6
   "H"  | 0 | 0 | 0.053910
   "Li" | 0 | 0 | 3.058523
 %
-MixField = density
+

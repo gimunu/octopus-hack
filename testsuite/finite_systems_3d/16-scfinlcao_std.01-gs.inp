@@ -1,5 +1,5 @@
 # -*- coding: utf-8 mode: shell-script -*-
-# $Id: 16-scfinlcao_std.01-gs.inp 15139 2016-02-27 13:01:02Z xavier $
+# $Id: 16-scfinlcao_std.01-gs.inp 15319 2016-04-30 20:15:29Z xavier $
 #
 CalculationMode = gs
 FromScratch = yes
@@ -34,13 +34,9 @@ ExperimentalFeatures = yes
 Output = geometry + density
 OutputFormat = openscad + matlab + plane_z
 
-FilterPotentials = filter_none
-
 SCFCalculatePartialCharges = yes
 
 ExperimentalFeatures = yes
-MixField = density
 
 #We need to disable OpenCL as the OpenSCAD file changes considerably for small numerical differences
 DisableOpenCL = yes
-
