@@ -90,9 +90,10 @@ end subroutine pes_flux_map_from_states
 ! still preserve an array ordering on the kpoint mesh 
 ! such that the lowest index touple is associated with the smaller 
 ! (negative) kpoint value.
-subroutine flip_sign_Lkpt_idx( dim, nk, idx)
+subroutine flip_sign_Lkpt_idx( dim, nk, idx, do_nothing)
    integer, intent(out) :: idx(:,:)
    integer, intent(in)  :: dim, nk(:)
+   logical, intent(in)  :: do_nothing
 
    integer :: idx_tmp(1:maxval(nk(1:3)), 1:3)
    integer :: idir, ii
@@ -106,9 +107,13 @@ subroutine flip_sign_Lkpt_idx( dim, nk, idx)
        idx_tmp(ii,idir) = ii
      end do
      
-     do ii = 1, nk(idir)
-       idx(ii,idir) = nk(idir) - idx_tmp(ii,idir) + 1 
-     end do
+     if (do_nothing) then
+       idx(1:nk(idir),idir)  = idx_tmp(1:nk(idir),idir)
+     else 
+       do ii = 1, nk(idir)
+         idx(ii,idir) = nk(idir) - idx_tmp(ii,idir) + 1 
+       end do
+     end if
      
    end do
    
@@ -209,7 +214,7 @@ subroutine pes_flux_pmesh_pln(this, dim, kpoints, ll, LG, pmesh, idxZero, krng, 
   end if
   
   SAFE_ALLOCATE(ikidx(maxval(nk(1:3)),1:3))
-  call flip_sign_Lkpt_idx(dim, nk(:), ikidx(:,:))
+  call flip_sign_Lkpt_idx(dim, nk(:), ikidx(:,:), kpoints_have_zero_weight_path(kpoints))
 
   
   if (debug%info) then
