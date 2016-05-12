@@ -219,7 +219,7 @@ contains
         position(1:dim4syms, iatom) = matmul (klattice, geo%atom(iatom)%x(1:dim4syms)) + M_HALF
         typs(iatom) = species_index(geo%atom(iatom)%species)
       end do
-
+      lattice = transpose(lattice)
       this%space_group = spglib_get_international(symbol, lattice(1, 1), position(1, 1), typs(1), geo%natoms, symprec)
 
       if(this%space_group == 0) then
