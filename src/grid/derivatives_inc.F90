@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: derivatives_inc.F90 14831 2015-11-27 09:07:53Z xavier $
+!! $Id: derivatives_inc.F90 15393 2016-05-30 10:07:29Z umberto $
 
 !> This module calculates the derivatives (gradients, Laplacians, etc.) 
 !! of a function. Note that the function whose derivative is to be calculated
