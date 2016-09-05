@@ -15,21 +15,23 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: subspace.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: subspace.F90 15583 2016-08-15 13:45:41Z nicolastd $
 
 #include "global.h"
 
 module subspace_oct_m
+  use accel_oct_m
+  use accel_blas_oct_m
   use batch_oct_m
   use batch_ops_oct_m
   use blas_oct_m
   use blacs_proc_grid_oct_m
-#ifdef HAVE_CLBLAS
-  use cl
-  use clblas
-#endif
   use comm_oct_m
   use derivatives_oct_m
+#ifdef HAVE_ELPA
+  use elpa1
+  use elpa2
+#endif
   use global_oct_m
   use grid_oct_m
   use hamiltonian_oct_m
@@ -52,17 +54,16 @@ module subspace_oct_m
   use states_calc_oct_m
   use states_parallel_oct_m
   use types_oct_m
-  use opencl_oct_m
   use varinfo_oct_m
 
   implicit none
   
   private
 
-  public ::             &
-    subspace_t,         &
-    subspace_init,      &
-    dsubspace_diag,     &
+  public ::               &
+    subspace_t,           &
+    subspace_init,        &
+    dsubspace_diag,       &
     zsubspace_diag
 
   type subspace_t

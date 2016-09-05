@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states_restart.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: states_restart.F90 15493 2016-07-18 21:01:02Z nicolastd $
 
 #include "global.h"
 
@@ -299,10 +299,16 @@ contains
                 err = 0
               end if
             else
-              if (states_are_real(st)) then
-                call drestart_write_mesh_function(restart, filename, gr%mesh, lr%ddl_psi(:, idim, ist, ik), err)
+              if(st%d%kpt%start <= ik .and. ik <= st%d%kpt%end) then
+                if (states_are_real(st)) then
+                  call drestart_write_mesh_function(restart, filename, gr%mesh, &
+                    lr%ddl_psi(:, idim, ist, ik), err)
+                else
+                  call zrestart_write_mesh_function(restart, filename, gr%mesh, &
+                    lr%zdl_psi(:, idim, ist, ik), err)      
+                end if
               else
-                call zrestart_write_mesh_function(restart, filename, gr%mesh, lr%zdl_psi(:, idim, ist, ik), err)
+                err = 0
               end if
             end if
             if (err /= 0) err2(2) = err2(2) + 1
@@ -760,7 +766,7 @@ contains
           do idim = 1, st%d%dim
             if(filled(idim, ist, ik)) cycle
 
-            call states_generate_random(st, gr%mesh, ist, ist)
+            call states_generate_random(st, gr%mesh, ist, ist, ik, ik)
           end do
         end do
       end do

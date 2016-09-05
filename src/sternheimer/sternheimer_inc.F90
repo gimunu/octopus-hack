@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sternheimer_inc.F90 15341 2016-05-03 18:18:56Z xavier $
+!! $Id: sternheimer_inc.F90 15455 2016-07-06 20:35:19Z irina $
 
 !--------------------------------------------------------------
 !> This routine calculates the first-order variations of the wavefunctions 
@@ -47,10 +47,10 @@ subroutine X(sternheimer_solve)(                           &
   R_TYPE :: omega_sigma, proj
   logical, allocatable :: orth_mask(:)
   type(batch_t) :: rhsb, dlpsib, orhsb
-  logical :: conv_last, conv, states_conv, have_restart_rho_
+  logical :: conv_last, conv, states_conv, have_restart_rho_, states_conv_reduced
   type(mesh_t), pointer :: mesh
   type(states_t), pointer :: st
-  integer :: total_iter, idim, ip, ispin, ib
+  integer :: total_iter, idim, ip, ispin, ib, total_iter_reduced
 
   PUSH_SUB(X(sternheimer_solve))
   call profiling_in(prof, "STERNHEIMER")
@@ -132,11 +132,12 @@ subroutine X(sternheimer_solve)(                           &
 
     SAFE_ALLOCATE(psi(1:sys%gr%mesh%np, 1:sys%st%d%dim))
 
+    states_conv = .true.
+
     do ik = st%d%kpt%start, st%d%kpt%end
       !now calculate response for each state
       ispin = states_dim_get_spin_index(sys%st%d, ik)
 
-      states_conv = .true.
       do ib = st%group%block_start, st%group%block_end
         
         sst = states_block_min(st, ib)
@@ -243,6 +244,16 @@ subroutine X(sternheimer_solve)(                           &
 
     SAFE_DEALLOCATE_A(psi)
 
+    total_iter_reduced = total_iter
+#ifdef HAVE_MPI
+    if(st%d%kpt%parallel) then
+      call MPI_Allreduce(states_conv, states_conv_reduced, 1, MPI_LOGICAL, MPI_LAND, st%d%kpt%mpi_grp%comm, mpi_err)
+      states_conv = states_conv_reduced
+
+      call MPI_Allreduce(total_iter, total_iter_reduced, 1, MPI_INTEGER, MPI_SUM, st%d%kpt%mpi_grp%comm, mpi_err)
+    end if
+#endif
+
     call X(lr_build_dl_rho)(mesh, st, lr, nsigma)
 
     dl_rhonew(1:mesh%np, 1:st%d%nspin, 1) = M_ZERO
@@ -255,7 +266,9 @@ subroutine X(sternheimer_solve)(                           &
       else
         sigma_alt = 2
       end if
-      call X(lr_dump_rho)(lr(sigma_alt), sys%gr%mesh, st%d%nspin, restart, rho_tag, ierr)
+      if(st%d%kpt%start == 1) then
+        call X(lr_dump_rho)(lr(sigma_alt), sys%gr%mesh, st%d%nspin, restart, rho_tag, ierr)
+      end if
       if (ierr /= 0) then
         message(1) = "Unable to write response density '"//trim(rho_tag)//"'."
         call messages_warning(1)
@@ -289,7 +302,7 @@ subroutine X(sternheimer_solve)(                           &
 
       message(1)="--------------------------------------------"
       write(message(2), '(a, i8)') &
-        'Info: Total Hamiltonian applications:', total_iter * linear_solver_ops_per_iter(this%solver)
+        'Info: Total Hamiltonian applications:', total_iter_reduced * linear_solver_ops_per_iter(this%solver)
       call messages_info(2)
       exit
     end if

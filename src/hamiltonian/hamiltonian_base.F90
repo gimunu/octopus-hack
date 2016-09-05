@@ -15,16 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian_base.F90 15345 2016-05-11 07:53:39Z xavier $
+!! $Id: hamiltonian_base.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module hamiltonian_base_oct_m
+  use accel_oct_m
   use batch_oct_m
+  use batch_ops_oct_m
   use blas_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use comm_oct_m
   use derivatives_oct_m
   use epot_oct_m
@@ -41,8 +40,6 @@ module hamiltonian_base_oct_m
   use messages_oct_m
   use mpi_oct_m
   use nl_operator_oct_m
-  use opencl_oct_m
-  use octcl_kernel_oct_m
   use parser_oct_m
   use profiling_oct_m
   use projector_oct_m
@@ -74,6 +71,8 @@ module hamiltonian_base_oct_m
     zhamiltonian_base_nlocal_start,            &
     dhamiltonian_base_nlocal_finish,           &
     zhamiltonian_base_nlocal_finish,           &
+    dhamiltonian_base_nlocal_position_commutator, &
+    zhamiltonian_base_nlocal_position_commutator, &
     hamiltonian_base_has_magnetic,             &
     hamiltonian_base_init,                     &
     hamiltonian_base_end,                      &
@@ -111,23 +110,24 @@ module hamiltonian_base_oct_m
     integer,                  allocatable :: projector_to_atom(:)
     integer                               :: nregions
     integer,                  allocatable :: regions(:)
-    type(opencl_mem_t)                    :: potential_opencl
-    type(opencl_mem_t)                    :: buff_offsets
-    type(opencl_mem_t)                    :: buff_matrices
-    type(opencl_mem_t)                    :: buff_maps
-    type(opencl_mem_t)                    :: buff_scals
-    type(opencl_mem_t)                    :: buff_pos
-    type(opencl_mem_t)                    :: buff_invmap
-    type(opencl_mem_t)                    :: buff_projector_phases
+    type(accel_mem_t)                    :: potential_opencl
+    type(accel_mem_t)                    :: buff_offsets
+    type(accel_mem_t)                    :: buff_matrices
+    type(accel_mem_t)                    :: buff_maps
+    type(accel_mem_t)                    :: buff_scals
+    type(accel_mem_t)                    :: buff_pos
+    type(accel_mem_t)                    :: buff_invmap
+    type(accel_mem_t)                    :: buff_projector_phases
 
     CMPLX, pointer     :: phase(:, :)
-    type(opencl_mem_t) :: buff_phase
+    type(accel_mem_t) :: buff_phase
+    integer            :: buff_phase_qn_start
   end type hamiltonian_base_t
 
   type projection_t
     FLOAT, allocatable     :: dprojection(:, :)
     CMPLX, allocatable     :: zprojection(:, :)
-    type(opencl_mem_t)     :: buff_projection
+    type(accel_mem_t)     :: buff_projection
   end type projection_t
 
   integer, parameter, public ::          &
@@ -176,10 +176,8 @@ contains
 
     PUSH_SUB(hamiltonian_base_end)
 
-    if(allocated(this%potential) .and. opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-      call opencl_release_buffer(this%potential_opencl)
-#endif
+    if(allocated(this%potential) .and. accel_is_enabled()) then
+      call accel_release_buffer(this%potential_opencl)
     end if
     
     SAFE_DEALLOCATE_A(this%potential)
@@ -230,11 +228,9 @@ contains
           SAFE_ALLOCATE(this%Impotential(1:mesh%np, 1:this%nspin))
           this%Impotential = M_ZERO
         end if
-#ifdef HAVE_OPENCL
-        if(opencl_is_enabled()) then
-          call opencl_create_buffer(this%potential_opencl, CL_MEM_READ_ONLY, TYPE_FLOAT, opencl_padded_size(mesh%np)*this%nspin)
+        if(accel_is_enabled()) then
+          call accel_create_buffer(this%potential_opencl, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, accel_padded_size(mesh%np)*this%nspin)
         end if
-#endif
       end if
     end if
 
@@ -272,10 +268,8 @@ contains
     type(hamiltonian_base_t), intent(inout) :: this
     type(mesh_t),             intent(in)    :: mesh
 
-#ifdef HAVE_OPENCL
     integer :: ispin
     integer :: offset
-#endif
 
     PUSH_SUB(hamiltonian_base_update)
 
@@ -283,17 +277,15 @@ contains
       call unify_vector_potentials()
     end if
 
-#ifdef HAVE_OPENCL
-    if(allocated(this%potential) .and. opencl_is_enabled()) then
+    if(allocated(this%potential) .and. accel_is_enabled()) then
 
       offset = 0
       do ispin = 1, this%nspin
-        call opencl_write_buffer(this%potential_opencl, mesh%np, this%potential(:, ispin), offset = offset)
-        offset = offset + opencl_padded_size(mesh%np)
+        call accel_write_buffer(this%potential_opencl, mesh%np, this%potential(:, ispin), offset = offset)
+        offset = offset + accel_padded_size(mesh%np)
       end do
 
     end if
-#endif
 
     POP_SUB(hamiltonian_base_update)
 
@@ -328,17 +320,15 @@ contains
 
     if(allocated(this%projector_matrices)) then
 
-#ifdef HAVE_OPENCL
-      if(opencl_is_enabled()) then
-        call opencl_release_buffer(this%buff_offsets)
-        call opencl_release_buffer(this%buff_matrices)
-        call opencl_release_buffer(this%buff_maps)
-        call opencl_release_buffer(this%buff_scals)
-        call opencl_release_buffer(this%buff_pos)
-        call opencl_release_buffer(this%buff_invmap)
-        if(allocated(this%projector_phases)) call opencl_release_buffer(this%buff_projector_phases)
+      if(accel_is_enabled()) then
+        call accel_release_buffer(this%buff_offsets)
+        call accel_release_buffer(this%buff_matrices)
+        call accel_release_buffer(this%buff_maps)
+        call accel_release_buffer(this%buff_scals)
+        call accel_release_buffer(this%buff_pos)
+        call accel_release_buffer(this%buff_invmap)
+        if(allocated(this%projector_phases)) call accel_release_buffer(this%buff_projector_phases)
       end if
-#endif
 
       do iproj = 1, this%nprojector_matrices
         call projector_matrix_deallocate(this%projector_matrices(iproj))
@@ -524,7 +514,10 @@ contains
           end do
         end do
 
-        forall(ip = 1:pmat%npoints) pmat%map(ip) = epot%proj(iatom)%sphere%map(ip)
+        forall(ip = 1:pmat%npoints)
+          pmat%map(ip) = epot%proj(iatom)%sphere%map(ip)
+          pmat%position(1:3, ip) = epot%proj(iatom)%sphere%x(ip, 1:3)
+        end forall
 
         INCR(this%full_projection_size, pmat%nprojs)
 
@@ -549,16 +542,13 @@ contains
       INCR(this%total_points, pmat%npoints)
     end do
 
-#ifdef HAVE_OPENCL
-    if(opencl_is_enabled()) call build_opencl()
-#endif
+    if(accel_is_enabled()) call build_opencl()
 
     POP_SUB(hamiltonian_base_build_proj)
 
   contains
 
     subroutine build_opencl()
-#ifdef HAVE_OPENCL
       integer              :: matrix_size, scal_size
       integer, allocatable :: cnt(:), invmap(:, :), invmap2(:), pos(:)
       integer, allocatable :: offsets(:, :)
@@ -629,39 +619,37 @@ contains
       end do
 
       ! allocate
-      call opencl_create_buffer(this%buff_matrices, CL_MEM_READ_ONLY, TYPE_FLOAT, matrix_size)
-      call opencl_create_buffer(this%buff_maps, CL_MEM_READ_ONLY, TYPE_INTEGER, this%total_points)
-      call opencl_create_buffer(this%buff_scals, CL_MEM_READ_ONLY, TYPE_FLOAT, scal_size)
+      call accel_create_buffer(this%buff_matrices, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, matrix_size)
+      call accel_create_buffer(this%buff_maps, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, this%total_points)
+      call accel_create_buffer(this%buff_scals, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, scal_size)
 
       ! now copy
       do imat = 1, this%nprojector_matrices
         pmat => this%projector_matrices(imat)
         ! in parallel some spheres might not have points
         if(pmat%npoints > 0) then
-          call opencl_write_buffer(this%buff_matrices, pmat%nprojs*pmat%npoints, pmat%projectors, offset = offsets(MATRIX, imat))
-          call opencl_write_buffer(this%buff_maps, pmat%npoints, pmat%map, offset = offsets(MAP, imat))
+          call accel_write_buffer(this%buff_matrices, pmat%nprojs*pmat%npoints, pmat%projectors, offset = offsets(MATRIX, imat))
+          call accel_write_buffer(this%buff_maps, pmat%npoints, pmat%map, offset = offsets(MAP, imat))
         end if
-        call opencl_write_buffer(this%buff_scals, pmat%nprojs, pmat%scal, offset = offsets(SCAL, imat))
+        call accel_write_buffer(this%buff_scals, pmat%nprojs, pmat%scal, offset = offsets(SCAL, imat))
       end do
 
       ! write the offsets
-      call opencl_create_buffer(this%buff_offsets, CL_MEM_READ_ONLY, TYPE_INTEGER, 5*this%nprojector_matrices)
-      call opencl_write_buffer(this%buff_offsets, 5*this%nprojector_matrices, offsets)
+      call accel_create_buffer(this%buff_offsets, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, 5*this%nprojector_matrices)
+      call accel_write_buffer(this%buff_offsets, 5*this%nprojector_matrices, offsets)
 
       ! the inverse map
-      call opencl_create_buffer(this%buff_pos, CL_MEM_READ_ONLY, TYPE_INTEGER, mesh%np + 1)
-      call opencl_write_buffer(this%buff_pos, mesh%np + 1, pos)
+      call accel_create_buffer(this%buff_pos, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, mesh%np + 1)
+      call accel_write_buffer(this%buff_pos, mesh%np + 1, pos)
 
-      call opencl_create_buffer(this%buff_invmap, CL_MEM_READ_ONLY, TYPE_INTEGER, ipos)
-      call opencl_write_buffer(this%buff_invmap, ipos, invmap2)
+      call accel_create_buffer(this%buff_invmap, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, ipos)
+      call accel_write_buffer(this%buff_invmap, ipos, invmap2)
 
       SAFE_DEALLOCATE_A(offsets)
       SAFE_DEALLOCATE_A(cnt)
       SAFE_DEALLOCATE_A(invmap)
       SAFE_DEALLOCATE_A(invmap2)
       SAFE_DEALLOCATE_A(pos)
-
-#endif  
 
       POP_SUB(hamiltonian_base_build_proj.build_opencl)
     end subroutine build_opencl

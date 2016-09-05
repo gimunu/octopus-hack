@@ -15,13 +15,13 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: cmplxscl.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: cmplxscl.F90 15565 2016-08-03 17:49:40Z xavier $
 
 #include "global.h"
 
 module cmplxscl_oct_m
+  use accel_oct_m
   use global_oct_m
-  use opencl_oct_m
   use parser_oct_m
   use messages_oct_m
   use varinfo_oct_m
@@ -97,10 +97,6 @@ contains
     this%space = iand(cmplxscl_flags, CMPLXSCL_SPACE) /= 0
     this%time  = iand(cmplxscl_flags, CMPLXSCL_TIME)  /= 0
 
-    if((this%space .or. this%time) .and. opencl_is_enabled()) &
-      call messages_not_implemented("ComplexScaling with OpenCL")
-    ! scaling of kinetic energy in src/hamiltonian/hamiltonian_inc.F90 seg-faults, for example
-    
     if(this%space) then
       !%Variable ComplexScalingTheta
       !%Type float 

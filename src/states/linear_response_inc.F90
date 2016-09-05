@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: linear_response_inc.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: linear_response_inc.F90 15452 2016-07-06 05:18:14Z irina $
 
 
 ! ---------------------------------------------------------
@@ -246,7 +246,7 @@ subroutine X(lr_orth_response)(mesh, st, lr, omega)
   integer :: ist, ik
   PUSH_SUB(X(lr_orth_response))
   
-  do ik = 1, st%d%nik
+  do ik = st%d%kpt%start, st%d%kpt%end
     do ist = 1, st%nst
       call X(lr_orth_vector) (mesh, st, lr%X(dl_psi)(:,:, ist, ik), ist, ik, omega)
     end do

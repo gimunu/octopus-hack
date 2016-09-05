@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: configure.ac 15281 2016-04-16 16:09:57Z askhl $
+## $Id: configure.ac 15552 2016-07-31 05:54:17Z xavier $
 
 AC_PREREQ(2.59)
 # Note: the version string is written into ETSF_IO files, so when you update
@@ -108,11 +108,18 @@ dnl and with OpenMP threads.
 
 dnl these are the --enable/--disable possible in octopus
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--disable-debug], [debug mode]), [DEBUG=${enableval}])
-AC_ARG_ENABLE(openmp, AS_HELP_STRING([--enable-openmp], [Multi-threaded parallel version using OpenMP]))
+AC_ARG_ENABLE(openmp, AS_HELP_STRING([--enable-openmp], [Multi-threaded parallel version using OpenMP from Fortran]))
 AC_ARG_ENABLE(opencl, AS_HELP_STRING([--enable-opencl], [OpenCL support (experimental)]))
 
 if test -n "${enable_openmp}" -a x"${enable_openmp}" != x"no"; then
   HAVE_OPENMP=1
+fi
+
+AC_ARG_ENABLE(cuda, AS_HELP_STRING([--enable-cuda], [Cuda support (experimental)]))
+
+if test x"${enable_cuda}" == x"yes" ; then
+  AC_DEFINE(HAVE_CUDA, 1, [defined if cuda support is enabled])
+  ACX_CUDA
 fi
 
 if test x"${enable_opencl}" == x"yes" ; then
@@ -220,7 +227,6 @@ F90_MODULE_FLAG=$ax_cv_f90_modflag
 AC_SUBST([F90_MODULE_FLAG])
 
 if test "${HAVE_OPENMP}"; then
-  AC_DEFINE(HAVE_OPENMP, 1, [enable OpenMP support])
   AX_OPENMP(,AC_MSG_ERROR([Fortran compiler does not support OpenMP]))
   FCFLAGS="$FCFLAGS $OPENMP_FCFLAGS"
 fi
@@ -306,6 +312,7 @@ fi
 dnl check for SCALAPACK/BLACS
 ACX_BLACS
 ACX_SCALAPACK
+ACX_ELPA
 
 dnl check for ARPACK and PARPACK
 ACX_ARPACK
@@ -323,6 +330,10 @@ AM_CONDITIONAL(COMPILE_ISF, test x${HAVE_COMP_ISF} = x1)
 
 dnl check for PSPIO
 ACX_PSPIO
+
+dnl check for the Poke library to solve the Poisson equation
+dnl http://www.e-cam2020.eu:10080/ESL/poke
+ACX_POKE
 
 dnl check for compiled METIS5 and ParMETIS (also checks METIS in the same path)
 AC_LANG_PUSH(C)

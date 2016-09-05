@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_function_inc.F90 15325 2016-05-02 04:48:39Z xavier $
+!! $Id: mesh_function_inc.F90 15427 2016-06-20 22:29:38Z xavier $
 
 
 ! ---------------------------------------------------------
@@ -289,8 +289,7 @@ end function X(mf_moment)
 #ifndef SINGLE_PRECISION
 
 ! ---------------------------------------------------------
-!> This subroutine generates a Gaussian wavefunction at a
-!! random position in space.
+!> This subroutine fills a function with randon values.
 subroutine X(mf_random)(mesh, ff, seed, normalized)
   type(mesh_t),      intent(in)  :: mesh
   R_TYPE,            intent(out) :: ff(:)

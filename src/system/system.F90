@@ -15,11 +15,12 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: system.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: system.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module system_oct_m
+  use accel_oct_m
   use base_handle_oct_m
   use base_model_oct_m
   use base_states_oct_m
@@ -40,8 +41,6 @@ module system_oct_m
   use modelmb_particles_oct_m
   use mpi_oct_m
   use multicomm_oct_m
-  use octcl_kernel_oct_m
-  use opencl_oct_m
   use output_oct_m
   use parser_oct_m
   use pcm_oct_m
@@ -78,9 +77,9 @@ module system_oct_m
     type(output_t)               :: outp  !< the output
     type(multicomm_t)            :: mc    !< index and domain communicators
   end type system_t
-
+  
 contains
-
+  
   !----------------------------------------------------------
   subroutine system_init(sys)
     type(system_t), intent(out)   :: sys
@@ -94,8 +93,7 @@ contains
     SAFE_ALLOCATE(sys%gr)
     SAFE_ALLOCATE(sys%st)
 
-    call opencl_init(mpi_world)
-    call octcl_kernel_global_init()
+    call accel_init(mpi_world)
 
     call messages_obsolete_variable('SystemName')
 
@@ -261,8 +259,7 @@ contains
 
     call space_end(sys%space)
 
-    call octcl_kernel_global_end()
-    call opencl_end()
+    call accel_end()
 
     SAFE_DEALLOCATE_P(sys%gr)
 

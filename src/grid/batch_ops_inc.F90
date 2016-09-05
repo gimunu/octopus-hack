@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: batch_ops_inc.F90 15260 2016-04-08 13:12:34Z xavier $
+!! $Id: batch_ops_inc.F90 15473 2016-07-12 02:58:36Z xavier $
 
 !--------------------------------------------------------------
 
@@ -46,9 +46,7 @@ subroutine X(batch_axpy_const)(np, aa, xx, yy)
   type(batch_t),     intent(inout) :: yy
 
   integer :: ist
-#ifdef HAVE_OPENCL
   integer :: localsize
-#endif
   CMPLX :: zaa
 
   PUSH_SUB(X(batch_axpy_const))
@@ -64,33 +62,32 @@ subroutine X(batch_axpy_const)(np, aa, xx, yy)
 
   select case(batch_status(xx))
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
     if(batch_type(yy) == TYPE_FLOAT) then
 
-      call opencl_set_kernel_arg(kernel_daxpy, 0, aa)
-      call opencl_set_kernel_arg(kernel_daxpy, 1, xx%pack%buffer)
-      call opencl_set_kernel_arg(kernel_daxpy, 2, log2(xx%pack%size(1)))
-      call opencl_set_kernel_arg(kernel_daxpy, 3, yy%pack%buffer)
-      call opencl_set_kernel_arg(kernel_daxpy, 4, log2(yy%pack%size(1)))
+      call accel_set_kernel_arg(kernel_daxpy, 0, aa)
+      call accel_set_kernel_arg(kernel_daxpy, 1, xx%pack%buffer)
+      call accel_set_kernel_arg(kernel_daxpy, 2, log2(xx%pack%size(1)))
+      call accel_set_kernel_arg(kernel_daxpy, 3, yy%pack%buffer)
+      call accel_set_kernel_arg(kernel_daxpy, 4, log2(yy%pack%size(1)))
       
-      localsize = opencl_max_workgroup_size()
-      call opencl_kernel_run(kernel_daxpy, (/yy%pack%size(1), pad(np, localsize)/), (/yy%pack%size(1), localsize/yy%pack%size(1)/))
+      localsize = accel_max_workgroup_size()
+      call accel_kernel_run(kernel_daxpy, (/yy%pack%size(1), pad(np, localsize)/), (/yy%pack%size(1), localsize/yy%pack%size(1)/))
       
     else
       zaa = aa
-      call opencl_set_kernel_arg(kernel_zaxpy, 0, zaa)
-      call opencl_set_kernel_arg(kernel_zaxpy, 1, xx%pack%buffer)
-      call opencl_set_kernel_arg(kernel_zaxpy, 2, log2(xx%pack%size(1)))
-      call opencl_set_kernel_arg(kernel_zaxpy, 3, yy%pack%buffer)
-      call opencl_set_kernel_arg(kernel_zaxpy, 4, log2(yy%pack%size(1)))
+      call accel_set_kernel_arg(kernel_zaxpy, 0, zaa)
+      call accel_set_kernel_arg(kernel_zaxpy, 1, xx%pack%buffer)
+      call accel_set_kernel_arg(kernel_zaxpy, 2, log2(xx%pack%size(1)))
+      call accel_set_kernel_arg(kernel_zaxpy, 3, yy%pack%buffer)
+      call accel_set_kernel_arg(kernel_zaxpy, 4, log2(yy%pack%size(1)))
       
-      localsize = opencl_max_workgroup_size()
-      call opencl_kernel_run(kernel_zaxpy, (/yy%pack%size(1), pad(np, localsize)/), (/yy%pack%size(1), localsize/yy%pack%size(1)/))
+      localsize = accel_max_workgroup_size()
+      call accel_kernel_run(kernel_zaxpy, (/yy%pack%size(1), pad(np, localsize)/), (/yy%pack%size(1), localsize/yy%pack%size(1)/))
 
     end if
 
-    call opencl_finish()
-#endif
+    call accel_finish()
+    
   case(BATCH_PACKED)
     if(batch_type(yy) == TYPE_CMPLX) then
       call lalg_axpy(xx%pack%size(1), np, aa, xx%pack%zpsi, yy%pack%zpsi)
@@ -132,14 +129,11 @@ subroutine X(batch_axpy_vec)(np, aa, xx, yy, a_start, a_full)
 
   integer :: ist, ip, effsize, iaa
   R_TYPE, allocatable     :: aa_linear(:)
-#ifdef HAVE_OPENCL
   integer :: localsize
   integer :: size_factor
-  type(opencl_mem_t)      :: aa_buffer
+  type(accel_mem_t)      :: aa_buffer
   FLOAT,  allocatable     :: aa_linear_double(:)
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)         :: kernel_ref
-#endif
+  type(accel_kernel_t), save :: kernel
   
   PUSH_SUB(X(batch_axpy_vec))
   call profiling_in(axpy_vec_prof, "BATCH_AXPY_VEC")
@@ -165,10 +159,8 @@ subroutine X(batch_axpy_vec)(np, aa, xx, yy, a_start, a_full)
 
   select case(batch_status(xx))
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-    call octcl_kernel_start_call(kernel, 'axpy.cl', TOSTRING(X(axpy_vec)), &
+    call accel_kernel_start_call(kernel, 'axpy.cl', TOSTRING(X(axpy_vec)), &
       flags = '-D' + R_TYPE_CL)
-    kernel_ref = octcl_kernel_get_ref(kernel)
 
     if(batch_type(yy) == TYPE_CMPLX .and. R_TYPE_VAL == TYPE_FLOAT) then
       size_factor = 2
@@ -177,29 +169,29 @@ subroutine X(batch_axpy_vec)(np, aa, xx, yy, a_start, a_full)
         aa_linear_double(2*ist - 1) = aa_linear(ist)
         aa_linear_double(2*ist) = aa_linear(ist)
       end do
-      call opencl_create_buffer(aa_buffer, CL_MEM_READ_ONLY, TYPE_FLOAT, 2*yy%pack%size(1))
-      call opencl_write_buffer(aa_buffer, 2*yy%pack%size(1), aa_linear_double)
+      call accel_create_buffer(aa_buffer, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, 2*yy%pack%size(1))
+      call accel_write_buffer(aa_buffer, 2*yy%pack%size(1), aa_linear_double)
       SAFE_DEALLOCATE_A(aa_linear_double)
     else
       size_factor = 1
-      call opencl_create_buffer(aa_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, yy%pack%size(1))
-      call opencl_write_buffer(aa_buffer, yy%pack%size(1), aa_linear)
+      call accel_create_buffer(aa_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, yy%pack%size(1))
+      call accel_write_buffer(aa_buffer, yy%pack%size(1), aa_linear)
     end if
 
-    call opencl_set_kernel_arg(kernel_ref, 0, aa_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 1, xx%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 2, log2(xx%pack%size(1)*size_factor))
-    call opencl_set_kernel_arg(kernel_ref, 3, yy%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 4, log2(yy%pack%size(1)*size_factor))
+    call accel_set_kernel_arg(kernel, 0, aa_buffer)
+    call accel_set_kernel_arg(kernel, 1, xx%pack%buffer)
+    call accel_set_kernel_arg(kernel, 2, log2(xx%pack%size(1)*size_factor))
+    call accel_set_kernel_arg(kernel, 3, yy%pack%buffer)
+    call accel_set_kernel_arg(kernel, 4, log2(yy%pack%size(1)*size_factor))
 
-    localsize = opencl_max_workgroup_size()
-    call opencl_kernel_run(kernel_ref, (/yy%pack%size(1)*size_factor, pad(np, localsize)/), &
+    localsize = accel_max_workgroup_size()
+    call accel_kernel_run(kernel, (/yy%pack%size(1)*size_factor, pad(np, localsize)/), &
       (/yy%pack%size(1)*size_factor, localsize/(yy%pack%size(1)*size_factor)/))
 
-    call opencl_finish()
+    call accel_finish()
 
-    call opencl_release_buffer(aa_buffer)
-#endif
+    call accel_release_buffer(aa_buffer)
+
   case(BATCH_PACKED)
     if(batch_type(yy) == TYPE_CMPLX) then
       !$omp parallel do private(ip, ist)
@@ -274,14 +266,11 @@ subroutine X(batch_scal_vec)(np, aa, xx, a_start, a_full)
 
   integer :: ist, ip, effsize, iaa
   R_TYPE, allocatable     :: aa_linear(:)
-#ifdef HAVE_OPENCL
   integer :: localsize
   integer :: size_factor
   FLOAT,  allocatable     :: aa_linear_double(:)
-  type(opencl_mem_t)      :: aa_buffer
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)         :: kernel_ref
-#endif
+  type(accel_mem_t)      :: aa_buffer
+  type(accel_kernel_t), save :: kernel
   
   PUSH_SUB(X(batch_scal_vec))
   call profiling_in(scal_prof, "BATCH_SCAL")
@@ -304,8 +293,6 @@ subroutine X(batch_scal_vec)(np, aa, xx, a_start, a_full)
   
   select case(batch_status(xx))
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-
     if(batch_type(xx) == TYPE_CMPLX .and. R_TYPE_VAL == TYPE_FLOAT) then
       size_factor = 2
       SAFE_ALLOCATE(aa_linear_double(1:2*xx%pack%size(1)))
@@ -313,32 +300,30 @@ subroutine X(batch_scal_vec)(np, aa, xx, a_start, a_full)
         aa_linear_double(2*ist - 1) = aa_linear(ist)
         aa_linear_double(2*ist) = aa_linear(ist)
       end do
-      call opencl_create_buffer(aa_buffer, CL_MEM_READ_ONLY, TYPE_FLOAT, 2*xx%pack%size(1))
-      call opencl_write_buffer(aa_buffer, 2*xx%pack%size(1), aa_linear_double)
+      call accel_create_buffer(aa_buffer, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, 2*xx%pack%size(1))
+      call accel_write_buffer(aa_buffer, 2*xx%pack%size(1), aa_linear_double)
       SAFE_DEALLOCATE_A(aa_linear_double)
     else
       size_factor = 1
-      call opencl_create_buffer(aa_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, xx%pack%size(1))
-      call opencl_write_buffer(aa_buffer, xx%pack%size(1), aa_linear)
+      call accel_create_buffer(aa_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, xx%pack%size(1))
+      call accel_write_buffer(aa_buffer, xx%pack%size(1), aa_linear)
     end if
 
-    call octcl_kernel_start_call(kernel, 'axpy.cl', TOSTRING(X(scal_vec)), &
+    call accel_kernel_start_call(kernel, 'axpy.cl', TOSTRING(X(scal_vec)), &
       flags = '-D' + R_TYPE_CL)
   
-    kernel_ref = octcl_kernel_get_ref(kernel)
+    call accel_set_kernel_arg(kernel, 0, aa_buffer)
+    call accel_set_kernel_arg(kernel, 1, xx%pack%buffer)
+    call accel_set_kernel_arg(kernel, 2, log2(xx%pack%size(1)*size_factor))
 
-    call opencl_set_kernel_arg(kernel_ref, 0, aa_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 1, xx%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 2, log2(xx%pack%size(1)*size_factor))
-
-    localsize = opencl_max_workgroup_size()
-    call opencl_kernel_run(kernel_ref, (/xx%pack%size(1)*size_factor, pad(np, localsize)/), &
+    localsize = accel_max_workgroup_size()
+    call accel_kernel_run(kernel, (/xx%pack%size(1)*size_factor, pad(np, localsize)/), &
       (/xx%pack%size(1)*size_factor, localsize/(xx%pack%size(1)*size_factor)/))
 
-    call opencl_finish()
+    call accel_finish()
 
-    call opencl_release_buffer(aa_buffer)
-#endif
+    call accel_release_buffer(aa_buffer)
+    
   case(BATCH_PACKED)
     if(batch_type(xx) == TYPE_CMPLX) then
       do ist = 1, xx%pack%size(1)
@@ -388,13 +373,10 @@ subroutine X(batch_xpay_vec)(np, xx, aa, yy, a_start, a_full)
 
   integer :: ist, ip, effsize, iaa
   R_TYPE, allocatable     :: aa_linear(:)
-#ifdef HAVE_OPENCL
   integer :: size_factor, localsize
   FLOAT,  allocatable     :: aa_linear_double(:)
-  type(opencl_mem_t)      :: aa_buffer
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)         :: kernel_ref
-#endif
+  type(accel_mem_t)      :: aa_buffer
+  type(accel_kernel_t), save :: kernel
   
   PUSH_SUB(X(batch_xpay_vec))
   call profiling_in(xpay_prof, "BATCH_XPAY")
@@ -420,8 +402,6 @@ subroutine X(batch_xpay_vec)(np, xx, aa, yy, a_start, a_full)
 
   select case(batch_status(xx))
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-
     if(batch_type(yy) == TYPE_CMPLX .and. R_TYPE_VAL == TYPE_FLOAT) then
       size_factor = 2
       SAFE_ALLOCATE(aa_linear_double(1:2*yy%pack%size(1)))
@@ -429,34 +409,32 @@ subroutine X(batch_xpay_vec)(np, xx, aa, yy, a_start, a_full)
         aa_linear_double(2*ist - 1) = aa_linear(ist)
         aa_linear_double(2*ist) = aa_linear(ist)
       end do
-      call opencl_create_buffer(aa_buffer, CL_MEM_READ_ONLY, TYPE_FLOAT, 2*yy%pack%size(1))
-      call opencl_write_buffer(aa_buffer, 2*yy%pack%size(1), aa_linear_double)
+      call accel_create_buffer(aa_buffer, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, 2*yy%pack%size(1))
+      call accel_write_buffer(aa_buffer, 2*yy%pack%size(1), aa_linear_double)
       SAFE_DEALLOCATE_A(aa_linear_double)
     else
       size_factor = 1
-      call opencl_create_buffer(aa_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, yy%pack%size(1))
-      call opencl_write_buffer(aa_buffer, yy%pack%size(1), aa_linear)
+      call accel_create_buffer(aa_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, yy%pack%size(1))
+      call accel_write_buffer(aa_buffer, yy%pack%size(1), aa_linear)
     end if
 
-    call octcl_kernel_start_call(kernel, 'axpy.cl', TOSTRING(X(xpay_vec)), &
+    call accel_kernel_start_call(kernel, 'axpy.cl', TOSTRING(X(xpay_vec)), &
       flags = '-D' + R_TYPE_CL)
-  
-    kernel_ref = octcl_kernel_get_ref(kernel)
 
-    call opencl_set_kernel_arg(kernel_ref, 0, aa_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 1, xx%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 2, log2(xx%pack%size(1)*size_factor))
-    call opencl_set_kernel_arg(kernel_ref, 3, yy%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 4, log2(yy%pack%size(1)*size_factor))
+    call accel_set_kernel_arg(kernel, 0, aa_buffer)
+    call accel_set_kernel_arg(kernel, 1, xx%pack%buffer)
+    call accel_set_kernel_arg(kernel, 2, log2(xx%pack%size(1)*size_factor))
+    call accel_set_kernel_arg(kernel, 3, yy%pack%buffer)
+    call accel_set_kernel_arg(kernel, 4, log2(yy%pack%size(1)*size_factor))
 
-    localsize = opencl_max_workgroup_size()
-    call opencl_kernel_run(kernel_ref, (/yy%pack%size(1)*size_factor, pad(np, localsize)/), &
+    localsize = accel_max_workgroup_size()
+    call accel_kernel_run(kernel, (/yy%pack%size(1)*size_factor, pad(np, localsize)/), &
       (/yy%pack%size(1)*size_factor, localsize/(yy%pack%size(1)*size_factor)/))
 
-    call opencl_finish()
+    call accel_finish()
 
-    call opencl_release_buffer(aa_buffer)
-#endif
+    call accel_release_buffer(aa_buffer)
+    
   case(BATCH_PACKED)
     if(batch_type(yy) == TYPE_CMPLX) then
       !$omp parallel do private(ip, ist)
@@ -543,7 +521,7 @@ subroutine X(batch_set_state1)(this, ist, np, psi)
 
   integer :: ip
   type(profile_t), save :: prof
-  type(opencl_mem_t) :: tmp
+  type(accel_mem_t) :: tmp
 
   call profiling_in(prof, "BATCH_SET_STATE")
 
@@ -571,23 +549,22 @@ subroutine X(batch_set_state1)(this, ist, np, psi)
       forall(ip = 1:np) this%pack%zpsi(ist, ip) = psi(ip)
     end if
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-    call opencl_create_buffer(tmp, CL_MEM_READ_ONLY, batch_type(this), this%pack%size(2))
+    call accel_create_buffer(tmp, ACCEL_MEM_READ_ONLY, batch_type(this), this%pack%size(2))
 
-    call opencl_write_buffer(tmp, np, psi)
+    call accel_write_buffer(tmp, np, psi)
 
     ! now call an opencl kernel to rearrange the data
-    call opencl_set_kernel_arg(X(pack), 0, this%pack%size(1))
-    call opencl_set_kernel_arg(X(pack), 1, ist - 1)
-    call opencl_set_kernel_arg(X(pack), 2, tmp)
-    call opencl_set_kernel_arg(X(pack), 3, this%pack%buffer)
+    call accel_set_kernel_arg(X(pack), 0, this%pack%size(1))
+    call accel_set_kernel_arg(X(pack), 1, ist - 1)
+    call accel_set_kernel_arg(X(pack), 2, tmp)
+    call accel_set_kernel_arg(X(pack), 3, this%pack%buffer)
     
-    call opencl_kernel_run(X(pack), (/this%pack%size(2), 1/), (/opencl_max_workgroup_size(), 1/))
+    call accel_kernel_run(X(pack), (/this%pack%size(2), 1/), (/accel_max_workgroup_size(), 1/))
     
-    call opencl_finish()
+    call accel_finish()
 
-    call opencl_release_buffer(tmp)
-#endif
+    call accel_release_buffer(tmp)
+    
   end select
 
   call profiling_out(prof)
@@ -640,7 +617,7 @@ subroutine X(batch_get_state1)(this, ist, np, psi)
 
   integer :: ip
   type(profile_t), save :: prof 
-  type(opencl_mem_t) :: tmp
+  type(accel_mem_t) :: tmp
 
   PUSH_SUB(X(batch_get_state1))
 
@@ -685,22 +662,21 @@ subroutine X(batch_get_state1)(this, ist, np, psi)
     end if
 
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-    call opencl_create_buffer(tmp, CL_MEM_WRITE_ONLY, batch_type(this), this%pack%size(2))
+    call accel_create_buffer(tmp, ACCEL_MEM_WRITE_ONLY, batch_type(this), this%pack%size(2))
 
-    call opencl_set_kernel_arg(X(unpack), 0, this%pack%size(1))
-    call opencl_set_kernel_arg(X(unpack), 1, ist - 1)
-    call opencl_set_kernel_arg(X(unpack), 2, this%pack%buffer)
-    call opencl_set_kernel_arg(X(unpack), 3, tmp)
+    call accel_set_kernel_arg(X(unpack), 0, this%pack%size(1))
+    call accel_set_kernel_arg(X(unpack), 1, ist - 1)
+    call accel_set_kernel_arg(X(unpack), 2, this%pack%buffer)
+    call accel_set_kernel_arg(X(unpack), 3, tmp)
 
-    call opencl_kernel_run(X(unpack), (/1, this%pack%size(2)/), (/1, opencl_max_workgroup_size()/))
+    call accel_kernel_run(X(unpack), (/1, this%pack%size(2)/), (/1, accel_max_workgroup_size()/))
 
-    call opencl_finish()
+    call accel_finish()
 
-    call opencl_read_buffer(tmp, np, psi)
+    call accel_read_buffer(tmp, np, psi)
 
-    call opencl_release_buffer(tmp)
-#endif
+    call accel_release_buffer(tmp)
+    
   end select
 
   call profiling_out(prof)
@@ -909,10 +885,8 @@ subroutine X(batch_mul)(np, ff,  xx, yy)
 
   integer :: ist, ip
   R_TYPE :: mul
-#ifdef HAVE_OPENCL
   integer :: iprange
-  type(opencl_mem_t)      :: ff_buffer
-#endif
+  type(accel_mem_t)      :: ff_buffer
   
   PUSH_SUB(X(batch_mul))
   call profiling_in(mul_prof, "BATCH_MUL")
@@ -928,27 +902,27 @@ subroutine X(batch_mul)(np, ff,  xx, yy)
   select case(batch_status(yy))
   case(BATCH_CL_PACKED)
 
-#if defined(HAVE_OPENCL) && defined(R_TREAL)
+#if defined(R_TREAL)
 
     ! We reuse here the routine to apply the local potential
     call batch_set_zero(yy)
     
-    call opencl_create_buffer(ff_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, np)
-    call opencl_write_buffer(ff_buffer, np, ff)
+    call accel_create_buffer(ff_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, np)
+    call accel_write_buffer(ff_buffer, np, ff)
 
-    call opencl_set_kernel_arg(kernel_vpsi, 0, 0)
-    call opencl_set_kernel_arg(kernel_vpsi, 1, np)
-    call opencl_set_kernel_arg(kernel_vpsi, 2, ff_buffer)
-    call opencl_set_kernel_arg(kernel_vpsi, 3, xx%pack%buffer)
-    call opencl_set_kernel_arg(kernel_vpsi, 4, log2(xx%pack%size_real(1)))
-    call opencl_set_kernel_arg(kernel_vpsi, 5, yy%pack%buffer)
-    call opencl_set_kernel_arg(kernel_vpsi, 6, log2(yy%pack%size_real(1)))
+    call accel_set_kernel_arg(kernel_vpsi, 0, 0)
+    call accel_set_kernel_arg(kernel_vpsi, 1, np)
+    call accel_set_kernel_arg(kernel_vpsi, 2, ff_buffer)
+    call accel_set_kernel_arg(kernel_vpsi, 3, xx%pack%buffer)
+    call accel_set_kernel_arg(kernel_vpsi, 4, log2(xx%pack%size_real(1)))
+    call accel_set_kernel_arg(kernel_vpsi, 5, yy%pack%buffer)
+    call accel_set_kernel_arg(kernel_vpsi, 6, log2(yy%pack%size_real(1)))
     
-    iprange = opencl_kernel_workgroup_size(kernel_vpsi)/xx%pack%size_real(1)
+    iprange = accel_kernel_workgroup_size(kernel_vpsi)/xx%pack%size_real(1)
     
-    call opencl_kernel_run(kernel_vpsi, (/xx%pack%size_real(1), pad(np, iprange)/), (/xx%pack%size_real(1), iprange/))
+    call accel_kernel_run(kernel_vpsi, (/xx%pack%size_real(1), pad(np, iprange)/), (/xx%pack%size_real(1), iprange/))
 
-    call opencl_release_buffer(ff_buffer)
+    call accel_release_buffer(ff_buffer)
 #else
     call messages_not_implemented("OpenCL batch_mul")
 #endif

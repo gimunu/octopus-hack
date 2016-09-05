@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: eigen_rmmdiis_inc.F90 15278 2016-04-16 06:19:20Z xavier $
+!! $Id: eigen_rmmdiis_inc.F90 15363 2016-05-12 21:29:04Z xavier $
 
 ! ---------------------------------------------------------
 !> See http://prola.aps.org/abstract/PRB/v54/i16/p11169_1
@@ -302,7 +302,7 @@ subroutine X(eigensolver_rmmdiis) (gr, st, hm, pre, tol, niter, converged, ik, d
 
     prog = prog + bsize
     if(mpi_grp_is_root(mpi_world) .and. .not. debug%info) then
-      call loct_progress_bar(st%nst*(ik - 1) + prog, st%nst*st%d%nik)
+      call loct_progress_bar(st%lnst*(ik - 1) + prog, st%lnst*st%d%kpt%nlocal)
     end if
     
   end do ! ib

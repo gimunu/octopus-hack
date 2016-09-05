@@ -15,14 +15,12 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagator_etrs.F90 15257 2016-04-07 15:23:21Z xavier $
+!! $Id: propagator_etrs.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module propagator_etrs_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
+  use accel_oct_m
   use batch_oct_m
   use batch_ops_oct_m
   use density_oct_m
@@ -38,7 +36,6 @@ module propagator_etrs_oct_m
   use math_oct_m
   use messages_oct_m
   use mesh_function_oct_m
-  use opencl_oct_m
   use potential_interpolation_oct_m
   use profiling_oct_m
   use propagator_base_oct_m
@@ -344,7 +341,7 @@ contains
     type(profile_t), save :: phase_prof
     integer               :: pnp, iprange
     FLOAT, allocatable    :: vold(:, :), imvold(:, :)
-    type(opencl_mem_t)    :: phase_buff
+    type(accel_mem_t)    :: phase_buff
 
     PUSH_SUB(td_aetrs)
 
@@ -381,15 +378,13 @@ contains
       end forall
 
       ! copy vold to a cl buffer
-      if(opencl_is_enabled() .and. hamiltonian_apply_packed(hm, gr%mesh)) then
-#ifdef HAVE_OPENCL
-        pnp = opencl_padded_size(gr%mesh%np)
-        call opencl_create_buffer(phase_buff, CL_MEM_READ_ONLY, TYPE_FLOAT, pnp*st%d%nspin)
+      if(accel_is_enabled() .and. hamiltonian_apply_packed(hm, gr%mesh)) then
+        pnp = accel_padded_size(gr%mesh%np)
+        call accel_create_buffer(phase_buff, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, pnp*st%d%nspin)
         ASSERT(ubound(vold, dim = 1) == gr%mesh%np)
         do ispin = 1, st%d%nspin
-          call opencl_write_buffer(phase_buff, gr%mesh%np, vold(:, ispin), offset = (ispin - 1)*pnp)
+          call accel_write_buffer(phase_buff, gr%mesh%np, vold(:, ispin), offset = (ispin - 1)*pnp)
         end do
-#endif
       end if
 
     end if
@@ -437,17 +432,15 @@ contains
               end forall
             end do
           case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-            call opencl_set_kernel_arg(kernel_phase, 0, pnp*(ispin - 1))
-            call opencl_set_kernel_arg(kernel_phase, 1, phase_buff)
-            call opencl_set_kernel_arg(kernel_phase, 2, st%group%psib(ib, ik)%pack%buffer)
-            call opencl_set_kernel_arg(kernel_phase, 3, log2(st%group%psib(ib, ik)%pack%size(1)))
+            call accel_set_kernel_arg(kernel_phase, 0, pnp*(ispin - 1))
+            call accel_set_kernel_arg(kernel_phase, 1, phase_buff)
+            call accel_set_kernel_arg(kernel_phase, 2, st%group%psib(ib, ik)%pack%buffer)
+            call accel_set_kernel_arg(kernel_phase, 3, log2(st%group%psib(ib, ik)%pack%size(1)))
 
-            iprange = opencl_max_workgroup_size()/st%group%psib(ib, ik)%pack%size(1)
+            iprange = accel_max_workgroup_size()/st%group%psib(ib, ik)%pack%size(1)
 
-            call opencl_kernel_run(kernel_phase, (/st%group%psib(ib, ik)%pack%size(1), pnp/), &
+            call accel_kernel_run(kernel_phase, (/st%group%psib(ib, ik)%pack%size(1), pnp/), &
               (/st%group%psib(ib, ik)%pack%size(1), iprange/))
-#endif
           end select
           call profiling_out(phase_prof)
         end if
@@ -459,11 +452,9 @@ contains
       end do
     end do
 
-#ifdef HAVE_OPENCL
-    if(tr%method == PROP_CAETRS .and. opencl_is_enabled() .and. hamiltonian_apply_packed(hm, gr%mesh)) then
-      call opencl_release_buffer(phase_buff)
+    if(tr%method == PROP_CAETRS .and. accel_is_enabled() .and. hamiltonian_apply_packed(hm, gr%mesh)) then
+      call accel_release_buffer(phase_buff)
     end if
-#endif
 
     call density_calc_end(dens_calc)
 

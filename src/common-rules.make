@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: common-rules.make 15216 2016-03-21 15:48:22Z acastro $
+## $Id: common-rules.make 15552 2016-07-31 05:54:17Z xavier $
 
 # ---------------------------------------------------------------
 # Include paths.
@@ -45,7 +45,7 @@ AM_CPPFLAGS = \
         -I$(top_srcdir)/external_libs/spglib-1.5.2/src \
 	-I$(top_srcdir)/liboct_parser \
         $(GSL_CFLAGS) $(GD_CFLAGS) \
-	@METIS_CFLAGS@ @PARMETIS_CFLAGS@ \
+	@METIS_CFLAGS@ @PARMETIS_CFLAGS@ @CFLAGS_NFFT@ @CFLAGS_FFTW@ @CFLAGS_CUDA@ \
 	-DSHARE_OCTOPUS='"$(pkgdatadir)"'
 
 AM_CCASFLAGS = \
@@ -71,7 +71,7 @@ octopus_LIBS = \
 	$(top_builddir)/src/math/libmath.a               \
 	$(top_builddir)/src/basic/libbasic.a
 
-scalapack_LIBS = @LIBS_SCALAPACK@ @LIBS_BLACS@
+scalapack_LIBS = @LIBS_ELPA@ @LIBS_SCALAPACK@ @LIBS_BLACS@
 
 core_LIBS = \
 	@LIBS_FFTW@  @LIBS_LAPACK@ @LIBS_BLAS@                     \
@@ -84,6 +84,8 @@ external_LIBS = \
 	$(top_builddir)/external_libs/bpdn/libbpdn.a \
 	$(top_builddir)/external_libs/yaml-0.1.4/src/libyaml.a
 # we should not have libyaml here if we used an external one...
+
+FCFLAGS_MODS += @FCFLAGS_LIBXC@ @FCFLAGS_PSPIO@ @FCFLAGS_ISF@ @FCFLAGS_FFTW@ @FCFLAGS_PFFT@ @FCFLAGS_PNFFT@ @FCFLAGS_NETCDF@ @FCFLAGS_ETSF_IO@ @FCFLAGS_BERKELEYGW@ @FCFLAGS_NLOPT@ @FCFLAGS_LIBFM@ @FCFLAGS_ELPA@ @FCFLAGS_POKE@
 
 if COMPILE_OPENCL
   external_LIBS += $(top_builddir)/external_libs/fortrancl/libfortrancl.a @LIBS_CLBLAS@ @LIBS_CLFFT@ @CL_LIBS@
@@ -98,10 +100,10 @@ endif
 
 # These must be arranged so if LIB1 depends on LIB2, LIB1 must occur before LIB2.
 # e.g. ETSF_IO depends on netCDF, ISF depends on LAPACK
-outside_LIBS = @LIBS_PSPIO@ @LIBS_ISF@ @LIBS_NFFT@ @LIBS_PNFFT@ @LIBS_PFFT@ \
+outside_LIBS = @LIBS_PSPIO@ @LIBS_POKE@ @LIBS_ISF@ @LIBS_NFFT@ @LIBS_PNFFT@ @LIBS_PFFT@ \
   @LIBS_SPARSKIT@ @LIBS_ETSF_IO@ @LIBS_NETCDF@ @LIBS_LIBFM@ \
   @LIBS_BERKELEYGW@ @LIBS_NLOPT@ @LIBS_PARPACK@ @LIBS_ARPACK@ @GD_LIBS@ \
-  @LIBS_PARMETIS@ @LIBS_METIS@ @LIBS_FEAST@ @LIBS_MPI@
+  @LIBS_PARMETIS@ @LIBS_METIS@ @LIBS_FEAST@ @LIBS_CUDA@ @LIBS_MPI@
 
 other_LIBS = $(external_LIBS) $(scalapack_LIBS) $(outside_LIBS) $(core_LIBS) @CXXLIBS@
 all_LIBS = $(octopus_LIBS) $(other_LIBS)
@@ -119,7 +121,7 @@ SUFFIXES = _oct.f90 .F90 .o
 	@FCCPP@ @CPPFLAGS@ $(AM_CPPFLAGS) -I. $< > $*_oct.f90
 	$(top_srcdir)/build/preprocess.pl $*_oct.f90 \
 	  "@DEBUG@" "@F90_ACCEPTS_LINE_NUMBERS@" "@F90_FORALL@"
-	@FC@ @FCFLAGS@ @FCFLAGS_LIBXC@ @FCFLAGS_PSPIO@ @FCFLAGS_ISF@ @FCFLAGS_FFTW@ @FCFLAGS_PFFT@ @FCFLAGS_PNFFT@ @FCFLAGS_NETCDF@ @FCFLAGS_ETSF_IO@ @FCFLAGS_BERKELEYGW@ @FCFLAGS_NLOPT@ @FCFLAGS_LIBFM@ $(FCFLAGS_MODS) -c @FCFLAGS_f90@ -o $@ $*_oct.f90
+	@FC@ @FCFLAGS@ $(FCFLAGS_MODS) -c @FCFLAGS_f90@ -o $@ $*_oct.f90
 	@rm -f $*_oct.f90
 
 # This rule is basically to create a _oct.f90 file by hand for

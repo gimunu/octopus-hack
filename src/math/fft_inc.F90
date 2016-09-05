@@ -16,7 +16,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: fft_inc.F90 15016 2016-01-08 21:44:30Z xavier $
+!! $Id: fft_inc.F90 15567 2016-08-03 18:10:30Z xavier $
 
 
 ! ---------------------------------------------------------
@@ -30,7 +30,7 @@ subroutine X(fft_forward)(fft, in, out, norm)
     type(profile_t), save :: prof_fw
 #ifdef HAVE_CLFFT
     CMPLX, allocatable :: cin(:, :, :)
-    type(opencl_mem_t) :: rsbuffer, fsbuffer
+    type(accel_mem_t) :: rsbuffer, fsbuffer
 #endif
 
     PUSH_SUB(X(fft_forward))
@@ -81,7 +81,7 @@ subroutine X(fft_forward)(fft, in, out, norm)
 #ifdef HAVE_PFFT
       call pfft_execute(fft_array(slot)%planf)
 #endif
-    case(FFTLIB_OPENCL)
+    case(FFTLIB_ACCEL)
 #ifdef HAVE_CLFFT
 
       SAFE_ALLOCATE(cin(1:fft_array(slot)%rs_n(1), 1:fft_array(slot)%rs_n(2), 1:fft_array(slot)%rs_n(3)))
@@ -89,25 +89,25 @@ subroutine X(fft_forward)(fft, in, out, norm)
       cin(1:fft_array(slot)%rs_n(1), 1:fft_array(slot)%rs_n(2), 1:fft_array(slot)%rs_n(3)) = &
         in(1:fft_array(slot)%rs_n(1), 1:fft_array(slot)%rs_n(2), 1:fft_array(slot)%rs_n(3))
 
-      call opencl_create_buffer(rsbuffer, CL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%rs_n(1:3)))
-      call opencl_create_buffer(fsbuffer, CL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%fs_n(1:3)))
+      call accel_create_buffer(rsbuffer, ACCEL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%rs_n(1:3)))
+      call accel_create_buffer(fsbuffer, ACCEL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%fs_n(1:3)))
 
-      call opencl_write_buffer(rsbuffer, product(fft_array(slot)%rs_n(1:3)), cin)
+      call accel_write_buffer(rsbuffer, product(fft_array(slot)%rs_n(1:3)), cin)
 
-      call opencl_finish()
+      call accel_finish()
 
-      call clfftEnqueueTransform(fft_array(slot)%cl_plan_fw, CLFFT_FORWARD, opencl%command_queue, &
+      call clfftEnqueueTransform(fft_array(slot)%cl_plan_fw, CLFFT_FORWARD, accel%command_queue, &
         rsbuffer%mem, fsbuffer%mem, cl_status)
       if(cl_status /= CLFFT_SUCCESS) call clfft_print_error(cl_status, 'clfftEnqueueTransform')
 
-      call opencl_finish()
+      call accel_finish()
 
-      call opencl_read_buffer(fsbuffer, product(fft_array(slot)%fs_n(1:3)), out)
+      call accel_read_buffer(fsbuffer, product(fft_array(slot)%fs_n(1:3)), out)
 
-      call opencl_finish()
+      call accel_finish()
 
-      call opencl_release_buffer(rsbuffer)
-      call opencl_release_buffer(fsbuffer)
+      call accel_release_buffer(rsbuffer)
+      call accel_release_buffer(fsbuffer)
 #endif
     case default
       call messages_write('Invalid FFT library.')
@@ -123,14 +123,14 @@ subroutine X(fft_forward)(fft, in, out, norm)
 
 ! ---------------------------------------------------------
   subroutine X(fft_forward_cl)(fft, in, out)
-    type(fft_t),        intent(in)    :: fft
-    type(opencl_mem_t), intent(in)    :: in
-    type(opencl_mem_t), intent(inout) :: out
+    type(fft_t),       intent(in)    :: fft
+    type(accel_mem_t), intent(in)    :: in
+    type(accel_mem_t), intent(inout) :: out
 
     integer :: slot
     type(profile_t), save :: prof_fw
 #ifdef HAVE_CLFFT
-    type(opencl_mem_t)         :: tmp_buf
+    type(accel_mem_t)         :: tmp_buf
     integer                    :: bsize
     integer(8)                 :: tmp_buf_size
 #endif
@@ -140,22 +140,27 @@ subroutine X(fft_forward)(fft, in, out, norm)
     call profiling_in(prof_fw, "FFT_FORWARD_CL")
 
     slot = fft%slot
-    ASSERT(fft_array(slot)%library == FFTLIB_OPENCL)
+    ASSERT(fft_array(slot)%library == FFTLIB_ACCEL)
 
+#ifdef HAVE_CUDA
+    call cuda_fft_execute_d2z(fft_array(slot)%cuda_plan_fw, in%cuda_ptr, out%cuda_ptr)
+    call accel_finish()
+#endif
+    
 #ifdef HAVE_CLFFT
 
     call clfftGetTmpBufSize(fft_array(slot)%cl_plan_bw, tmp_buf_size, cl_status)
     if(cl_status /= CLFFT_SUCCESS) call clfft_print_error(cl_status, 'clfftGetTmpBufSize')
 
     if(tmp_buf_size > 0) then
-      call opencl_create_buffer(tmp_buf, CL_MEM_READ_WRITE, TYPE_BYTE, int(tmp_buf_size, 4))
+      call accel_create_buffer(tmp_buf, ACCEL_MEM_READ_WRITE, TYPE_BYTE, int(tmp_buf_size, 4))
     end if
 
     if(tmp_buf_size > 0) then
-      call clfftEnqueueTransform(fft_array(slot)%cl_plan_fw, CLFFT_FORWARD, opencl%command_queue, &
+      call clfftEnqueueTransform(fft_array(slot)%cl_plan_fw, CLFFT_FORWARD, accel%command_queue, &
         in%mem, out%mem, tmp_buf%mem, cl_status)
     else
-      call clfftEnqueueTransform(fft_array(slot)%cl_plan_fw, CLFFT_FORWARD, opencl%command_queue, &
+      call clfftEnqueueTransform(fft_array(slot)%cl_plan_fw, CLFFT_FORWARD, accel%command_queue, &
         in%mem, out%mem, cl_status)
     end if
     
@@ -163,9 +168,9 @@ subroutine X(fft_forward)(fft, in, out, norm)
     
     call fft_operation_count(fft)
 
-    call opencl_finish()
+    call accel_finish()
 
-    if(tmp_buf_size > 0) call opencl_release_buffer(tmp_buf)
+    if(tmp_buf_size > 0) call accel_release_buffer(tmp_buf)
 
 #endif
 
@@ -206,7 +211,7 @@ subroutine X(fft_forward)(fft, in, out, norm)
     logical :: scale
 #ifdef HAVE_CLFFT
     CMPLX, allocatable :: cout(:, :, :)
-    type(opencl_mem_t) :: rsbuffer, fsbuffer
+    type(accel_mem_t) :: rsbuffer, fsbuffer
 #endif
 
     PUSH_SUB(X(fft_backward))
@@ -245,33 +250,33 @@ subroutine X(fft_forward)(fft, in, out, norm)
 #ifdef HAVE_PFFT
       call pfft_execute(fft_array(slot)%planb)
 #endif
-    case(FFTLIB_OPENCL)
+    case(FFTLIB_ACCEL)
 #ifdef HAVE_CLFFT
 
-      call opencl_create_buffer(rsbuffer, CL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%rs_n(1:3)))
-      call opencl_create_buffer(fsbuffer, CL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%fs_n(1:3)))
+      call accel_create_buffer(rsbuffer, ACCEL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%rs_n(1:3)))
+      call accel_create_buffer(fsbuffer, ACCEL_MEM_READ_WRITE, TYPE_CMPLX, product(fft_array(slot)%fs_n(1:3)))
 
-      call opencl_write_buffer(fsbuffer, product(fft_array(slot)%fs_n(1:3)), in)
+      call accel_write_buffer(fsbuffer, product(fft_array(slot)%fs_n(1:3)), in)
 
-      call opencl_finish()
+      call accel_finish()
 
-      call clfftEnqueueTransform(fft_array(slot)%cl_plan_bw, CLFFT_FORWARD, opencl%command_queue, &
+      call clfftEnqueueTransform(fft_array(slot)%cl_plan_bw, CLFFT_FORWARD, accel%command_queue, &
         fsbuffer%mem, rsbuffer%mem, cl_status)
       if(cl_status /= CLFFT_SUCCESS) call clfft_print_error(cl_status, 'clfftEnqueueTransform')
 
-      call opencl_finish()
+      call accel_finish()
 
       SAFE_ALLOCATE(cout(1:fft_array(slot)%rs_n(1), 1:fft_array(slot)%rs_n(2), 1:fft_array(slot)%rs_n(3)))
 
-      call opencl_read_buffer(rsbuffer, product(fft_array(slot)%rs_n(1:3)), cout)
+      call accel_read_buffer(rsbuffer, product(fft_array(slot)%rs_n(1:3)), cout)
 
-      call opencl_finish()
+      call accel_finish()
 
       out(1:fft_array(slot)%rs_n(1), 1:fft_array(slot)%rs_n(2), 1:fft_array(slot)%rs_n(3)) = &
         cout(1:fft_array(slot)%rs_n(1), 1:fft_array(slot)%rs_n(2), 1:fft_array(slot)%rs_n(3))
 
-      call opencl_release_buffer(rsbuffer)
-      call opencl_release_buffer(fsbuffer)
+      call accel_release_buffer(rsbuffer)
+      call accel_release_buffer(fsbuffer)
       
       scale = .false. ! scaling is done by the library
 #endif
@@ -304,16 +309,16 @@ subroutine X(fft_forward)(fft, in, out, norm)
   ! ---------------------------------------------------------
 
   subroutine X(fft_backward_cl)(fft, in, out)
-    type(fft_t),        intent(in)    :: fft
-    type(opencl_mem_t), intent(in)    :: in
-    type(opencl_mem_t), intent(inout) :: out
+    type(fft_t),       intent(in)    :: fft
+    type(accel_mem_t), intent(in)    :: in
+    type(accel_mem_t), intent(inout) :: out
 
     integer :: slot
     type(profile_t), save :: prof_bw
 #ifdef HAVE_CLFFT
     integer                    :: bsize
     integer(8)                 :: tmp_buf_size
-    type(opencl_mem_t)         :: tmp_buf
+    type(accel_mem_t)         :: tmp_buf
 #endif
 
     PUSH_SUB(X(fft_backward_cl))
@@ -321,22 +326,26 @@ subroutine X(fft_forward)(fft, in, out, norm)
     call profiling_in(prof_bw,"FFT_BACKWARD_CL")
 
     slot = fft%slot
-    ASSERT(fft_array(slot)%library == FFTLIB_OPENCL)
+    ASSERT(fft_array(slot)%library == FFTLIB_ACCEL)
 
-#ifdef HAVE_CLFFT
+#ifdef HAVE_CUDA
+    call cuda_fft_execute_z2d(fft_array(slot)%cuda_plan_bw, in%cuda_ptr, out%cuda_ptr)
+    call accel_finish()
+#endif
     
+#ifdef HAVE_CLFFT
     call clfftGetTmpBufSize(fft_array(slot)%cl_plan_bw, tmp_buf_size, cl_status)
     if(cl_status /= CLFFT_SUCCESS) call clfft_print_error(cl_status, 'clfftGetTmpBufSize')
 
     if(tmp_buf_size > 0) then
-      call opencl_create_buffer(tmp_buf, CL_MEM_READ_WRITE, TYPE_BYTE, int(tmp_buf_size, 4))
+      call accel_create_buffer(tmp_buf, ACCEL_MEM_READ_WRITE, TYPE_BYTE, int(tmp_buf_size, 4))
     end if
 
     if(tmp_buf_size > 0) then
-      call clfftEnqueueTransform(fft_array(slot)%cl_plan_bw, CLFFT_FORWARD, opencl%command_queue, &
+      call clfftEnqueueTransform(fft_array(slot)%cl_plan_bw, CLFFT_FORWARD, accel%command_queue, &
         in%mem, out%mem, tmp_buf%mem, cl_status)
     else
-      call clfftEnqueueTransform(fft_array(slot)%cl_plan_bw, CLFFT_FORWARD, opencl%command_queue, &
+      call clfftEnqueueTransform(fft_array(slot)%cl_plan_bw, CLFFT_FORWARD, accel%command_queue, &
         in%mem, out%mem, cl_status)
     end if
     
@@ -344,9 +353,9 @@ subroutine X(fft_forward)(fft, in, out, norm)
     
     call fft_operation_count(fft)
 
-    call opencl_finish()
+    call accel_finish()
 
-    if(tmp_buf_size > 0) call opencl_release_buffer(tmp_buf)
+    if(tmp_buf_size > 0) call accel_release_buffer(tmp_buf)
 
 #endif
 

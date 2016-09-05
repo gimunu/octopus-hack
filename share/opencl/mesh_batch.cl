@@ -16,7 +16,7 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  02110-1301, USA.
 
- $Id: mesh_batch.cl 15021 2016-01-09 00:58:08Z xavier $
+ $Id: mesh_batch.cl 15489 2016-07-18 06:39:53Z xavier $
 */
 
 #include <cl_global.h>
@@ -75,8 +75,13 @@ __kernel void zdot_matrix_spinors(const int np,
   for(int ip = 0; ip < np; ip++){
     double4 a1 = xx[(ip<<ldxx) + ist];
     double4 a2 = yy[(ip<<ldyy) + jst];
-    tmp1 += complex_mul(complex_conj((double2)(a1.s0, a1.s1)), (double2)(a2.s0, a2.s1));
-    tmp2 += complex_mul(complex_conj((double2)(a1.s2, a1.s3)), (double2)(a2.s2, a2.s3));
+#ifdef CUDA
+    tmp1 += complex_mul(complex_conj(double2(a1.x, a1.y)), double2(a2.x, a2.y));
+    tmp2 += complex_mul(complex_conj(double2(a1.z, a1.w)), double2(a2.z, a2.w));
+#else
+    tmp1 += complex_mul(complex_conj((double2)(a1.x, a1.y)), (double2)(a2.x, a2.y));
+    tmp2 += complex_mul(complex_conj((double2)(a1.z, a1.w)), (double2)(a2.z, a2.w));
+#endif
   }
   dot[ist + lddot*jst] = tmp1 + tmp2;
 }

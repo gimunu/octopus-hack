@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: projector_matrix.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: projector_matrix.F90 15359 2016-05-11 21:20:14Z xavier $
 
 #include "global.h"
 
@@ -39,6 +39,7 @@ module projector_matrix_oct_m
     integer, pointer :: map(:)
     FLOAT,   pointer :: projectors(:, :)
     FLOAT,   pointer :: scal(:)
+    FLOAT,   allocatable :: position(:, :)
     integer          :: npoints
     integer          :: nprojs
   end type projector_matrix_t
@@ -69,6 +70,7 @@ contains
     SAFE_ALLOCATE(this%map(1:npoints))
     SAFE_ALLOCATE(this%projectors(1:npoints, 1:nprojs))
     SAFE_ALLOCATE(this%scal(1:nprojs))
+    SAFE_ALLOCATE(this%position(1:3, 1:npoints))
 
     POP_SUB(projector_matrix_allocate)
   end subroutine projector_matrix_allocate
@@ -83,6 +85,7 @@ contains
     SAFE_DEALLOCATE_P(this%map)
     SAFE_DEALLOCATE_P(this%projectors)
     SAFE_DEALLOCATE_P(this%scal)
+    SAFE_DEALLOCATE_A(this%position)
 
     POP_SUB(projector_matrix_deallocate)
   end subroutine projector_matrix_deallocate

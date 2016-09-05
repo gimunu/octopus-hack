@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: utils.F90 15217 2016-03-21 16:39:10Z acastro $
+!! $Id: utils.F90 15478 2016-07-17 15:49:41Z xavier $
 
 #include "global.h"
 
@@ -243,6 +243,9 @@ contains
 #endif
 #ifdef HAVE_OPENCL
     get_config_opts = trim(get_config_opts)//' opencl'
+#endif
+#ifdef HAVE_CUDA
+    get_config_opts = trim(get_config_opts)//' cuda'
 #endif
 #ifdef HAVE_M128D
     get_config_opts = trim(get_config_opts)//' sse2'

@@ -15,18 +15,15 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: batch_ops.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: batch_ops.F90 15536 2016-07-29 07:34:11Z xavier $
 
 #include "global.h"
 
 module batch_ops_oct_m
+  use accel_oct_m
   use batch_oct_m
   use blas_oct_m
   use iso_c_binding
-#ifdef HAVE_OPENCL
-  use cl
-#endif
-  use octcl_kernel_oct_m
   use global_oct_m
   use hardware_oct_m
   use lalg_adv_oct_m
@@ -34,7 +31,6 @@ module batch_ops_oct_m
   use parser_oct_m
   use math_oct_m
   use messages_oct_m
-  use opencl_oct_m
   use profiling_oct_m
   use types_oct_m
   use varinfo_oct_m
@@ -132,10 +128,8 @@ contains
 
     call batch_pack_was_modified(this)
 
-    if(batch_is_packed(this) .and. opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-      call opencl_set_buffer_to_zero(this%pack%buffer, batch_type(this), product(this%pack%size))
-#endif
+    if(batch_is_packed(this) .and. accel_is_enabled()) then
+      call accel_set_buffer_to_zero(this%pack%buffer, batch_type(this), product(this%pack%size))
     else if(batch_is_packed(this) .and. batch_type(this) == TYPE_FLOAT) then
       this%pack%dpsi = M_ZERO
     else if(batch_is_packed(this) .and. batch_type(this) == TYPE_CMPLX) then
@@ -160,14 +154,11 @@ subroutine batch_get_points_cl(this, sp, ep, psi, ldpsi)
   type(batch_t),       intent(in)    :: this
   integer,             intent(in)    :: sp  
   integer,             intent(in)    :: ep
-  type(opencl_mem_t),  intent(inout) :: psi
+  type(accel_mem_t),  intent(inout) :: psi
   integer,             intent(in)    :: ldpsi
 
   integer :: tsize, offset
-#ifdef HAVE_OPENCL
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)         :: kernel_ref
-#endif
+  type(accel_kernel_t), save :: kernel
 
   PUSH_SUB(batch_get_points_cl)
   call profiling_in(get_points_prof, "GET_POINTS")
@@ -181,23 +172,19 @@ subroutine batch_get_points_cl(this, sp, ep, psi, ldpsi)
     tsize = types_get_size(batch_type(this))/types_get_size(TYPE_FLOAT)
     offset = batch_linear_to_ist(this, 1) - 1
 
-#ifdef HAVE_OPENCL
-    call octcl_kernel_start_call(kernel, 'points.cl', 'get_points')
+    call accel_kernel_start_call(kernel, 'points.cl', 'get_points')
 
-    kernel_ref = octcl_kernel_get_ref(kernel)
+    call accel_set_kernel_arg(kernel, 0, sp)
+    call accel_set_kernel_arg(kernel, 1, ep)
+    call accel_set_kernel_arg(kernel, 2, offset*tsize)
+    call accel_set_kernel_arg(kernel, 3, this%nst_linear*tsize)
+    call accel_set_kernel_arg(kernel, 4, this%pack%buffer)
+    call accel_set_kernel_arg(kernel, 5, this%pack%size_real(1))
+    call accel_set_kernel_arg(kernel, 6, psi)
+    call accel_set_kernel_arg(kernel, 7, ldpsi*tsize)
 
-    call opencl_set_kernel_arg(kernel_ref, 0, sp)
-    call opencl_set_kernel_arg(kernel_ref, 1, ep)
-    call opencl_set_kernel_arg(kernel_ref, 2, offset*tsize)
-    call opencl_set_kernel_arg(kernel_ref, 3, this%nst_linear*tsize)
-    call opencl_set_kernel_arg(kernel_ref, 4, this%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 5, this%pack%size_real(1))
-    call opencl_set_kernel_arg(kernel_ref, 6, psi)
-    call opencl_set_kernel_arg(kernel_ref, 7, ldpsi*tsize)
+    call accel_kernel_run(kernel, (/this%pack%size_real(1), ep - sp + 1/), (/this%pack%size_real(1), 1/))
 
-    call opencl_kernel_run(kernel_ref, (/this%pack%size_real(1), ep -&
-      sp + 1/), (/this%pack%size_real(1), 1/))
-#endif
   end select
 
   call profiling_out(get_points_prof)
@@ -211,14 +198,11 @@ subroutine batch_set_points_cl(this, sp, ep, psi, ldpsi)
   type(batch_t),       intent(inout) :: this
   integer,             intent(in)    :: sp  
   integer,             intent(in)    :: ep
-  type(opencl_mem_t),  intent(in)    :: psi
+  type(accel_mem_t),  intent(in)    :: psi
   integer,             intent(in)    :: ldpsi
 
   integer :: tsize, offset
-#ifdef HAVE_OPENCL
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)         :: kernel_ref
-#endif
+  type(accel_kernel_t), save :: kernel
 
   PUSH_SUB(batch_set_points_cl)
   call profiling_in(set_points_prof, "SET_POINTS")
@@ -234,23 +218,20 @@ subroutine batch_set_points_cl(this, sp, ep, psi, ldpsi)
     tsize = types_get_size(batch_type(this))&
       /types_get_size(TYPE_FLOAT)
     offset = batch_linear_to_ist(this, 1) - 1
-#ifdef HAVE_OPENCL
-    call octcl_kernel_start_call(kernel, 'points.cl', 'set_points')
+
+    call accel_kernel_start_call(kernel, 'points.cl', 'set_points')
     
-    kernel_ref = octcl_kernel_get_ref(kernel)
+    call accel_set_kernel_arg(kernel, 0, sp)
+    call accel_set_kernel_arg(kernel, 1, ep)
+    call accel_set_kernel_arg(kernel, 2, offset*tsize)
+    call accel_set_kernel_arg(kernel, 3, this%nst_linear*tsize)
+    call accel_set_kernel_arg(kernel, 4, psi)
+    call accel_set_kernel_arg(kernel, 5, ldpsi*tsize)
+    call accel_set_kernel_arg(kernel, 6, this%pack%buffer)
+    call accel_set_kernel_arg(kernel, 7, this%pack%size_real(1))
 
-    call opencl_set_kernel_arg(kernel_ref, 0, sp)
-    call opencl_set_kernel_arg(kernel_ref, 1, ep)
-    call opencl_set_kernel_arg(kernel_ref, 2, offset*tsize)
-    call opencl_set_kernel_arg(kernel_ref, 3, this%nst_linear*tsize)
-    call opencl_set_kernel_arg(kernel_ref, 4, psi)
-    call opencl_set_kernel_arg(kernel_ref, 5, ldpsi*tsize)
-    call opencl_set_kernel_arg(kernel_ref, 6, this%pack%buffer)
-    call opencl_set_kernel_arg(kernel_ref, 7, this%pack%size_real(1))
+    call accel_kernel_run(kernel, (/this%pack%size_real(1), ep - sp + 1/), (/this%pack%size_real(1), 1/))
 
-    call opencl_kernel_run(kernel_ref, (/this%pack%size_real(1), ep -&
-      sp + 1/), (/this%pack%size_real(1), 1/))
-#endif
   end select
 
   call profiling_out(set_points_prof)
@@ -263,7 +244,7 @@ end subroutine batch_set_points_cl
 integer pure function batch_points_block_size(this) result(block_size)
   type(batch_t),       intent(in)    :: this
   
-  block_size = 100000
+  block_size = 61440
 
 end function batch_points_block_size
 

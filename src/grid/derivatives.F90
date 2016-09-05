@@ -15,16 +15,13 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: derivatives.F90 15293 2016-04-20 13:22:49Z umberto $
+!! $Id: derivatives.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module derivatives_oct_m
   use batch_oct_m
   use boundaries_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use global_oct_m
   use lalg_adv_oct_m
   use lalg_basic_oct_m
@@ -36,8 +33,6 @@ module derivatives_oct_m
   use mpi_oct_m
   use mpi_debug_oct_m
   use nl_operator_oct_m
-  use opencl_oct_m
-  use octcl_kernel_oct_m
   use par_vec_oct_m
   use parser_oct_m
   use profiling_oct_m

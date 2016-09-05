@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 15323 2016-05-02 02:54:12Z xavier $
+## $Id: Makefile.am 15563 2016-08-03 08:07:02Z xavier $
 
 noinst_LIBRARIES = libmath.a
 
@@ -63,7 +63,9 @@ libmath_a_SOURCES =                      \
         pnfft.F90                        \
 	qshep.F90                        \
 	spline_low.cc                    \
-	quickrnd.F90
+	quickrnd.F90                     \
+	accel_blas.F90                   \
+	cufft.cc
 
 noinst_HEADERS =                         \
 	fft_inc.F90                      \
@@ -78,7 +80,8 @@ noinst_HEADERS =                         \
 	matrix_inc.F90                   \
 	matrix_ops_inc.F90               \
 	nfft_inc.F90                     \
-	pnfft_inc.F90
+	pnfft_inc.F90                    \
+	accel_blas_inc.F90
 
 include $(srcdir)/../common-rules.make
 
@@ -124,3 +127,4 @@ minimizer.o : minimizer.F90 lalg_basic.o
 qshep.o : qshep.F90
 spline_low.o : spline_low.cc
 quickrnd.o : quickrnd.F90 
+accel_blas.o : accel_blas.F90 accel_blas_inc.F90

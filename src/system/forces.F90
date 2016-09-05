@@ -15,18 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: forces.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: forces.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module forces_oct_m
+  use accel_oct_m
   use batch_oct_m
   use batch_ops_oct_m
   use born_charges_oct_m
   use boundaries_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use comm_oct_m
   use density_oct_m
   use derivatives_oct_m
@@ -50,8 +48,6 @@ module forces_oct_m
   use mpi_oct_m
   use profiling_oct_m
   use projector_oct_m
-  use octcl_kernel_oct_m
-  use opencl_oct_m
   use simul_box_oct_m
   use species_oct_m
   use species_pot_oct_m

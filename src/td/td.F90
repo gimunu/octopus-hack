@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: td.F90 15214 2016-03-21 12:47:45Z umberto $
+!! $Id: td.F90 15582 2016-08-14 10:27:12Z philipp $
 
 #include "global.h"
 
@@ -463,9 +463,9 @@ contains
 
       !Photoelectron stuff 
       if(td%pesv%calc_spm .or. td%pesv%calc_mask .or. td%pesv%calc_flux) &
-        call pes_calc(td%pesv, gr%mesh, st, td%dt, iter, td%max_iter, gr, hm)
+        call pes_calc(td%pesv, gr%mesh, st, td%dt, iter, gr, hm)
 
-      call td_write_iter(write_handler, gr, st, hm, geo, hm%ep%kick, td%dt, iter)
+      call td_write_iter(write_handler, gr, st, hm, geo, hm%ep%kick, td%dt, sys%ks, iter)
 
       ! write down data
       call check_point()
@@ -718,7 +718,7 @@ contains
     subroutine td_run_zero_iter()
       PUSH_SUB(td_run.td_run_zero_iter)
 
-      call td_write_iter(write_handler, gr, st, hm, geo, hm%ep%kick, td%dt, 0)
+      call td_write_iter(write_handler, gr, st, hm, geo, hm%ep%kick, td%dt, sys%ks, 0)
 
       ! I apply the delta electric field *after* td_write_iter, otherwise the
       ! dipole matrix elements in write_proj are wrong

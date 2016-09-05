@@ -71,12 +71,7 @@ dist_share_DATA =                                  \
         03-xc.gga_x_b86_mgc.inp                    \
         03-xc.gga_x_b88.inp                        \
         03-xc.gga_x_bayesian.inp                   \
-        03-xc.gga_xc_b97_1.inp                     \
-        03-xc.gga_xc_b97_2.inp                     \
-        03-xc.gga_xc_b97_3.inp                     \
         03-xc.gga_xc_b97_d.inp                     \
-        03-xc.gga_xc_b97.inp                       \
-        03-xc.gga_xc_b97_k.inp                     \
         03-xc.gga_xc_edf1.inp                      \
         03-xc.gga_xc_hcth_120.inp                  \
         03-xc.gga_xc_hcth_147.inp                  \
@@ -86,12 +81,6 @@ dist_share_DATA =                                  \
         03-xc.gga_xc_mpwlyp1w.inp                  \
         03-xc.gga_xc_pbe1w.inp                     \
         03-xc.gga_xc_pbelyp1w.inp                  \
-        03-xc.gga_xc_sb98_1a.inp                   \
-        03-xc.gga_xc_sb98_1b.inp                   \
-        03-xc.gga_xc_sb98_1c.inp                   \
-        03-xc.gga_xc_sb98_2a.inp                   \
-        03-xc.gga_xc_sb98_2b.inp                   \
-        03-xc.gga_xc_sb98_2c.inp                   \
         03-xc.gga_xc_xlyp.inp                      \
         03-xc.gga_x_dk87_r1.inp                    \
         03-xc.gga_x_dk87_r2.inp                    \
@@ -130,8 +119,9 @@ dist_share_DATA =                                  \
 	05-ks_inversion.01-target_density.inp      \
 	05-ks_inversion.02-two_particle.inp        \
         05-ks_inversion.03-inversion.inp           \
-        06-rdmft.01-oep.inp                        \
+        06-rdmft.01-lda.inp                        \
         06-rdmft.02-gs.inp                         \
+        06-rdmft.03-gs_grid.inp                    \
         06-rdmft.test                              \
 	07-sic.01-gs.inp                           \
 	07-sic.test                                \

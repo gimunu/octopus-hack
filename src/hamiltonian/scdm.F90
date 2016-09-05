@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: scdm.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: scdm.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
@@ -24,9 +24,6 @@ module scdm_oct_m
   use batch_ops_oct_m
   use blacs_proc_grid_oct_m
   use blas_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use cmplxscl_oct_m
   use comm_oct_m
   use cube_oct_m
@@ -51,8 +48,6 @@ module scdm_oct_m
   use mpi_oct_m
   use mpi_lib_oct_m
   use multicomm_oct_m
-  use opencl_oct_m
-  use opencl_oct_m
   use par_vec_oct_m
   use parser_oct_m
   use poisson_oct_m

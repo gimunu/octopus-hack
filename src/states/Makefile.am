@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 15284 2016-04-17 04:38:51Z xavier $
+## $Id: Makefile.am 15357 2016-05-11 16:53:13Z huebener $
 
 noinst_LIBRARIES = libstates.a
 
@@ -68,7 +68,7 @@ physics_op.o : physics_op.F90 physics_op_inc.F90
 states_parallel.o : states_parallel.F90 states_parallel_inc.F90 states.o
 states.o : states.F90 states_group.o states_inc.F90 states_dim.o restart.o modelmb_particles.o smear.o cmplxscl.o
 states_dim.o : states_dim.F90
-states_group.o : states_group.F90
+states_group.o : states_group.F90 states_dim.o
 states_calc.o : states_calc.F90 states_calc_inc.F90 states.o states_block.o smear.o cmplxscl.o physics_op.o states_dim.o states_parallel.o
 states_block.o : states_block.F90 states_block_inc.F90 states.o
 states_restart.o : states_restart.F90 linear_response.o restart.o smear.o states.o states_calc.o states_dim.o states_io.o

@@ -16,7 +16,7 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  02110-1301, USA.
 
- $Id: vpsi.cl 14305 2015-06-22 15:56:28Z dstrubbe $
+ $Id: vpsi.cl 15488 2016-07-18 06:19:33Z xavier $
 */
 
 #include <cl_global.h>
@@ -52,9 +52,14 @@ __kernel void vpsi_spinors(const int np,
     
     const double2 psi1 = psi[ip*ldpsi + ist];
     const double2 psi2 = psi[ip*ldpsi + ist + 1];
-    
+
+#ifdef CUDA
+    vpsi[ip*ldvpsi + ist] += vi1*psi1 + double2(vi3*psi2.x - vi4*psi2.y, vi3*psi2.y + vi4*psi2.x);
+    vpsi[ip*ldvpsi + ist + 1] += vi2*psi2 + double2(vi3*psi1.x + vi4*psi1.y, vi3*psi1.y - vi4*psi1.x);
+#else
     vpsi[ip*ldvpsi + ist] += vi1*psi1 + (double2)(vi3*psi2.x - vi4*psi2.y, vi3*psi2.y + vi4*psi2.x);
     vpsi[ip*ldvpsi + ist + 1] += vi2*psi2 + (double2)(vi3*psi1.x + vi4*psi1.y, vi3*psi1.y - vi4*psi1.x);
+#endif
 
   }
 }
@@ -65,3 +70,4 @@ __kernel void vpsi_spinors(const int np,
  coding: utf-8
  End:
 */
+

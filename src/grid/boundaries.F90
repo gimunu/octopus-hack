@@ -15,23 +15,19 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: boundaries.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: boundaries.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module boundaries_oct_m
+  use accel_oct_m
   use batch_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use global_oct_m
   use math_oct_m
   use messages_oct_m
   use mesh_oct_m
   use mpi_oct_m
   use mpi_debug_oct_m
-  use octcl_kernel_oct_m
-  use opencl_oct_m
   use par_vec_oct_m
   use profiling_oct_m
   use simul_box_oct_m
@@ -50,11 +46,11 @@ module boundaries_oct_m
     integer, pointer :: per_recv(:, :)
     integer, pointer :: nsend(:)
     integer, pointer :: nrecv(:)
-    type(opencl_mem_t) :: buff_per_points
-    type(opencl_mem_t) :: buff_per_send
-    type(opencl_mem_t) :: buff_per_recv
-    type(opencl_mem_t) :: buff_nsend
-    type(opencl_mem_t) :: buff_nrecv
+    type(accel_mem_t) :: buff_per_points
+    type(accel_mem_t) :: buff_per_send
+    type(accel_mem_t) :: buff_per_recv
+    type(accel_mem_t) :: buff_nsend
+    type(accel_mem_t) :: buff_nrecv
   end type boundaries_t
 
   public ::                        &
@@ -127,11 +123,11 @@ contains
     this%nper = 0
     nullify(this%per_points, this%per_send, this%per_recv)
     nullify(this%nsend, this%nrecv)
-    call opencl_mem_nullify(this%buff_per_points)
-    call opencl_mem_nullify(this%buff_per_send)
-    call opencl_mem_nullify(this%buff_per_recv)
-    call opencl_mem_nullify(this%buff_nsend)
-    call opencl_mem_nullify(this%buff_nrecv)
+    call accel_mem_nullify(this%buff_per_points)
+    call accel_mem_nullify(this%buff_per_send)
+    call accel_mem_nullify(this%buff_per_recv)
+    call accel_mem_nullify(this%buff_nsend)
+    call accel_mem_nullify(this%buff_nrecv)
 
   end subroutine boundaries_nullify
 
@@ -313,28 +309,24 @@ contains
       end if
 #endif
 
-#ifdef HAVE_OPENCL
-      if(opencl_is_enabled()) then
-        call opencl_create_buffer(this%buff_per_points, CL_MEM_READ_ONLY, TYPE_INTEGER, 2*this%nper)
-        call opencl_write_buffer(this%buff_per_points, 2*this%nper, this%per_points)
+      if(accel_is_enabled()) then
+        call accel_create_buffer(this%buff_per_points, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, 2*this%nper)
+        call accel_write_buffer(this%buff_per_points, 2*this%nper, this%per_points)
 
-#ifdef HAVE_MPI
         if(mesh%parallel_in_domains) then
-          call opencl_create_buffer(this%buff_per_send, CL_MEM_READ_ONLY, TYPE_INTEGER, product(ubound(this%per_send)))
-          call opencl_write_buffer(this%buff_per_send, product(ubound(this%per_send)), this%per_send)
+          call accel_create_buffer(this%buff_per_send, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, product(ubound(this%per_send)))
+          call accel_write_buffer(this%buff_per_send, product(ubound(this%per_send)), this%per_send)
 
-          call opencl_create_buffer(this%buff_per_recv, CL_MEM_READ_ONLY, TYPE_INTEGER, product(ubound(this%per_recv)))
-          call opencl_write_buffer(this%buff_per_recv, product(ubound(this%per_recv)), this%per_recv)
+          call accel_create_buffer(this%buff_per_recv, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, product(ubound(this%per_recv)))
+          call accel_write_buffer(this%buff_per_recv, product(ubound(this%per_recv)), this%per_recv)
 
-          call opencl_create_buffer(this%buff_nsend, CL_MEM_READ_ONLY, TYPE_INTEGER, mesh%vp%npart)
-          call opencl_write_buffer(this%buff_nsend, mesh%vp%npart, this%nsend)
+          call accel_create_buffer(this%buff_nsend, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, mesh%vp%npart)
+          call accel_write_buffer(this%buff_nsend, mesh%vp%npart, this%nsend)
 
-          call opencl_create_buffer(this%buff_nrecv, CL_MEM_READ_ONLY, TYPE_INTEGER, mesh%vp%npart)
-          call opencl_write_buffer(this%buff_nrecv, mesh%vp%npart, this%nrecv)
+          call accel_create_buffer(this%buff_nrecv, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, mesh%vp%npart)
+          call accel_write_buffer(this%buff_nrecv, mesh%vp%npart, this%nrecv)
         end if
-#endif
       end if
-#endif
 
     end if
 
@@ -349,7 +341,6 @@ contains
     PUSH_SUB(boundaries_end)
 
     if(simul_box_is_periodic(this%mesh%sb)) then
-#ifdef HAVE_MPI
       if(this%mesh%parallel_in_domains) then    
         
         ASSERT(associated(this%nsend))
@@ -360,20 +351,15 @@ contains
         SAFE_DEALLOCATE_P(this%nsend)
         SAFE_DEALLOCATE_P(this%nrecv)
 
-#ifdef HAVE_OPENCL
-        if(opencl_is_enabled()) then
-          call opencl_release_buffer(this%buff_per_send)
-          call opencl_release_buffer(this%buff_per_recv)
-          call opencl_release_buffer(this%buff_nsend)
-          call opencl_release_buffer(this%buff_nrecv)
+        if(accel_is_enabled()) then
+          call accel_release_buffer(this%buff_per_send)
+          call accel_release_buffer(this%buff_per_recv)
+          call accel_release_buffer(this%buff_nsend)
+          call accel_release_buffer(this%buff_nrecv)
         end if
-#endif
       end if
-#endif
-      
-#ifdef HAVE_OPENCL
-      if(opencl_is_enabled()) call opencl_release_buffer(this%buff_per_points)
-#endif
+
+      if(accel_is_enabled()) call accel_release_buffer(this%buff_per_points)
 
       SAFE_DEALLOCATE_P(this%per_points)
     end if

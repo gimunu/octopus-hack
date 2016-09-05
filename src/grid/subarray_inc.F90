@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: subarray_inc.F90 14563 2015-09-13 19:09:21Z xavier $
+!! $Id: subarray_inc.F90 15473 2016-07-12 02:58:36Z xavier $
 
 ! ---------------------------------------------------
 
@@ -49,11 +49,9 @@ subroutine X(subarray_gather_batch)(this, arrayb, subarrayb)
   type(profile_t), save :: prof
   integer :: iblock, ii, ist, bsize
   R_TYPE  :: aa
-#ifdef HAVE_OPENCL
-  type(opencl_mem_t) :: blength_buff
-  type(opencl_mem_t) :: offsets_buff
-  type(opencl_mem_t) :: dest_buff
-#endif
+  type(accel_mem_t) :: blength_buff
+  type(accel_mem_t) :: offsets_buff
+  type(accel_mem_t) :: dest_buff
 
   call profiling_in(prof, "SUBARRAY_GATHER_BATCH")
 
@@ -61,34 +59,33 @@ subroutine X(subarray_gather_batch)(this, arrayb, subarrayb)
   ASSERT(batch_status(arrayb) == batch_status(subarrayb))
     
   select case(batch_status(arrayb))
-#ifdef HAVE_OPENCL
   case(BATCH_CL_PACKED)
 
-    call opencl_create_buffer(blength_buff, CL_MEM_READ_ONLY, TYPE_INTEGER, this%nblocks)
-    call opencl_create_buffer(offsets_buff, CL_MEM_READ_ONLY, TYPE_INTEGER, this%nblocks)
-    call opencl_create_buffer(dest_buff, CL_MEM_READ_ONLY, TYPE_INTEGER, this%nblocks)
+    call accel_create_buffer(blength_buff, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, this%nblocks)
+    call accel_create_buffer(offsets_buff, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, this%nblocks)
+    call accel_create_buffer(dest_buff, ACCEL_MEM_READ_ONLY, TYPE_INTEGER, this%nblocks)
 
-    call opencl_write_buffer(blength_buff, this%nblocks, this%blength)
-    call opencl_write_buffer(offsets_buff, this%nblocks, this%offsets)
-    call opencl_write_buffer(dest_buff, this%nblocks, this%dest)
+    call accel_write_buffer(blength_buff, this%nblocks, this%blength)
+    call accel_write_buffer(offsets_buff, this%nblocks, this%offsets)
+    call accel_write_buffer(dest_buff, this%nblocks, this%dest)
     
-    call opencl_set_kernel_arg(kernel_subarray_gather, 0, blength_buff)
-    call opencl_set_kernel_arg(kernel_subarray_gather, 1, offsets_buff)
-    call opencl_set_kernel_arg(kernel_subarray_gather, 2, dest_buff)
-    call opencl_set_kernel_arg(kernel_subarray_gather, 3, arrayb%pack%buffer)
-    call opencl_set_kernel_arg(kernel_subarray_gather, 4, log2(arrayb%pack%size_real(1)))
-    call opencl_set_kernel_arg(kernel_subarray_gather, 5, subarrayb%pack%buffer)
-    call opencl_set_kernel_arg(kernel_subarray_gather, 6, log2(subarrayb%pack%size_real(1)))
+    call accel_set_kernel_arg(kernel_subarray_gather, 0, blength_buff)
+    call accel_set_kernel_arg(kernel_subarray_gather, 1, offsets_buff)
+    call accel_set_kernel_arg(kernel_subarray_gather, 2, dest_buff)
+    call accel_set_kernel_arg(kernel_subarray_gather, 3, arrayb%pack%buffer)
+    call accel_set_kernel_arg(kernel_subarray_gather, 4, log2(arrayb%pack%size_real(1)))
+    call accel_set_kernel_arg(kernel_subarray_gather, 5, subarrayb%pack%buffer)
+    call accel_set_kernel_arg(kernel_subarray_gather, 6, log2(subarrayb%pack%size_real(1)))
 
-    bsize = opencl_kernel_workgroup_size(kernel_subarray_gather)/subarrayb%pack%size_real(1)
+    bsize = accel_kernel_workgroup_size(kernel_subarray_gather)/subarrayb%pack%size_real(1)
 
-    call opencl_kernel_run(kernel_subarray_gather, &
+    call accel_kernel_run(kernel_subarray_gather, &
       (/subarrayb%pack%size_real(1), bsize, this%nblocks/), (/subarrayb%pack%size_real(1), bsize, 1/))
     
-    call opencl_release_buffer(blength_buff)
-    call opencl_release_buffer(offsets_buff)
-    call opencl_release_buffer(dest_buff)
-#endif
+    call accel_release_buffer(blength_buff)
+    call accel_release_buffer(offsets_buff)
+    call accel_release_buffer(dest_buff)
+    
   case(BATCH_PACKED)
     do iblock = 1, this%nblocks
       forall(ii = 1:this%blength(iblock))

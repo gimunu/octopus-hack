@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: td_write.F90 15303 2016-04-27 19:57:07Z huebener $
+!! $Id: td_write.F90 15594 2016-08-31 10:01:03Z nicolastd $
 
 #include "global.h"
 
@@ -33,6 +33,7 @@ module td_write_oct_m
   use ion_dynamics_oct_m
   use kick_oct_m
   use lasers_oct_m
+  use lalg_adv_oct_m
   use loct_oct_m
   use loct_math_oct_m
   use magnetic_oct_m
@@ -96,8 +97,10 @@ module td_write_oct_m
     OUT_ION_CH      = 16, &
     OUT_TOTAL_CURRENT = 17, &
     OUT_PARTIAL_CHARGES = 18, &
-    OUT_KP_PROJ = 19, &
-    OUT_MAX         = 19
+    OUT_KP_PROJ     = 19, &
+    OUT_FLOQUET     = 20, &
+    OUT_N_EX        = 21, &
+    OUT_MAX         = 21
   
   type td_write_t
     private
@@ -111,6 +114,7 @@ module td_write_oct_m
     integer        :: n_excited_states  !< number of excited states onto which the projections are calculated.
     type(excited_states_t), pointer :: excited_st(:) !< The excited states.
     type(partial_charges_t) :: partial_charges
+    integer :: compute_interval     !< Compute every compute_interval
   end type td_write_t
 
 contains
@@ -150,7 +154,7 @@ contains
     FLOAT,                    intent(in)    :: dt
 
     FLOAT :: rmin
-    integer :: ierr, first, ii, ist, jj, flags, iout, default
+    integer :: ierr, first, ii, ist, jj, kk, flags, iout, default
     type(block_t) :: blk
     character(len=100) :: filename
     type(restart_t) :: restart_gs
@@ -237,11 +241,19 @@ contains
     !% Output the total current.
     !%Option partial_charges 131072
     !% Bader and Hirshfeld partial charges. The output file is called 'td.general/partial_charges'.
-    !%Option td_kpoint_occup 262144                                                                              
+    !%Option td_kpoint_occup 262144                                                                     
     !% Project propagated Kohn-Sham states to the states at t=0 given in the directory 
     !% restart_proj (see %RestartOptions). This is an alternative to the option
     !% td_occup, with a formating more suitable for k-points and works only in 
     !% k- and/or state parallelization
+    !%Option td_floquet 524288
+    !% Compute non-interacting Floquet bandstructure according to further options: 
+    !% TDFloquetFrequency, TDFloquetSample, TDFloquetDimension.
+    !% This is done only once per td-run at t=0.
+    !% works only in k- and/or state parallelization
+    !%Option n_excited_el 1048576
+    !% Output the number of excited electrons, based on the projections 
+    !% of the time evolved wave-functions on the ground-state wave-functions. 
     !%End
 
     default = 2**(OUT_MULTIPOLES - 1) +  2**(OUT_ENERGY - 1)
@@ -266,11 +278,13 @@ contains
     if(writ%out(OUT_TOTAL_CURRENT)%write) call messages_experimental('TDOutput = total_current')
     if(writ%out(OUT_PARTIAL_CHARGES)%write) call messages_experimental('TDOutput = partial_charges')
     if(writ%out(OUT_KP_PROJ)%write) call messages_experimental('TDOutput = td_kpoint_occup')
+    if(writ%out(OUT_FLOQUET)%write) call messages_experimental('TDOutput = td_floquet')
+    if(writ%out(OUT_N_EX)%write) call messages_experimental('TDOutput = n_excited_el')
 
-    if(writ%out(OUT_KP_PROJ)%write) then
+    if(writ%out(OUT_KP_PROJ)%write.or.writ%out(OUT_FLOQUET)%write) then
       ! make sure this is not domain distributed
       if(gr%mesh%np /= gr%mesh%np_global) then
-        message(1) = "TDOutput option td_kpoint_occup does not work with domain parallelization"
+        message(1) = "TDOutput option td_kpoint_occup and td_floquet do not work with domain parallelization"
         call messages_fatal(1)
       end if
     end if
@@ -303,69 +317,87 @@ contains
     ! This variable is documented in scf/scf.F90
     call parse_variable('LocalMagneticMomentsSphereRadius', rmin*M_HALF, writ%lmm_r, units_inp%length)
 
-    if(writ%out(OUT_PROJ)%write .or. writ%out(OUT_POPULATIONS)%write.or.writ%out(OUT_KP_PROJ)%write) then
-      if (.not.writ%out(OUT_KP_PROJ)%write.and.st%parallel_in_states) then
+    if(writ%out(OUT_PROJ)%write .or. writ%out(OUT_POPULATIONS)%write &
+      .or.writ%out(OUT_KP_PROJ)%write .or. writ%out(OUT_N_EX)%write) then
+      if (.not.writ%out(OUT_KP_PROJ)%write.and. &
+          .not.writ%out(OUT_N_EX)%write.and. &
+          (st%parallel_in_states.or.st%d%kpt%parallel)) then
         message(1) = "Options TDOutput = td_occup and populations are not implemented for parallel in states."
         call messages_fatal(1)
       end if
 
-      call states_copy(writ%gs_st, st, exclude_wfns = .true., exclude_eigenval = .true.)
+      if (writ%out(OUT_N_EX)%write.and. st%d%kpt%parallel) then
+        message(1) = "Options TDOutput = n_excited_el is not implemented for parallel in states."
+        call messages_fatal(1)
+      end if
+      
+      if(.not.writ%out(OUT_KP_PROJ)%write.and..not.writ%out(OUT_N_EX)%write) then
+         call states_copy(writ%gs_st, st, exclude_wfns = .true., exclude_eigenval = .true.)
+      else
+         ! we want the same layout of gs_st as st
+         call states_copy(writ%gs_st, st)
+      end if
 
       ! clean up all the stuff we have to reallocate
       SAFE_DEALLOCATE_P(writ%gs_st%node)
 
-      call restart_init(restart_gs, RESTART_PROJ, RESTART_TYPE_LOAD, gr%mesh%mpi_grp, ierr, mesh=gr%mesh)
-      if(ierr == 0) &
-        call states_look(restart_gs, ii, jj, writ%gs_st%nst, ierr)
-      if(ierr /= 0) then
-        message(1) = "Unable to read states information."
-        call messages_fatal(1)
+      call restart_init(restart_gs, RESTART_PROJ, RESTART_TYPE_LOAD, writ%gs_st%dom_st_kpt_mpi_grp, ierr, mesh=gr%mesh)
+
+      if(.not.writ%out(OUT_KP_PROJ)%write.and..not.writ%out(OUT_N_EX)%write) then
+        if(ierr == 0) &
+          call states_look(restart_gs, ii, jj, kk, ierr)
+          writ%gs_st%nst = min(writ%gs_st%nst, kk)
+        if(ierr /= 0) then
+          message(1) = "Unable to read states information."
+          call messages_fatal(1)
+        end if
+ 
+        ! do this only when not calculating populations, since all states are needed then
+        if(.not. writ%out(OUT_POPULATIONS)%write) then
+          ! We will store the ground-state Kohn-Sham system for all processors.
+          !%Variable TDProjStateStart
+          !%Type integer
+          !%Default 1
+          !%Section Time-Dependent::TD Output
+          !%Description
+          !% To be used with <tt>TDOutput = td_occup</tt>. Not available if <tt>TDOutput = populations</tt>.
+          !% Only output projections to states above <tt>TDProjStateStart</tt>. Usually one is only interested
+          !% in particle-hole projections around the HOMO, so there is no need to calculate (and store)
+          !% the projections of all TD states onto all static states. This sets a lower limit. The upper limit
+          !% is set by the number of states in the propagation and the number of unoccupied states
+          !% available.
+          !%End
+          call parse_variable('TDProjStateStart', 1, writ%gs_st%st_start)
+        else
+           writ%gs_st%st_start = 1
+        end if
+       
+        ! allocate memory
+        SAFE_ALLOCATE(writ%gs_st%occ(1:writ%gs_st%nst, 1:writ%gs_st%d%nik))
+        SAFE_ALLOCATE(writ%gs_st%zeigenval%Re(1:writ%gs_st%nst, 1:writ%gs_st%d%nik))
+        writ%gs_st%eigenval => writ%gs_st%zeigenval%Re
+        
+        SAFE_ALLOCATE(writ%gs_st%node(1:writ%gs_st%nst))
+        writ%gs_st%node(:)  = 0
+        
+        writ%gs_st%eigenval = huge(writ%gs_st%eigenval)
+        writ%gs_st%occ      = M_ZERO
+        if(writ%gs_st%d%ispin == SPINORS) then
+          SAFE_ALLOCATE(writ%gs_st%spin(1:3, 1:writ%gs_st%nst, 1:writ%gs_st%d%nik))
+        end if
+        
+        call states_allocate_wfns(writ%gs_st, gr%mesh, TYPE_CMPLX)
       end if
-
-      ! do this only when not calculating populations, since all states are needed then
-      if(.not. writ%out(OUT_POPULATIONS)%write) then
-        ! We will store the ground-state Kohn-Sham system for all processors.
-        !%Variable TDProjStateStart
-        !%Type integer
-        !%Default 1
-        !%Section Time-Dependent::TD Output
-        !%Description
-        !% To be used with <tt>TDOutput = td_occup</tt>. Not available if <tt>TDOutput = populations</tt>.
-        !% Only output projections to states above <tt>TDProjStateStart</tt>. Usually one is only interested
-        !% in particle-hole projections around the HOMO, so there is no need to calculate (and store)
-        !% the projections of all TD states onto all static states. This sets a lower limit. The upper limit
-        !% is set by the number of states in the propagation and the number of unoccupied states
-        !% available.
-        !%End
-        call parse_variable('TDProjStateStart', 1, writ%gs_st%st_start)
-      else
-        writ%gs_st%st_start = 1
-      end if
-
-      ! allocate memory
-      SAFE_ALLOCATE(writ%gs_st%occ(1:writ%gs_st%nst, 1:writ%gs_st%d%nik))
-      SAFE_ALLOCATE(writ%gs_st%zeigenval%Re(1:writ%gs_st%nst, 1:writ%gs_st%d%nik))
-      writ%gs_st%eigenval => writ%gs_st%zeigenval%Re
-
-      SAFE_ALLOCATE(writ%gs_st%node(1:writ%gs_st%nst))
-      writ%gs_st%node(:)  = 0
-
-      writ%gs_st%eigenval = huge(writ%gs_st%eigenval)
-      writ%gs_st%occ      = M_ZERO
-      if(writ%gs_st%d%ispin == SPINORS) then
-        SAFE_ALLOCATE(writ%gs_st%spin(1:3, 1:writ%gs_st%nst, 1:writ%gs_st%d%nik))
-      end if
-      
-      call states_allocate_wfns(writ%gs_st, gr%mesh, TYPE_CMPLX)
+ 
       call states_load(restart_gs, writ%gs_st, gr, ierr, label = ': gs for TDOutput')
+
       if(ierr /= 0 .and. ierr /= (writ%gs_st%st_end-writ%gs_st%st_start+1)*writ%gs_st%d%nik*writ%gs_st%d%dim) then
         message(1) = "Unable to read wavefunctions for TDOutput."
         call messages_fatal(1)
       end if
-
       call restart_end(restart_gs)
     end if
-
+ 
     ! Build the excited states...
     if(writ%out(OUT_POPULATIONS)%write) then
       !%Variable TDExcitedStatesToProject
@@ -417,6 +449,23 @@ contains
         nullify(writ%excited_st)
       end if
     end if
+
+    !%Variable TDOutputComputeInterval
+    !%Type integer
+    !%Default 50
+    !%Section Time-Dependent::TD Output
+    !%Description
+    !% The TD output requested are computed
+    !% when the iteration number is a multiple of the <tt>TDOutputComputeInterval</tt> variable.
+    !% Must be >= 0. If it is 0, then no output is written. 
+    !% Implemented only for projections and number of excited electrons for the moment.
+    !%End
+    call parse_variable('TDOutputComputeInterval', 50, writ%compute_interval)
+    if(writ%compute_interval < 0) then
+      message(1) = "TDOutputComputeInterval must be >= 0."
+      call messages_fatal(1)
+    end if
+
 
     if (iter == 0) then
       first = 0
@@ -502,6 +551,10 @@ contains
         call write_iter_init(writ%out(OUT_KP_PROJ)%handle, first, &
           units_from_atomic(units_out%time, dt), trim(io_workpath("td.general/projections")))
 
+      if(writ%out(OUT_FLOQUET)%write) &
+        call write_iter_init(writ%out(OUT_FLOQUET)%handle, first, &
+          units_from_atomic(units_out%time, dt), trim(io_workpath("td.general/floquet_bands")))
+
       if(writ%out(OUT_GAUGE_FIELD)%write) &
         call write_iter_init(writ%out(OUT_GAUGE_FIELD)%handle, &
         first, units_from_atomic(units_out%time, dt), trim(io_workpath("td.general/gauge_field")))
@@ -523,6 +576,10 @@ contains
         call write_iter_init(writ%out(OUT_PARTIAL_CHARGES)%handle, first, &
           units_from_atomic(units_out%time, dt), trim(io_workpath("td.general/partial_charges")))
       end if
+
+     if(writ%out(OUT_N_EX)%write) &
+        call write_iter_init(writ%out(OUT_N_EX)%handle, first, &
+          units_from_atomic(units_out%time, dt), trim(io_workpath("td.general/n_ex")))
       
     end if
     
@@ -561,7 +618,8 @@ contains
       writ%n_excited_states = 0
     end if
 
-    if(writ%out(OUT_PROJ)%write.or.writ%out(OUT_POPULATIONS)%write) then
+    if(writ%out(OUT_PROJ)%write.or.writ%out(OUT_POPULATIONS)%write &
+       .or. writ%out(OUT_N_EX)%write) then
       call states_end(writ%gs_st)
     end if
 
@@ -574,7 +632,7 @@ contains
 
 
   ! ---------------------------------------------------------
-  subroutine td_write_iter(writ, gr, st, hm, geo, kick, dt, iter)
+  subroutine td_write_iter(writ, gr, st, hm, geo, kick, dt,ks, iter)
     type(td_write_t),    intent(inout) :: writ !< Write object
     type(grid_t),        intent(inout) :: gr   !< The grid
     type(states_t),      intent(inout) :: st   !< State object
@@ -582,8 +640,8 @@ contains
     type(geometry_t),    intent(inout) :: geo  !< Geometry object
     type(kick_t),        intent(in)    :: kick !< The kick
     FLOAT,               intent(in)    :: dt   !< Delta T, time interval
+    type(v_ks_t),        intent(in)    :: ks  
     integer,             intent(in)    :: iter !< Iteration number
-
     type(profile_t), save :: prof
 
     PUSH_SUB(td_write_iter)
@@ -604,8 +662,13 @@ contains
     if(writ%out(OUT_MAGNETS)%write) &
       call td_write_local_magnetic_moments(writ%out(OUT_MAGNETS)%handle, gr, st, geo, writ%lmm_r, iter)
 
-    if(writ%out(OUT_PROJ)%write) &
+    if(writ%out(OUT_PROJ)%write .and. mod(iter, writ%compute_interval) == 0) then
+      if (mpi_grp_is_root(mpi_world)) call write_iter_set(writ%out(OUT_PROJ)%handle, iter)
       call td_write_proj(writ%out(OUT_PROJ)%handle, gr, geo, st, writ%gs_st, kick, iter)
+    end if
+
+    if(writ%out(OUT_FLOQUET)%write) &
+      call td_write_floquet(writ%out(OUT_FLOQUET)%handle,hm, gr, st, ks, iter)
 
     if(writ%out(OUT_KP_PROJ)%write) &
       call td_write_proj_kp(writ%out(OUT_KP_PROJ)%handle,hm, gr, st, writ%gs_st, iter)
@@ -646,6 +709,11 @@ contains
 
     if(writ%out(OUT_PARTIAL_CHARGES)%write) &
       call td_write_partial_charges(writ%out(OUT_PARTIAL_CHARGES)%handle, writ%partial_charges, gr%fine%mesh, st, geo, iter)
+
+    if(writ%out(OUT_N_EX)%write .and. mod(iter, writ%compute_interval) == 0) then
+      if (mpi_grp_is_root(mpi_world))  call write_iter_set(writ%out(OUT_N_EX)%handle, iter)
+      call td_write_n_ex(writ%out(OUT_N_EX)%handle, gr, st, writ%gs_st, iter)
+    end if
 
     call profiling_out(prof)
     POP_SUB(td_write_iter)
@@ -1351,7 +1419,6 @@ contains
   end subroutine td_write_populations
 
 
-
   ! ---------------------------------------------------------
   subroutine td_write_acc(out_acc, gr, geo, st, hm, dt, iter)
     type(c_ptr),         intent(inout) :: out_acc
@@ -1990,7 +2057,7 @@ contains
 
       end if
 
-      SAFE_ALLOCATE(projections(gs_st%st_start:st%nst, gs_st%st_start:gs_st%st_end, 1:st%d%nik))
+      SAFE_ALLOCATE(projections(1:st%nst, gs_st%st_start:gs_st%st_end, 1:st%d%nik))
       do idir = 1, geo%space%dim
         projections = M_Z0
 
@@ -2001,7 +2068,7 @@ contains
           call write_iter_string(out_proj, "# ------")
           call write_iter_header(out_proj, aux)
           do ik = 1, st%d%nik
-            do ist = max(gs_st%st_start, st%st_start), st%nst
+            do ist = gs_st%st_start, st%st_end
               do uist = gs_st%st_start, gs_st%st_end
                 call write_iter_double(out_proj,  real(projections(ist, uist, ik)), 1)
                 call write_iter_double(out_proj, aimag(projections(ist, uist, ik)), 1)
@@ -2023,9 +2090,9 @@ contains
     ! this is required if st%X(psi) is used
     call states_sync(st)
 
-    SAFE_ALLOCATE(projections(gs_st%st_start:st%nst, gs_st%st_start:gs_st%st_end, 1:st%d%nik))
+    SAFE_ALLOCATE(projections(1:st%nst, gs_st%st_start:gs_st%st_end, 1:st%d%nik))
     projections(:,:,:) = M_Z0
-    call calc_projections()
+    call calc_projections(gr, st, gs_st, projections)
 
     if(mpi_grp_is_root(mpi_world)) then
       call write_iter_start(out_proj)
@@ -2044,40 +2111,6 @@ contains
     POP_SUB(td_write_proj)
 
   contains
-    ! ---------------------------------------------------------
-    !> This subroutine calculates:
-    !! \f[
-    !! p(uist, ist, ik) = < \phi_0(uist, k) | \phi(ist, ik) (t) >
-    !! \f]
-    ! ---------------------------------------------------------
-    subroutine calc_projections()
-      integer :: uist, ist, ik
-      CMPLX, allocatable :: psi(:, :), gspsi(:, :)      
-      
-      PUSH_SUB(td_write_proj.calc_projections)
-
-      SAFE_ALLOCATE(psi(1:gr%mesh%np, 1:st%d%dim))
-      SAFE_ALLOCATE(gspsi(1:gr%mesh%np, 1:st%d%dim))
-      
-      do ik = 1, st%d%nik
-        do ist = max(gs_st%st_start, st%st_start), st%st_end
-          call states_get_state(st, gr%mesh, ist, ik, psi)
-          do uist = gs_st%st_start, gs_st%st_end
-            call states_get_state(gs_st, gr%mesh, uist, ik, gspsi)
-            projections(ist, uist, ik) = zmf_dotp(gr%mesh, st%d%dim, psi, gspsi)
-          end do
-        end do
-      end do
-
-      SAFE_DEALLOCATE_A(psi)
-      SAFE_DEALLOCATE_A(gspsi)
-      
-      call distribute_projections()
-
-      POP_SUB(td_write_proj.calc_projections)
-    end subroutine calc_projections
-
-
     ! ---------------------------------------------------------
     subroutine dipole_matrix_elements(dir)
       integer, intent(in) :: dir
@@ -2098,7 +2131,7 @@ contains
       SAFE_ALLOCATE(xpsi(1:gr%mesh%np, 1:st%d%dim))
       
       do ik = 1, st%d%nik
-        do ist = max(gs_st%st_start, st%st_start), st%st_end
+        do ist = gs_st%st_start, st%nst
           call states_get_state(st, gr%mesh, ist, ik, psi)
           do uist = gs_st%st_start, gs_st%st_end
             call states_get_state(gs_st, gr%mesh, ist, ik, gspsi)
@@ -2114,35 +2147,181 @@ contains
       
       SAFE_DEALLOCATE_A(xpsi)
 
-      call distribute_projections()
+      call distribute_projections(st, gs_st, projections)
 
       POP_SUB(td_write_proj.dipole_matrix_elements)
     end subroutine dipole_matrix_elements
 
-    ! ------------------------------------------------
+  end subroutine td_write_proj
 
-    subroutine distribute_projections
+  ! ---------------------------------------------------------
+  !> This routine computes the total number of excited electrons
+  !> based on projections on the GS orbitals
+  !> The procedure is very similar to the td_write_proj
+  ! ---------------------------------------------------------
+  subroutine td_write_n_ex(out_nex, gr, st, gs_st, iter)
+    implicit none
+ 
+    type(c_ptr),       intent(inout) :: out_nex
+    type(grid_t),      intent(in)    :: gr
+    type(states_t),    intent(inout) :: st
+    type(states_t),    intent(in)    :: gs_st
+    integer,           intent(in)    :: iter
+
+    CMPLX, allocatable :: projections(:,:)
+    FLOAT, allocatable :: occ(:,:)
+    character(len=80) :: aux
+    integer :: ik, ist, uist, idir
+    FLOAT :: Nex, weight
+    
+
+    PUSH_SUB(td_write_n_ex)
+
+    if(iter == 0) then
+      if(mpi_grp_is_root(mpi_world)) then
+        call td_write_print_header_init(out_nex)
+
+        write(aux, '(a15,i2)')      '# nspin        ', st%d%nspin
+        call write_iter_string(out_nex, aux)
+        call write_iter_nl(out_nex)
+
+        call write_iter_string(out_nex, "#%")
+        call write_iter_nl(out_nex)
+
+        write(aux, '(a,i8)') "# nik  ", st%d%nik
+        call write_iter_string(out_nex, aux)
+        call write_iter_nl(out_nex)
+
+        write(aux, '(a,2i8)') "#  st  ", gs_st%st_start, st%nst
+        call write_iter_string(out_nex, aux)
+        call write_iter_nl(out_nex)
+
+        write(aux, '(a,2i8)') "# ust  ", gs_st%st_start, gs_st%st_end
+        call write_iter_string(out_nex, aux)
+        call write_iter_nl(out_nex)
+
+        call write_iter_header_start(out_nex)
+        call write_iter_header(out_nex, '#  iter t Nex(t)')
+        call write_iter_nl(out_nex)
+
+      end if
+
+      if(mpi_grp_is_root(mpi_world)) then
+        call td_write_print_header_end(out_nex)
+      end if
+
+    end if
+
+    ! this is required if st%X(psi) is used
+    call states_sync(st)
+
+    SAFE_ALLOCATE(projections(1:gs_st%nst, 1:st%nst))
+     
+    !We need to distribute the occupations
+    SAFE_ALLOCATE(occ(1:st%nst, 1:st%d%nik))
+    occ(1:st%nst, 1:st%d%nik) = CNST(0.0)
+    occ(st%st_start:st%st_end,st%d%kpt%start:st%d%kpt%end) = st%occ(st%st_start:st%st_end,st%d%kpt%start:st%d%kpt%end)
+    if(st%parallel_in_states .or. st%d%kpt%parallel) then
+      call comm_allreduce(st%st_kpt_mpi_grp%comm, occ, dim = (/st%nst, st%d%nik/))
+    end if 
+ 
+    Nex = M_ZERO 
+    do ik = st%d%kpt%start, st%d%kpt%end
+      call zstates_calc_projections(gr%mesh, st, gs_st, ik, projections)
+      do ist = 1, gs_st%nst
+        weight = st%d%kweights(ik) * occ(ist, ik)/ st%smear%el_per_state 
+        do uist = 1, st%nst
+          Nex = Nex - weight * occ(uist, ik) * abs(projections(ist, uist))**2
+        end do
+      end do
+    end do
+
+#if defined(HAVE_MPI)        
+   if(st%d%kpt%parallel) then
+     call comm_allreduce(st%st_kpt_mpi_grp%comm, Nex)
+   end if
+#endif  
+
+  Nex = Nex + st%qtot 
+
+  if(mpi_grp_is_root(mpi_world)) then
+    call write_iter_start(out_nex)
+    call write_iter_double(out_nex, Nex, 1)
+    call write_iter_nl(out_nex)
+  end if
+  
+  SAFE_DEALLOCATE_A(projections)
+  SAFE_DEALLOCATE_A(occ)
+
+  POP_SUB(td_write_n_ex)
+ end subroutine td_write_n_ex
+
+   ! ---------------------------------------------------------
+   !> This subroutine calculates:
+   !! \f[
+   !! p(uist, ist, ik) = < \phi_0(uist, k) | \phi(ist, ik) (t) >
+   !! \f]
+   ! ---------------------------------------------------------
+   subroutine calc_projections(gr, st, gs_st, projections)
+     implicit none 
+    
+     type(grid_t),      intent(in)    :: gr
+     type(states_t),    intent(inout) :: st
+     type(states_t),    intent(in)    :: gs_st
+     CMPLX, intent(inout) :: projections(1:st%nst, &
+                                         gs_st%st_start:gs_st%nst, 1:st%d%nik)
+ 
+     integer :: uist, ist, ik
+     CMPLX, allocatable :: psi(:, :), gspsi(:, :)
+     PUSH_SUB(calc_projections)
+    
+     SAFE_ALLOCATE(psi(1:gr%mesh%np, 1:st%d%dim))
+     SAFE_ALLOCATE(gspsi(1:gr%mesh%np, 1:st%d%dim))
+     
+     do ik = 1, st%d%nik
+       do ist = st%st_start, st%st_end
+         call states_get_state(st, gr%mesh, ist, ik, psi)
+         do uist = gs_st%st_start, gs_st%nst
+           call states_get_state(gs_st, gr%mesh, uist, ik, gspsi)
+           projections(ist, uist, ik) = zmf_dotp(gr%mesh, st%d%dim, psi, gspsi)
+        end do
+      end do
+    end do
+    SAFE_DEALLOCATE_A(psi)
+    SAFE_DEALLOCATE_A(gspsi)
+    call distribute_projections(st, gs_st, projections)
+    POP_SUB(calc_projections)
+  end subroutine calc_projections
+
+   ! ------------------------------------------------
+    subroutine distribute_projections(st, gs_st, projections)
+      implicit none
+      
+      type(states_t),    intent(in) :: st
+      type(states_t),    intent(in) :: gs_st
+      CMPLX, intent(inout) :: projections(1:st%nst, &
+                                          gs_st%st_start:gs_st%nst, 1:st%d%nik)
+
 #if defined(HAVE_MPI)
       integer :: k, ik, ist, uist
 
       if(.not.st%parallel_in_states) return
 
-      PUSH_SUB(td_write_proj.distribute_projections)
-
+      PUSH_SUB(distribute_projections)
+      
       do ik = 1, st%d%nik
-        do ist = gs_st%st_start, st%nst
+        do ist = st%st_start, st%st_end
           k = st%node(ist)
-          do uist = gs_st%st_start, gs_st%st_end
+          do uist = gs_st%st_start, gs_st%nst
             call MPI_Bcast(projections(ist, uist, ik), 1, MPI_CMPLX, k, st%mpi_grp%comm, mpi_err)
           end do
         end do
       end do
 
-      POP_SUB(td_write_proj.distribute_projections)
+      POP_SUB(distribute_projections)
 #endif
     end subroutine distribute_projections
 
-  end subroutine td_write_proj
 
   subroutine td_write_proj_kp(out_proj_kp, hm,gr, st, gs_st, iter)
     type(c_ptr),       intent(inout) :: out_proj_kp
@@ -2247,6 +2426,279 @@ contains
 
   end subroutine td_write_proj_kp
 
+  !---------------------------------------
+  subroutine td_write_floquet(out_floquet, hm, gr, st, ks, iter)
+    type(c_ptr),       intent(inout)   :: out_floquet
+    type(hamiltonian_t), intent(inout) :: hm
+    type(grid_t),      intent(inout)   :: gr
+    type(states_t),    intent(inout)   :: st !< at iter=0 this is the groundstate
+    type(v_ks_t),      intent(in)      :: ks
+    integer,           intent(in)      :: iter 
+
+    CMPLX, allocatable :: hmss(:,:), psi(:,:,:), hpsi(:,:,:), temp_state1(:,:), temp_state2(:,:)
+    CMPLX, allocatable :: HFloquet(:,:,:), HFloq_eff(:,:), temp(:,:)
+    FLOAT, allocatable :: eigenval(:), bands(:,:)
+    character(len=80) :: filename
+    integer :: it, nT, ik, ist, jst, in, im, inm, file, idim, nik, ik_count
+    integer :: Forder, Fdim, m0, n0, n1, nst, ii, jj, lim_nst
+    logical :: downfolding = .false.
+    type(mesh_t) :: mesh
+    type(states_t) :: hm_st
+
+    FLOAT :: dt, Tcycle, omega
+
+    PUSH_SUB(td_write_floquet)
+
+    ! this does not depend on propagation, so we do it only once 
+    if(.not. iter == 0) then
+       POP_SUB(td_write_floquet)
+       return
+    end if
+
+    mesh = gr%der%mesh
+    nst = st%nst
+
+    !for now no domain distributionallowed
+    ASSERT(mesh%np == mesh%np_global)
+
+   ! this is used to initialize the hpsi (more effiecient ways?)
+    call states_copy(hm_st, st)
+
+    !%Variable TDFloquetFrequency
+    !%Type float
+    !%Default 0
+    !%Section Time-Dependent::TD Output
+    !%Description 
+    !% Frequency for the Floquet analysis, this should be the carrier frequency or integer multiples of it.
+    !% Other options will work, but likely be nonsense.
+    !% 
+    !%End
+    call parse_variable('TDFloquetFrequency', M_ZERO, omega, units_inp%energy)
+    call messages_print_var_value(stdout,'Frequency used for Floquet analysis', omega)
+    if(omega==M_ZERO) then
+       message(1) = "Please give a non-zero value for TDFloquetFrequency"
+       call messages_fatal(1)
+    endif
+
+    ! get time of one cycle
+    Tcycle=M_TWO*M_PI/omega
+
+    !%Variable TDFloquetSample
+    !%Type integer
+    !%Default 20
+    !%Section Time-Dependent::TD Output
+    !%Description 
+    !% Number of points on which one Floquet cycle is sampled in the time-integral of the Floquet analysis.
+    !%
+    !%End 
+    call parse_variable('TDFloquetSample',20 ,nt)
+    call messages_print_var_value(stdout,'Number of Floquet time-sampling points', nT)
+    dt = Tcycle/real(nT)
+
+    !%Variable TDFloquetDimension
+    !%Type integer
+    !%Default -1
+    !%Section Time-Dependent::TD Output
+    !%Description
+    !% Order of Floquet Hamiltonian. If negative number is given, downfolding is performed.
+    !%End
+    call parse_variable('TDFloquetDimension',-1,Forder)
+    if(Forder.ge.0) then
+       call messages_print_var_value(stdout,'Order of multiphoton Floquet-Hamiltonian', Forder)
+       !Dimension of multiphoton Floquet-Hamiltonian
+       Fdim = 2*Forder+1
+    else
+       message(1) = 'Floquet-Hamiltonian is downfolded'
+       call messages_info(1)
+       downfolding = .true.
+       Forder = 1
+       Fdim = 3
+    endif
+
+    dt = Tcycle/real(nT)
+
+    ! we are only interested for k-point with zero weight
+    nik=gr%sb%kpoints%nik_skip
+
+    SAFE_ALLOCATE(hmss(1:nst,1:nst))
+    SAFE_ALLOCATE( psi(1:nst,1:st%d%dim,1:mesh%np))
+    SAFE_ALLOCATE(hpsi(1:nst,1:st%d%dim,1:mesh%np))
+    SAFE_ALLOCATE(temp_state1(1:mesh%np,1:st%d%dim))
+
+    ! multiphoton Floquet Hamiltonian, layout:
+    !     (H_{-n,-m} ...  H_{-n,0} ...  H_{-n,m}) 
+    !     (    .      .      .      .      .    )
+    ! H = (H_{0,-m}  ...  H_{0,0}  ...  H_{0,m} )
+    !     (    .      .      .      .      .    )
+    !     (H_{n,-m}  ...  H_{n,0}  ...  H_{n,m} )    
+    SAFE_ALLOCATE(HFloquet(1:nik,1:nst*Fdim, 1:nst*Fdim))
+    HFloquet(1:nik,1:nst*Fdim, 1:nst*Fdim) = M_ZERO
+
+    ! perform time-integral over one cycle
+    do it=1,nT
+      ! get non-interacting Hamiltonian at time (offset by one cycle to allow for ramp)
+      call hamiltonian_update(hm,gr%mesh,time=Tcycle+it*dt)
+      ! get hpsi
+      call zhamiltonian_apply_all(hm, ks%xc, gr%der, st, hm_st)
+
+      ! project Hamiltonian into grounstates for zero weight k-points
+      ik_count = 0
+
+      do ik=gr%sb%kpoints%reduced%npoints-nik+1,gr%sb%kpoints%reduced%npoints
+        ik_count = ik_count + 1
+
+        psi(1:nst, 1:st%d%dim, 1:mesh%np)= M_ZERO
+        hpsi(1:nst, 1:st%d%dim, 1:mesh%np)= M_ZERO
+
+        do ist=st%st_start,st%st_end
+          if(state_kpt_is_local(st, ist, ik)) then
+            call states_get_state(st, mesh, ist, ik,temp_state1 )
+            do idim=1,st%d%dim
+              psi(ist,idim,1:mesh%np) =  temp_state1(1:mesh%np,idim)
+            end do
+            call states_get_state(hm_st, mesh, ist, ik,temp_state1 )
+            do idim=1,st%d%dim
+              hpsi(ist,idim,1:mesh%np) =temp_state1(1:mesh%np,idim)
+            end do
+          end if
+        end do
+        call comm_allreduce(mpi_world%comm, psi)
+        call comm_allreduce(mpi_world%comm, hpsi)
+        hmss(1:nst,1:nst) = M_ZERO
+        call zgemm( 'n',                               &
+                    'c',                               &
+                    nst,                               &
+                    nst,                               &
+                    mesh%np_global*st%d%dim,           &
+                    cmplx(mesh%volume_element,kind=8), &
+                    hpsi(1, 1, 1),                     &
+                    ubound(hpsi, dim = 1),             &
+                    psi(1, 1, 1),                      &
+                    ubound(psi, dim = 1),              &
+                    cmplx(0.,kind=8),                  &
+                    hmss(1, 1),                        &
+                    ubound(hmss, dim = 1))
+
+        hmss(1:nst,1:nst) = CONJG(hmss(1:nst,1:nst))
+
+        ! accumulate the Floqeut integrals
+        do in=-Forder,Forder
+           do im=-Forder,Forder
+              ii=(in+Forder)*nst
+              jj=(im+Forder)*nst
+              HFloquet(ik_count,ii+1:ii+nst,jj+1:jj+nst) =  &
+                HFloquet(ik_count,ii+1:ii+nst,jj+1:jj+nst) + hmss(1:nst,1:nst)*exp(-(in-im)*M_zI*omega*it*dt)
+              ! diagonal term
+              if(in==im) then
+                 do ist=1,nst
+                    HFloquet(ik_count,ii+ist,ii+ist) = HFloquet(ik_count,ii+ist,ii+ist) + in*omega
+                 end do
+              end if
+           end do
+        end do
+      end do !ik
+
+    end do ! it
+
+    HFloquet(:,:,:) = M_ONE/nT*HFloquet(:,:,:)
+
+    ! diagonalize Floquet Hamiltonian
+    if(downfolding) then
+       ! here perform downfolding
+       SAFE_ALLOCATE(HFloq_eff(1:nst,1:nst))
+       SAFE_ALLOCATE(eigenval(1:nst))
+       SAFE_ALLOCATE(bands(1:nik,1:nst))
+
+       HFloq_eff(1:nst,1:nst) = M_ZERO
+       do ik=1,nik
+          ! the HFloquet blocks are copied directly out of the super matrix
+          m0 = nst ! the m=0 start position
+          n0 = nst ! the n=0 start postion
+          n1 = 2*nst ! the n=+1 start postion
+          HFloq_eff(1:nst,1:nst) = HFloquet(ik,n0+1:n0+nst,m0+1:m0+nst) + &
+               M_ONE/omega*(matmul(HFloquet(ik,1:nst,m0+1:m0+nst), HFloquet(ik,n1+1:n1+nst,m0+1:m0+nst))- &
+                            matmul(HFloquet(ik,n1+1:n1+nst,m0+1:m0+nst), HFloquet(ik,1:nst,m0+1:m0+nst)))
+
+          call lalg_eigensolve(nst, HFloq_eff, eigenval)
+          bands(ik,1:nst) = eigenval(1:nst)
+       end do
+       SAFE_DEALLOCATE_A(HFloq_eff)
+    else
+      ! the full Floquet 
+      SAFE_ALLOCATE(eigenval(1:nst*Fdim))
+      SAFE_ALLOCATE(bands(1:nik,1:nst*Fdim))
+      SAFE_ALLOCATE(temp(1:nst*Fdim, 1:nst*Fdim))
+
+      do ik=1,nik
+         temp(1:nst*Fdim,1:nst*Fdim) = HFloquet(ik,1:nst*Fdim,1:nst*Fdim)
+         call lalg_eigensolve(nst*Fdim, temp, eigenval)
+         bands(ik,1:nst*Fdim) = eigenval(1:nst*Fdim)
+      end do
+    end if
+
+    !write bandstructure to file
+    if(downfolding) then
+      lim_nst = nst
+      filename="downfolded_floquet_bands"
+    else
+       lim_nst = nst*Fdim
+       filename="floquet_bands"
+    end if
+    ! write bands (full or downfolded)
+    if(mpi_world%rank==0) then
+      file=987254
+      open(unit=file,file=filename)
+      do ik=1,nik
+        do ist=1,lim_nst
+          write(file,'(e12.6, 1x)',advance='no') bands(ik,ist)
+        end do
+        write(file,'(1x)')
+      end do
+      close(file)
+    endif
+    
+    if(.not.downfolding) then
+      ! for the full Floquet case compute also the trivially shifted
+      ! Floquet bands for reference (i.e. setting H_{nm}=0 for n!=m)
+      bands(1:nik,1:nst*Fdim) = M_ZERO
+      do ik=1,nik
+        temp(1:nst*Fdim,1:nst*Fdim) = M_ZERO
+        do jj=0,Fdim-1
+          ii=jj*nst
+          temp(ii+1:ii+nst,ii+1:ii+nst) = HFloquet(ik,ii+1:ii+nst,ii+1:ii+nst)
+        end do
+        call lalg_eigensolve(nst*Fdim, temp, eigenval)
+        bands(ik,1:nst*Fdim) = eigenval(1:nst*Fdim)
+      end do
+    
+      if(mpi_world%rank==0) then
+        filename='trivial_floquet_bands'
+        open(unit=file,file=filename)
+        do ik=1,nik
+          do ist=1,lim_nst
+            write(file,'(e12.6, 1x)',advance='no') bands(ik,ist)
+          end do
+          write(file,'(1x)')
+        end do
+        close(file)
+      endif
+     end if
+  
+    ! reset time in Hamiltonian
+    call hamiltonian_update(hm,gr%mesh,time=M_ZERO)
+
+    SAFE_DEALLOCATE_A(hmss)
+    SAFE_DEALLOCATE_A(psi)
+    SAFE_DEALLOCATE_A(hpsi)
+    SAFE_DEALLOCATE_A(temp_state1)
+    SAFE_DEALLOCATE_A(HFloquet)
+    SAFE_DEALLOCATE_A(eigenval)
+    SAFE_DEALLOCATE_A(bands)
+    SAFE_DEALLOCATE_A(temp)
+
+   POP_SUB(td_write_floquet)
+
+  end subroutine td_write_floquet
 
   ! ---------------------------------------------------------
   subroutine td_write_total_current(out_total_current, gr, st, iter)

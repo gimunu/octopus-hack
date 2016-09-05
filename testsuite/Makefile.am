@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 14766 2015-11-12 15:44:17Z jrfsousa $
+## $Id: Makefile.am 15371 2016-05-19 08:27:55Z micael $
 
 SUBDIRS = \
 	components       \
@@ -73,7 +73,7 @@ MINTIME=600
 # note: beginning line with '-' means ignore the exit status of the command
 clean-local:
 	-if test "x$$TEMPDIRPATH" == "x"; then TEMPDIRPATH=/tmp; fi; \
-	find $$TEMPDIRPATH -name 'octopus\.*' -type d -mmin +$(MINTIME) -exec rm -rf {} \; 2> /dev/null
+	find $$TEMPDIRPATH -name 'octopus-*' -type d -mmin +$(MINTIME) -exec rm -rf {} \; 2> /dev/null
 
 CLEANFILES = *.log
 

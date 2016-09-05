@@ -15,14 +15,12 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: fourier_space.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: fourier_space.F90 15567 2016-08-03 18:10:30Z xavier $
 
 #include "global.h"
 
 module fourier_space_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
+  use accel_oct_m
   use cube_oct_m
   use cube_function_oct_m
   use global_oct_m
@@ -33,7 +31,6 @@ module fourier_space_oct_m
 #ifdef HAVE_OPENMP
   use omp_lib
 #endif
-  use opencl_oct_m
 #ifdef HAVE_PFFT
   use pfft_oct_m
 #endif
@@ -64,7 +61,7 @@ module fourier_space_oct_m
     FLOAT, pointer :: dop(:, :, :)
     CMPLX, pointer :: zop(:, :, :)
     logical :: in_device_memory
-    type(opencl_mem_t) :: op_buffer
+    type(accel_mem_t) :: op_buffer
   end type fourier_space_op_t
 
 contains
@@ -109,13 +106,12 @@ contains
         allocated = .true.
         SAFE_ALLOCATE(cf%fs(1:n3, 1:n1, 1:n2))
       end if
-    case(FFTLIB_OPENCL)
-#ifdef HAVE_OPENCL
+    case(FFTLIB_ACCEL)
       if(cf%in_device_memory) then
         allocated = .true.
-        call opencl_create_buffer(cf%fourier_space_buffer, CL_MEM_READ_WRITE, TYPE_CMPLX, product(cube%fs_n(1:3)))
+        call accel_create_buffer(cf%fourier_space_buffer, ACCEL_MEM_READ_WRITE, TYPE_CMPLX, product(cube%fs_n(1:3)))
       end if
-#endif
+
     end select
 
     if(.not. allocated) then
@@ -146,13 +142,11 @@ contains
         deallocated = .true.
         nullify(cf%fs)
       end if
-    case(FFTLIB_OPENCL)
-#ifdef HAVE_OPENCL
+    case(FFTLIB_ACCEL)
       if(cf%in_device_memory) then
         deallocated = .true.
-        call opencl_release_buffer(cf%fourier_space_buffer)
+        call accel_release_buffer(cf%fourier_space_buffer)
       end if
-#endif
     end select
 
     if(.not. deallocated) then
@@ -171,9 +165,7 @@ contains
     PUSH_SUB(fourier_space_op_end)
 
     if(this%in_device_memory) then
-#ifdef HAVE_OPENCL
-      call opencl_release_buffer(this%op_buffer)
-#endif
+      call accel_release_buffer(this%op_buffer)
       this%in_device_memory = .false.
     end if
     SAFE_DEALLOCATE_P(this%dop)

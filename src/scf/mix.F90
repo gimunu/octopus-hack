@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mix.F90 15341 2016-05-03 18:18:56Z xavier $
+!! $Id: mix.F90 15523 2016-07-24 23:22:19Z xavier $
 
 #include "global.h"
 
@@ -58,7 +58,7 @@ module mix_oct_m
     private
     integer :: scheme           !< the mixing scheme used (linear, broyden, etc)
 
-    FLOAT :: alpha              !< the mixing coefficient (in linear mixing: vnew = (1-alpha)*vin + alpha*vout)
+    FLOAT :: coeff              !< the mixing coefficient (in linear mixing: vnew = (1-coeff)*vin + coeff*vout)
 
     integer :: iter             !< number of SCF iterations already done. In case of restart, this number must
                                 !< include the iterations done in previous calculations.
@@ -69,6 +69,8 @@ module mix_oct_m
     integer :: d1, d2, d3, d4   !< the dimensions of the arrays that store the information from the previous iterations
 
     integer :: last_ipos        !< where is the information about the last iteration stored in arrays df and dv
+
+    integer :: interval
 
     FLOAT, pointer :: ddf(:, :, :, :)
     FLOAT, pointer :: ddv(:, :, :, :)
@@ -83,6 +85,8 @@ module mix_oct_m
     type(derivatives_t), pointer :: der
     logical                      :: precondition
     type(nl_operator_t)          :: preconditioner
+
+    FLOAT :: residual_coeff
     
   end type mix_t
 
@@ -163,11 +167,26 @@ contains
     !%Default 0.3
     !%Section SCF::Mixing
     !%Description
-    !% Both the linear and the Broyden scheme depend on a "mixing parameter", set by this variable. 
+    !% The linear, Broyden and DIIS scheme depend on a "mixing parameter", set by this variable. 
     !% Must be 0 < <tt>Mixing</tt> <= 1.
     !%End
-    call parse_variable(trim(prefix)+'Mixing', CNST(0.3), smix%alpha)
-    if(smix%alpha <= M_ZERO .or. smix%alpha > M_ONE) call messages_input_error('Mixing')
+    call parse_variable(trim(prefix)+'Mixing', CNST(0.3), smix%coeff)
+    if(smix%coeff <= M_ZERO .or. smix%coeff > M_ONE) then
+      call messages_input_error('Mixing', 'Value should be positive and smaller than one.')
+    end if
+    
+    !%Variable MixingResidual
+    !%Type float
+    !%Default 0.05
+    !%Section SCF::Mixing
+    !%Description
+    !% In the DIIS mixing it is benefitial to include a bit of
+    !% residual into the mixing. This parameter controls this amount.
+    !%End
+    call parse_variable(trim(prefix)+'MixingResidual', CNST(0.05), smix%residual_coeff)
+    if(smix%residual_coeff <= M_ZERO .or. smix%residual_coeff > M_ONE) then
+      call messages_input_error('MixingResidual', 'Value should be positive and smaller than one.')
+    end if
     
     !%Variable MixNumberSteps
     !%Type integer
@@ -184,7 +203,20 @@ contains
     else
       smix%ns = 0
     end if
-
+    
+    !%Variable MixInterval
+    !%Type integer
+    !%Default 1
+    !%Section SCF::Mixing
+    !%Description
+    !% When this variable is set to a value different than 1 (the
+    !% defaul) a combined mixing scheme will be used, with MixInterval
+    !% - 1 steps of linear mixing followed by 1 step of the selected
+    !% mixing. For the moment this variable only works with DIIS mixing.
+    !%End
+    call parse_variable(trim(prefix)//'MixInterval', 1, smix%interval)
+    if(smix%interval < 1) call messages_input_error('MixInterval', 'MixInterval must be larger or equal than 1')
+    
     smix%iter = 0
 
     nullify(smix%ddf)
@@ -340,7 +372,7 @@ contains
     PUSH_SUB(mix_set_mixing)
     
     if(smix%scheme == OPTION__MIXINGSCHEME__LINEAR) then
-      smix%alpha = newmixing
+      smix%coeff = newmixing
     else
     !  message(1) = "Mixing can only be adjusted in linear mixing scheme."
     !  call messages_fatal(1)
@@ -587,7 +619,7 @@ contains
   FLOAT pure function mix_coefficient(this) result(coefficient)
     type(mix_t), intent(in) :: this
     
-    coefficient = this%alpha
+    coefficient = this%coeff
   end function mix_coefficient
   
   

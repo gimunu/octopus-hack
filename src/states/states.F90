@@ -15,18 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states.F90 15322 2016-05-02 01:13:18Z xavier $
+!! $Id: states.F90 15493 2016-07-18 21:01:02Z nicolastd $
 
 #include "global.h"
 
 module states_oct_m
+  use accel_oct_m
   use base_density_oct_m
   use base_states_oct_m
   use blacs_proc_grid_oct_m
   use calc_mode_par_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use cmplxscl_oct_m
   use comm_oct_m
   use batch_oct_m
@@ -55,7 +53,6 @@ module states_oct_m
 #ifdef HAVE_OPENMP
   use omp_lib
 #endif
-  use opencl_oct_m
   use parser_oct_m
   use profiling_oct_m
   use restart_oct_m
@@ -401,6 +398,12 @@ contains
 
     st%qtot = -(st%val_charge + excess_charge)
 
+    if(st%qtot < -M_EPSILON) then
+      write(message(1),'(a,f12.6,a)') 'Total charge = ', st%qtot, ' < 0'
+      message(2) = 'Check Species and ExcessCharge.'
+      call messages_fatal(2, only_root_writes = .true.)
+    endif
+
     select case(st%d%ispin)
     case(UNPOLARIZED)
       st%d%dim = 1
@@ -457,7 +460,7 @@ contains
     !$omp end parallel
 #endif    
 
-    if(opencl_is_enabled()) then
+    if(accel_is_enabled()) then
       default = 32
     else
       default = max(4, 2*nthreads)
@@ -667,20 +670,38 @@ contains
     !% variable. For example:
     !%
     !% <tt>%Occupations
-    !% <br>&nbsp;&nbsp;2.0 | 2.0 | 2.0 | 2.0 | 2.0
+    !% <br>&nbsp;&nbsp;2 | 2 | 2 | 2 | 2
     !% <br>%</tt>
     !%
-    !% would fix the occupations of the five states to <i>2.0</i>. There can be
+    !% would fix the occupations of the five states to 2. There can be
     !% at most as many columns as states in the calculation. If there are fewer columns
     !% than states, then the code will assume that the user is indicating the occupations
-    !% of the uppermost states, assigning maximum occupation (i.e. 2 for spin-unpolarized
-    !% calculations, 1 otherwise) to the lower states. The number of rows should be equal
+    !% of the uppermost states where all lower states have full occupation (i.e. 2 for spin-unpolarized
+    !% calculations, 1 otherwise) and all higher states have zero occupation. The first column
+    !% will be taken to refer to the lowest state such that the occupations would be consistent
+    !% with the correct total charge. For example, if there are 8 electrons and 10 states (from
+    !% <tt>ExtraStates = 6</tt>), then an abbreviated specification
+    !%
+    !% <tt>%Occupations
+    !% <br>&nbsp;&nbsp;1 | 0 | 1
+    !% <br>%</tt>
+    !%
+    !% would be equivalent to a full specification
+    !%
+    !% <tt>%Occupations
+    !% <br>&nbsp;&nbsp;2 | 2 | 2 | 1 | 0 | 1 | 0 | 0 | 0 | 0
+    !% <br>%</tt>
+    !%
+    !% This is an example of use for constrained density-functional theory,
+    !% crudely emulating a HOMO->LUMO+1 optical excitation.
+    !% The number of rows should be equal
     !% to the number of k-points times the number of spins. For example, for a finite system
     !% with <tt>SpinComponents == spin_polarized</tt>,
     !% this block should contain two lines, one for each spin channel.
     !% All rows must have the same number of columns.
-    !% This variable is very useful when dealing with highly symmetric small systems
-    !% (like an open-shell atom), for it allows us to fix the occupation numbers
+    !%
+    !% The <tt>Occupations</tt> block is useful for the ground state of highly symmetric
+    !% small systems (like an open-shell atom), to fix the occupation numbers
     !% of degenerate states in order to help <tt>octopus</tt> to converge. This is to
     !% be used in conjuction with <tt>ExtraStates</tt>. For example, to calculate the
     !% carbon atom, one would do:
@@ -1463,7 +1484,7 @@ contains
 
     stout%symmetrize_density = stin%symmetrize_density
 
-    if(.not. exclude_wfns_) call states_group_copy(stin%group, stout%group)
+    if(.not. exclude_wfns_) call states_group_copy(stin%d,stin%group, stout%group)
 
     stout%packed = stin%packed
 
@@ -1547,22 +1568,27 @@ contains
 
   ! ---------------------------------------------------------
   !> generate a hydrogen s-wavefunction around a random point
-  subroutine states_generate_random(st, mesh, ist_start_, ist_end_, normalized)
+  subroutine states_generate_random(st, mesh, ist_start_, ist_end_, ikpt_start_, ikpt_end_, normalized)
     type(states_t),    intent(inout) :: st
     type(mesh_t),      intent(in)    :: mesh
     integer, optional, intent(in)    :: ist_start_
     integer, optional, intent(in)    :: ist_end_
+    integer, optional, intent(in)    :: ikpt_start_
+    integer, optional, intent(in)    :: ikpt_end_
     logical, optional, intent(in)    :: normalized !< whether generate states should have norm 1, true by default
     
-    integer :: ist, ik, id, ist_start, ist_end, jst
+    integer :: ist, ik, id, ist_start, ist_end, jst, ikpt_start, ikpt_end
     CMPLX   :: alpha, beta
     FLOAT, allocatable :: dpsi(:,  :)
     CMPLX, allocatable :: zpsi(:,  :), zpsi2(:)
 
     PUSH_SUB(states_generate_random)
-
+ 
     ist_start = optional_default(ist_start_, 1)
     ist_end   = optional_default(ist_end_,   st%nst)
+    ikpt_start = optional_default(ikpt_start_, 1)  
+    ikpt_end = optional_default(ikpt_end_, st%d%nik)
+    
 
     if (states_are_real(st)) then
       SAFE_ALLOCATE(dpsi(1:mesh%np, 1:st%d%dim))
@@ -1573,7 +1599,7 @@ contains
     select case(st%d%ispin)
     case(UNPOLARIZED, SPIN_POLARIZED)
 
-      do ik = 1, st%d%nik
+      do ik = ikpt_start, ikpt_end
         do ist = ist_start, ist_end
           if (states_are_real(st)) then
             call dmf_random(mesh, dpsi(:, 1), normalized = normalized)
@@ -1598,7 +1624,7 @@ contains
 
       if(st%fixed_spins) then
 
-        do ik = 1, st%d%nik
+        do ik = ikpt_start, ikpt_end
           do ist = ist_start, ist_end
             call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
             if(.not. state_kpt_is_local(st, ist, ik)) cycle
@@ -1631,7 +1657,7 @@ contains
           end do
         end do
       else
-        do ik = 1, st%d%nik
+        do ik = ikpt_start, ikpt_end
           do ist = ist_start, ist_end
             do id = 1, st%d%dim
               call zmf_random(mesh, zpsi(:, id), normalized = normalized)
@@ -2236,9 +2262,7 @@ contains
 
     integer :: iqn, ib
     integer(8) :: max_mem, mem
-#ifdef HAVE_OPENCL
     FLOAT, parameter :: mem_frac = 0.75
-#endif
 
     PUSH_SUB(states_pack)
 
@@ -2246,10 +2270,9 @@ contains
 
     st%packed = .true.
 
-    if(opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_GLOBAL_MEM_SIZE, max_mem, cl_status)
-#endif
+    if(accel_is_enabled()) then
+      max_mem = accel_global_memory_size()
+      
       if(st%d%cl_states_mem > CNST(1.0)) then
         max_mem = int(st%d%cl_states_mem, 8)*(1024_8)**2
       else if(st%d%cl_states_mem < CNST(0.0)) then

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states_calc_inc.F90 15302 2016-04-27 18:13:03Z xavier $
+!! $Id: states_calc_inc.F90 15589 2016-08-22 14:39:43Z nicolastd $
 
 ! ---------------------------------------------------------
 !> Orthonormalizes nst orbitals in mesh (honours state parallelization).
@@ -284,19 +284,17 @@ subroutine X(states_trsm)(st, mesh, ik, ss)
 
   integer :: idim, block_size, ib, size, sp
   R_TYPE, allocatable :: psicopy(:, :, :)
-#ifdef HAVE_OPENCL
   integer :: ierr
-  type(opencl_mem_t) :: psicopy_buffer, ss_buffer
-  type(octcl_kernel_t), save :: dkernel, zkernel
-  type(cl_kernel) :: kernel_ref
+  type(accel_mem_t) :: psicopy_buffer, ss_buffer
+  type(accel_kernel_t), save, target :: dkernel, zkernel
+  type(accel_kernel_t), pointer :: kernel
   type(profile_t), save :: prof_copy
-#endif
   type(profile_t), save :: prof
 
   PUSH_SUB(X(states_trsm))
   call profiling_in(prof, "STATES_TRSM")
 
-  if(.not. (states_are_packed(st) .and. opencl_is_enabled())) then
+  if(.not. (states_are_packed(st) .and. accel_is_enabled())) then
 
 #ifdef R_TREAL  
     block_size = max(40, hardware%l2%size/(2*8*st%nst))
@@ -334,15 +332,14 @@ subroutine X(states_trsm)(st, mesh, ik, ss)
 
     if(st%d%dim > 1) call messages_not_implemented('Opencl states_trsm for spinors')
 
-#ifdef HAVE_OPENCL
     block_size = batch_points_block_size(st%group%psib(st%group%block_start, ik))
 
-    call opencl_create_buffer(psicopy_buffer, CL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
+    call accel_create_buffer(psicopy_buffer, ACCEL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
 
-    call opencl_create_buffer(ss_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, product(ubound(ss)))
+    call accel_create_buffer(ss_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, product(ubound(ss)))
 
     call profiling_in(prof_copy, 'STATES_TRSM_COPY')
-    call opencl_write_buffer(ss_buffer, product(ubound(ss)), ss)
+    call accel_write_buffer(ss_buffer, product(ubound(ss)), ss)
     call profiling_count_transfers(product(ubound(ss)), ss(1, 1))
 
     call profiling_out(prof_copy)
@@ -355,45 +352,21 @@ subroutine X(states_trsm)(st, mesh, ik, ss)
         call batch_get_points(st%group%psib(ib, ik), sp, sp + size - 1, psicopy_buffer, st%nst)
       end do
 
-#if defined(HAVE_CLBLAS) && defined(R_TREAL)
-
-      call aX(clblas,trsmEx)(order = clblasColumnMajor, side = clblasLeft, &
-        uplo = clblasUpper, transA = clblasTrans, diag = clblasNonUnit, &
+      call X(accel_trsm)(side = ACCEL_BLAS_LEFT, uplo = ACCEL_BLAS_UPPER, &
+        trans = ACCEL_BLAS_T, diag = ACCEL_BLAS_DIAG_NON_UNIT, &
         M = int(st%nst, 8), N = int(size, 8), alpha = R_TOTYPE(M_ONE), &
-        A = ss_buffer%mem, offA = 0_8, lda = int(ubound(ss, dim = 1), 8), &
-        B = psicopy_buffer%mem, offB = 0_8, ldb = int(st%nst, 8), &
-        CommandQueue = opencl%command_queue, status = ierr)
-      if(ierr /= clblasSuccess) call clblas_print_error(ierr, 'clblasXtrsmEx')
-
-#else
-
-      if(states_are_real(st)) then
-        call octcl_kernel_start_call(dkernel, 'trsm.cl', 'dtrsm')
-        kernel_ref = octcl_kernel_get_ref(dkernel)
-      else
-        call octcl_kernel_start_call(zkernel, 'trsm.cl', 'ztrsm')
-        kernel_ref = octcl_kernel_get_ref(zkernel)
-      end if
-
-      call opencl_set_kernel_arg(kernel_ref, 0, st%nst)
-      call opencl_set_kernel_arg(kernel_ref, 1, ss_buffer)
-      call opencl_set_kernel_arg(kernel_ref, 2, ubound(ss, dim = 1))
-      call opencl_set_kernel_arg(kernel_ref, 3, psicopy_buffer)
-      call opencl_set_kernel_arg(kernel_ref, 4, st%nst)
+        A = ss_buffer, offA = 0_8, lda = int(ubound(ss, dim = 1), 8), &
+        B = psicopy_buffer, offB = 0_8, ldb = int(st%nst, 8))
       
-      call opencl_kernel_run(kernel_ref, (/size/), (/1/))
-
-#endif
-      call opencl_finish()
-
       do ib = st%group%block_start, st%group%block_end
         call batch_set_points(st%group%psib(ib, ik), sp, sp + size - 1, psicopy_buffer, st%nst)
       end do
     end do
+
     
-    call opencl_release_buffer(ss_buffer)
-    call opencl_release_buffer(psicopy_buffer)
-#endif
+    call accel_release_buffer(ss_buffer)
+    call accel_release_buffer(psicopy_buffer)
+
   end if
 
   call profiling_count_operations(mesh%np*dble(st%nst)*(st%nst + 1)*CNST(0.5)*(R_ADD + R_MUL))
@@ -1103,12 +1076,8 @@ subroutine X(states_rotate)(mesh, st, uu, ik)
   type(batch_t) :: psib
   integer       :: block_size, sp, idim, size, ib
   R_TYPE, allocatable :: psinew(:, :, :), psicopy(:, :, :)
-#ifdef HAVE_OPENCL
-  type(octcl_kernel_t), save :: dkernel, zkernel
-  type(cl_kernel) :: kernel_ref
-  type(opencl_mem_t) :: psinew_buffer, psicopy_buffer, uu_buffer
-  integer :: ierr
-#endif
+  type(accel_kernel_t), save :: dkernel, zkernel
+  type(accel_mem_t) :: psinew_buffer, psicopy_buffer, uu_buffer
   type(profile_t), save :: prof
 
   PUSH_SUB(X(states_rotate))
@@ -1117,7 +1086,7 @@ subroutine X(states_rotate)(mesh, st, uu, ik)
 
   ASSERT(R_TYPE_VAL == states_type(st))
   
-  if(.not. states_are_packed(st) .or. .not. opencl_is_enabled()) then
+  if(.not. states_are_packed(st) .or. .not. accel_is_enabled()) then
     
 #ifdef R_TREAL  
     block_size = max(40, hardware%l2%size/(2*8*st%nst))
@@ -1160,14 +1129,14 @@ subroutine X(states_rotate)(mesh, st, uu, ik)
   else
 
     if(st%d%dim > 1) call messages_not_implemented('Opencl states_rotate for spinors')
-#ifdef HAVE_OPENCL
+
     block_size = batch_points_block_size(st%group%psib(st%group%block_start, ik))
 
-    call opencl_create_buffer(uu_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, product(ubound(uu)))
-    call opencl_write_buffer(uu_buffer, product(ubound(uu)), uu)
+    call accel_create_buffer(uu_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, product(ubound(uu)))
+    call accel_write_buffer(uu_buffer, product(ubound(uu)), uu)
 
-    call opencl_create_buffer(psicopy_buffer, CL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
-    call opencl_create_buffer(psinew_buffer, CL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
+    call accel_create_buffer(psicopy_buffer, ACCEL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
+    call accel_create_buffer(psinew_buffer, ACCEL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
 
     do sp = 1, mesh%np, block_size
       size = min(block_size, mesh%np - sp + 1)
@@ -1176,40 +1145,13 @@ subroutine X(states_rotate)(mesh, st, uu, ik)
         call batch_get_points(st%group%psib(ib, ik), sp, sp + size - 1, psicopy_buffer, st%nst)
       end do
 
-#ifdef HAVE_CLBLAS
-
-      call aX(clblas,gemmEx)(order = clblasColumnMajor, transA = clblasTrans, transB = clblasNoTrans, &
+      call X(accel_gemm)(transA = CUBLAS_OP_T, transB = CUBLAS_OP_N, &
         M = int(st%nst, 8), N = int(size, 8), K = int(st%nst, 8), alpha = R_TOTYPE(M_ONE), &
-        A = uu_buffer%mem, offA = 0_8, lda = int(ubound(uu, dim = 1), 8), &
-        B = psicopy_buffer%mem, offB = 0_8, ldb = int(st%nst, 8), beta = R_TOTYPE(M_ZERO), &
-        C = psinew_buffer%mem, offC = 0_8, ldc = int(st%nst, 8), &
-        CommandQueue = opencl%command_queue, status = ierr)
-      if(ierr /= clblasSuccess) call clblas_print_error(ierr, 'clblasXgemmEx')
+        A = uu_buffer, offA = 0_8, lda = int(ubound(uu, dim = 1), 8), &
+        B = psicopy_buffer, offB = 0_8, ldb = int(st%nst, 8), beta = R_TOTYPE(M_ZERO), &
+        C = psinew_buffer, offC = 0_8, ldc = int(st%nst, 8))
       
-#else
-
-      if(states_are_real(st)) then
-        call octcl_kernel_start_call(dkernel, 'rotate.cl', 'drotate_states')
-        kernel_ref = octcl_kernel_get_ref(dkernel)
-      else
-        call octcl_kernel_start_call(zkernel, 'rotate.cl', 'zrotate_states')
-        kernel_ref = octcl_kernel_get_ref(zkernel)
-      end if
-
-      call opencl_set_kernel_arg(kernel_ref, 0, st%nst)
-      call opencl_set_kernel_arg(kernel_ref, 1, size)
-      call opencl_set_kernel_arg(kernel_ref, 2, uu_buffer)
-      call opencl_set_kernel_arg(kernel_ref, 3, ubound(uu, dim = 1))
-      call opencl_set_kernel_arg(kernel_ref, 4, psicopy_buffer)
-      call opencl_set_kernel_arg(kernel_ref, 5, st%nst)
-      call opencl_set_kernel_arg(kernel_ref, 6, psinew_buffer)
-      call opencl_set_kernel_arg(kernel_ref, 7, st%nst)
-      
-      call opencl_kernel_run(kernel_ref, (/st%nst, size/), (/1, 1/))
-
-#endif
-
-      call opencl_finish()
+      call accel_finish()
 
       do ib = st%group%block_start, st%group%block_end
         call batch_set_points(st%group%psib(ib, ik), sp, sp + size - 1, psinew_buffer, st%nst)
@@ -1218,10 +1160,10 @@ subroutine X(states_rotate)(mesh, st, uu, ik)
 
     call profiling_count_operations((R_ADD + R_MUL)*st%nst*(st%nst - CNST(1.0))*mesh%np)
    
-    call opencl_release_buffer(uu_buffer)
-    call opencl_release_buffer(psicopy_buffer)
-    call opencl_release_buffer(psinew_buffer)
-#endif
+    call accel_release_buffer(uu_buffer)
+    call accel_release_buffer(psicopy_buffer)
+    call accel_release_buffer(psinew_buffer)
+
   end if
 
   call profiling_out(prof)
@@ -1244,16 +1186,14 @@ subroutine X(states_calc_overlap)(st, mesh, ik, overlap)
   type(profile_t), save :: prof
   FLOAT :: vol
   R_TYPE, allocatable :: psi(:, :, :)
-#ifdef HAVE_CLBLAS
   integer :: ierr
-  type(opencl_mem_t) :: psi_buffer, overlap_buffer
-#endif
+  type(accel_mem_t) :: psi_buffer, overlap_buffer
 
   PUSH_SUB(X(states_calc_overlap))
 
   call profiling_in(prof, "STATES_OVERLAP")
 
-  if(.not. states_are_packed(st) .or. .not. opencl_is_enabled()) then
+  if(.not. states_are_packed(st) .or. .not. accel_is_enabled()) then
 
 #ifdef R_TREAL  
     block_size = max(80, hardware%l2%size/(8*st%nst))
@@ -1304,21 +1244,20 @@ subroutine X(states_calc_overlap)(st, mesh, ik, overlap)
 
     SAFE_DEALLOCATE_A(psi)
 
-#ifdef HAVE_CLBLAS
 
-  else if(opencl_is_enabled()) then
+  else if(accel_is_enabled()) then
 
     ASSERT(ubound(overlap, dim = 1) == st%nst)
     ASSERT(.not. st%parallel_in_states)
     
-    call opencl_create_buffer(overlap_buffer, CL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*st%nst)
-    call opencl_set_buffer_to_zero(overlap_buffer, R_TYPE_VAL, st%nst*st%nst)
+    call accel_create_buffer(overlap_buffer, ACCEL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*st%nst)
+    call accel_set_buffer_to_zero(overlap_buffer, R_TYPE_VAL, st%nst*st%nst)
 
     ! we need to use a temporary array
 
     block_size = batch_points_block_size(st%group%psib(st%group%block_start, ik))
 
-    call opencl_create_buffer(psi_buffer, CL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
+    call accel_create_buffer(psi_buffer, ACCEL_MEM_READ_WRITE, R_TYPE_VAL, st%nst*block_size)
 
     do sp = 1, mesh%np, block_size
       size = min(block_size, mesh%np - sp + 1)
@@ -1328,31 +1267,23 @@ subroutine X(states_calc_overlap)(st, mesh, ik, overlap)
         call batch_get_points(st%group%psib(ib, ik), sp, sp + size - 1, psi_buffer, st%nst)
       end do
 
-#ifdef R_TREAL
-      call clblasDsyrkEx &
-#else
-      call clblasZherkEx &
-#endif
-      (order = clblasColumnMajor, uplo = clblasUpper, transA = clblasNoTrans, &
-        N = int(st%nst, 8), K = int(size, 8), &
-        alpha = real(mesh%volume_element, 8), &
-        A = psi_buffer%mem, offA = 0_8, lda = int(st%nst, 8), &
+      call X(accel_herk)(uplo = ACCEL_BLAS_UPPER, trans = ACCEL_BLAS_N, &
+        n = int(st%nst, 8), k = int(size, 8), &
+        alpha = mesh%volume_element, &
+        A = psi_buffer, offa = 0_8, lda = int(st%nst, 8), &
         beta = 1.0_8, &
-        C = overlap_buffer%mem, offC = 0_8, ldc = int(st%nst, 8), &
-        CommandQueue = opencl%command_queue, status = ierr)
-      if(ierr /= clblasSuccess) call clblas_print_error(ierr, 'clblasDsyrkEx/clblasZherkEx')
-
+        C = overlap_buffer, offc = 0_8, ldc = int(st%nst, 8))
     end do
 
-    call opencl_finish()
+    call accel_finish()
 
-    call opencl_release_buffer(psi_buffer)
+    call accel_release_buffer(psi_buffer)
 
     call profiling_count_operations((R_ADD + R_MUL)*CNST(0.5)*st%nst*(st%nst - CNST(1.0))*mesh%np)
 
-    call opencl_read_buffer(overlap_buffer, st%nst*st%nst, overlap)
+    call accel_read_buffer(overlap_buffer, st%nst*st%nst, overlap)
 
-    call opencl_finish()
+    call accel_finish()
 
 #ifndef R_TREAL
     do jst = 1, st%nst
@@ -1364,9 +1295,7 @@ subroutine X(states_calc_overlap)(st, mesh, ik, overlap)
 
     if(mesh%parallel_in_domains) call comm_allreduce(mesh%mpi_grp%comm, overlap, dim = (/st%nst, st%nst/))
 
-    call opencl_release_buffer(overlap_buffer)
-
-#endif
+    call accel_release_buffer(overlap_buffer)
 
   else
 
@@ -1396,6 +1325,79 @@ subroutine X(states_calc_overlap)(st, mesh, ik, overlap)
 
   POP_SUB(X(states_calc_overlap))
 end subroutine X(states_calc_overlap)
+
+!> This routine computes the projection between two set of states
+subroutine X(states_calc_projections)(mesh, st, gs_st, ik, proj)
+  type(mesh_t),           intent(in)    :: mesh
+  type(states_t),         intent(in)    :: st
+  type(states_t),         intent(in)    :: gs_st
+  integer,                intent(in)    :: ik
+  R_TYPE,                 intent(out)   :: proj(:, :)
+
+  integer       :: ib, jb, ip
+  R_TYPE, allocatable :: psi(:, :, :), gspsi(:, :, :)
+  integer :: sp, ep, size, block_size, ierr
+  type(profile_t), save :: prof
+
+  PUSH_SUB(X(states_calc_projections))
+  call profiling_in(prof, "STATES_PROJECTIONS")
+
+  if(states_are_packed(st) .and. accel_is_enabled()) then
+   message(1) = "states_calc_projections is not implemented with packed states or accel."
+   call messages_fatal(1) 
+  else
+
+#ifdef R_TREAL  
+    block_size = max(40, hardware%l2%size/(2*8*st%nst))
+#else
+    block_size = max(20, hardware%l2%size/(2*16*st%nst))
+#endif
+
+    proj(1:gs_st%nst, 1:st%nst) = CNST(0.0)
+    
+    SAFE_ALLOCATE(psi(1:st%nst, 1:st%d%dim, 1:block_size))
+    SAFE_ALLOCATE(gspsi(1:gs_st%nst, 1:gs_st%d%dim, 1:block_size))
+
+    do sp = 1, mesh%np, block_size
+      size = min(block_size, mesh%np - sp + 1)
+      
+      do ib = st%group%block_start, st%group%block_end
+        call batch_get_points(st%group%psib(ib, ik),  sp, sp + size - 1, psi)
+        call batch_get_points(gs_st%group%psib(ib,ik), sp, sp + size - 1, gspsi)
+      end do
+
+      if(st%parallel_in_states) then
+        call states_parallel_gather(st, (/st%d%dim, size/), psi)
+        call states_parallel_gather(gs_st, (/st%d%dim, size/), gspsi)
+      end if
+      
+      if(mesh%use_curvilinear) then
+        do ip = 1, size
+          psi(1:st%nst, 1:st%d%dim, ip) = psi(1:st%nst, 1:st%d%dim, ip)*mesh%vol_pp(sp + ip - 1)
+          gspsi(1:gs_st%nst, 1:st%d%dim, ip) = gspsi(1:gs_st%nst, 1:st%d%dim, ip)*mesh%vol_pp(sp + ip - 1)
+        end do
+      end if
+
+      call blas_gemm(transa = 'n', transb = 'c',        &
+        m = gs_st%nst, n = st%nst, k = size*st%d%dim,      &
+        alpha = R_TOTYPE(mesh%volume_element),      &
+        a = gspsi(1, 1, 1), lda = ubound(gspsi, dim = 1),   &
+        b = psi(1, 1, 1), ldb = ubound(psi, dim = 1), &
+        beta = R_TOTYPE(CNST(1.0)),                     & 
+        c = proj(1, 1), ldc = ubound(proj, dim = 1))
+    end do
+
+  end if
+  
+  call profiling_count_operations((R_ADD + R_MUL)*gs_st%nst*(st%nst - CNST(1.0))*mesh%np)
+  
+  if(mesh%parallel_in_domains) call comm_allreduce(mesh%mpi_grp%comm, proj, dim = (/gs_st%nst, st%nst/))
+  
+  call profiling_out(prof)
+  POP_SUB(X(states_calc_projections))
+
+end subroutine X(states_calc_projections)
+
 
 !! Local Variables:
 !! mode: f90

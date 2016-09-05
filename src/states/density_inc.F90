@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: density_inc.F90 14501 2015-08-07 01:17:42Z xavier $
+!! $Id: density_inc.F90 15473 2016-07-12 02:58:36Z xavier $
 
 !---------------------------------------------------------------------------
 subroutine X(density_accumulate_grad)(gr, st, iq, psib, grad_psib, grad_rho)
@@ -29,13 +29,10 @@ subroutine X(density_accumulate_grad)(gr, st, iq, psib, grad_psib, grad_rho)
   integer :: ii, ist, idir, ip
   FLOAT :: ff
   R_TYPE :: psi, gpsi
-#ifdef HAVE_OPENCL
   integer :: wgsize
   FLOAT, allocatable :: grad_rho_tmp(:, :), weights(:)
-  type(opencl_mem_t) :: grad_rho_buff, weights_buff
-  type(octcl_kernel_t), save :: ker_calc_grad_dens
-  type(cl_kernel) :: kernel
-#endif  
+  type(accel_mem_t) :: grad_rho_buff, weights_buff
+  type(accel_kernel_t), save :: ker_calc_grad_dens
 
   PUSH_SUB(X(density_accumulate_grad))
 
@@ -77,8 +74,7 @@ subroutine X(density_accumulate_grad)(gr, st, iq, psib, grad_psib, grad_rho)
     end do
       
   case(BATCH_CL_PACKED)
-#ifdef HAVE_OPENCL
-    call opencl_create_buffer(grad_rho_buff, CL_MEM_WRITE_ONLY, TYPE_FLOAT, gr%mesh%np*gr%sb%dim)
+    call accel_create_buffer(grad_rho_buff, ACCEL_MEM_WRITE_ONLY, TYPE_FLOAT, gr%mesh%np*gr%sb%dim)
 
     SAFE_ALLOCATE(weights(1:psib%pack%size(1)))
 
@@ -88,37 +84,36 @@ subroutine X(density_accumulate_grad)(gr, st, iq, psib, grad_psib, grad_rho)
       weights(ii) = st%d%kweights(iq)*st%occ(ist, iq)*M_TWO
     end do
 
-    call opencl_create_buffer(weights_buff, CL_MEM_READ_ONLY, TYPE_FLOAT, psib%pack%size(1))
-    call opencl_write_buffer(weights_buff, psib%pack%size(1), weights)
+    call accel_create_buffer(weights_buff, ACCEL_MEM_READ_ONLY, TYPE_FLOAT, psib%pack%size(1))
+    call accel_write_buffer(weights_buff, psib%pack%size(1), weights)
    
     SAFE_DEALLOCATE_A(weights)
     
-    call octcl_kernel_start_call(ker_calc_grad_dens, 'forces.cl', TOSTRING(X(density_gradient)), &
+    call accel_kernel_start_call(ker_calc_grad_dens, 'forces.cl', TOSTRING(X(density_gradient)), &
       flags = '-D' + R_TYPE_CL)
-    kernel = octcl_kernel_get_ref(ker_calc_grad_dens)
 
     do idir = 1, gr%mesh%sb%dim
-      call opencl_set_kernel_arg(kernel, 0, idir - 1)
-      call opencl_set_kernel_arg(kernel, 1, psib%pack%size(1))
-      call opencl_set_kernel_arg(kernel, 2, gr%mesh%np)
-      call opencl_set_kernel_arg(kernel, 3, weights_buff)
-      call opencl_set_kernel_arg(kernel, 4, grad_psib(idir)%pack%buffer)
-      call opencl_set_kernel_arg(kernel, 5, psib%pack%buffer)
-      call opencl_set_kernel_arg(kernel, 6, log2(psib%pack%size(1)))
-      call opencl_set_kernel_arg(kernel, 7, grad_rho_buff)
+      call accel_set_kernel_arg(ker_calc_grad_dens, 0, idir - 1)
+      call accel_set_kernel_arg(ker_calc_grad_dens, 1, psib%pack%size(1))
+      call accel_set_kernel_arg(ker_calc_grad_dens, 2, gr%mesh%np)
+      call accel_set_kernel_arg(ker_calc_grad_dens, 3, weights_buff)
+      call accel_set_kernel_arg(ker_calc_grad_dens, 4, grad_psib(idir)%pack%buffer)
+      call accel_set_kernel_arg(ker_calc_grad_dens, 5, psib%pack%buffer)
+      call accel_set_kernel_arg(ker_calc_grad_dens, 6, log2(psib%pack%size(1)))
+      call accel_set_kernel_arg(ker_calc_grad_dens, 7, grad_rho_buff)
 
-      wgsize = opencl_kernel_workgroup_size(kernel)
-      call opencl_kernel_run(kernel, (/pad(gr%mesh%np, wgsize)/), (/wgsize/))
+      wgsize = accel_kernel_workgroup_size(ker_calc_grad_dens)
+      call accel_kernel_run(ker_calc_grad_dens, (/pad(gr%mesh%np, wgsize)/), (/wgsize/))
 
     end do
 
-    call opencl_release_buffer(weights_buff)
+    call accel_release_buffer(weights_buff)
 
     SAFE_ALLOCATE(grad_rho_tmp(1:gr%mesh%np, 1:gr%sb%dim))
 
-    call opencl_read_buffer(grad_rho_buff, gr%mesh%np*gr%sb%dim, grad_rho_tmp)
+    call accel_read_buffer(grad_rho_buff, gr%mesh%np*gr%sb%dim, grad_rho_tmp)
 
-    call opencl_release_buffer(grad_rho_buff)
+    call accel_release_buffer(grad_rho_buff)
 
     do idir = 1, gr%mesh%sb%dim
       do ip = 1, gr%mesh%np
@@ -127,7 +122,6 @@ subroutine X(density_accumulate_grad)(gr, st, iq, psib, grad_psib, grad_rho)
     end do
 
     SAFE_DEALLOCATE_A(grad_rho_tmp)
-#endif
   end select
 
   POP_SUB(X(density_accumulate_grad))

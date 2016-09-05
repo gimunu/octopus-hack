@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: kdotp_calc_inc.F90 14902 2015-12-27 04:46:06Z xavier $
+!! $Id: kdotp_calc_inc.F90 15452 2016-07-06 05:18:14Z irina $
 
 ! ---------------------------------------------------------
 !> m^-1[ij] = <psi0|H2ij|psi0> + 2*Re<psi0|H'i|psi'j>
@@ -52,7 +52,7 @@ subroutine X(calc_eff_mass_inv)(sys, hm, lr, perturbation, eff_mass_inv, degen_t
   SAFE_ALLOCATE(proj_dl_psi(1:mesh%np, 1:hm%d%dim))
   SAFE_ALLOCATE(orth_mask(1:sys%st%nst))
 #ifdef HAVE_MPI
-  SAFE_ALLOCATE(eff_mass_inv_temp(1:pdim, 1:pdim, 1:sys%st%d%nik, 1:sys%st%nst))
+  SAFE_ALLOCATE(eff_mass_inv_temp(1:pdim, 1:pdim, 1:sys%st%nst, 1:sys%st%d%nik))
 #endif
 
   eff_mass_inv(:,:,:,:) = M_ZERO

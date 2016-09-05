@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_mask_out_inc.F90 15248 2016-03-30 12:18:54Z umberto $
+!! $Id: pes_mask_out_inc.F90 15370 2016-05-18 10:43:13Z nicolastd $
 
 
 
@@ -116,8 +116,8 @@ subroutine pes_mask_pmesh(dim, kpoints, ll, LG, pmesh, idxZero, krng, Lp)
         
   else  
     
-    call kpoints_grid_generate(dim, kpoints%nik_axis(1:dim), kpoints%shifts(1:dim), &
-                               kpoints%full%red_point,  Lkpt(:,1:dim))
+    call kpoints_grid_generate(dim, kpoints%nik_axis(1:dim), kpoints%full%nshifts, &
+           kpoints%full%shifts(1:dim,1:kpoints%full%nshifts), kpoints%full%red_point,  Lkpt(:,1:dim))
 
 !       do ik = 1, kpoints_number(kpoints)
 !         kpt(1:sb%dim) = kpoints_get_point(kpoints, ik, absolute_coordinates = .true.)

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: sternheimer.F90 15340 2016-05-03 17:08:37Z xavier $
+!! $Id: sternheimer.F90 15452 2016-07-06 05:18:14Z irina $
 
 #include "global.h"
 
@@ -37,6 +37,7 @@ module sternheimer_oct_m
   use mesh_function_oct_m
   use messages_oct_m
   use mix_oct_m
+  use mpi_oct_m
   use multigrid_oct_m
   use pert_oct_m
   use poisson_oct_m

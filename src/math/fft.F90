@@ -16,7 +16,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: fft.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: fft.F90 15567 2016-08-03 18:10:30Z xavier $
 
 #include "global.h"
 
@@ -24,6 +24,7 @@
 !! This module provides a single interface that works with different
 !! FFT implementations.
 module fft_oct_m
+  use accel_oct_m
   use,intrinsic :: iso_c_binding
 #ifdef HAVE_OPENCL  
   use cl
@@ -43,8 +44,6 @@ module fft_oct_m
 #if defined(HAVE_OPENMP) && defined(HAVE_FFTW3_THREADS)
   use omp_lib
 #endif
-  use octcl_kernel_oct_m
-  use opencl_oct_m
   use parser_oct_m
   use pfft_oct_m
   use pnfft_oct_m
@@ -77,7 +76,8 @@ module fft_oct_m
     dfft_forward1,     &
     zfft_forward1,     &
     dfft_backward1,    &
-    zfft_backward1
+    zfft_backward1,    &
+    fft_scaling_factor
 
 
   !> global constants
@@ -90,7 +90,7 @@ module fft_oct_m
        FFTLIB_NONE  = 0, &
        FFTLIB_FFTW  = 1, &
        FFTLIB_PFFT  = 2, &
-       FFTLIB_OPENCL = 3, &
+       FFTLIB_ACCEL = 3, &
        FFTLIB_NFFT  = 4, &
        FFTLIB_PNFFT = 5
        
@@ -129,6 +129,8 @@ module fft_oct_m
     type(clfftPlanHandle) :: cl_plan_fw 
     type(clfftPlanHandle) :: cl_plan_bw !< for real transforms we need a different plan, so we always use 2
 #endif
+    type(c_ptr)           :: cuda_plan_fw
+    type(c_ptr)           :: cuda_plan_bw
 #ifdef HAVE_NFFT
     type(nfft_t) :: nfft 
 #endif
@@ -142,6 +144,14 @@ module fft_oct_m
   type(fft_t), save :: fft_array(FFT_MAX)
   logical           :: fft_optimize
   integer           :: fft_prepare_plan
+
+  integer, parameter ::  &
+    CUFFT_R2C = z'2a',   &
+    CUFFT_C2R = z'2c',   &
+    CUFFT_C2C = z'29',   &
+    CUFFT_D2Z = z'6a',   &
+    CUFFT_Z2D = z'6c',   &
+    CUFFT_Z2Z = z'69'
 
 contains
 
@@ -308,13 +318,17 @@ contains
     nn_temp(1:fft_dim) = nn(1:fft_dim)
 
     select case (library_)
-    case (FFTLIB_OPENCL)
+    case (FFTLIB_ACCEL)
     
       do ii = 1, fft_dim
         ! the AMD OpenCL FFT only supports sizes 2, 3 and 5, but size
         ! 5 gives an fpe error on the Radeon 7970 (APPML 1.8), so we
         ! only use factors 2 and 3
+#ifdef HAVE_CLFFT
         nn_temp(ii) = fft_size(nn(ii), (/2, 3/))
+#else
+        nn_temp(ii) = fft_size(nn(ii), (/2, 3, 5, 7/))
+#endif
         if(fft_optimize .and. optimize(ii)) nn(ii) = nn_temp(ii)
       end do 
       
@@ -446,6 +460,13 @@ contains
       call pfft_get_dims(fft_array(jj)%rs_n_global, mpi_comm, type == FFT_REAL, &
            alloc_size, fft_array(jj)%fs_n_global, fft_array(jj)%rs_n, &
            fft_array(jj)%fs_n, fft_array(jj)%rs_istart, fft_array(jj)%fs_istart)
+      !write(*,"(6(A,3I4,/),A,I10,/)") "PFFT: rs_n_global = ",fft_array(jj)%rs_n_global,&
+      !  "fs_n_global = ",fft_array(jj)%fs_n_global,&
+      !  "rs_n        = ",fft_array(jj)%rs_n,&
+      !  "fs_n        = ",fft_array(jj)%fs_n,&
+      !  "rs_istart   = ",fft_array(jj)%rs_istart,&
+      !  "fs_istart   = ",fft_array(jj)%fs_istart,&
+      !  "alloc_size  = ",alloc_size
 #endif
 
       ! Allocate memory. Note that PFFT may need extra memory space 
@@ -473,7 +494,7 @@ contains
       n3 = ceiling(real(alloc_size)/real(n_3*n_1))
       SAFE_ALLOCATE(fft_array(jj)%fs_data(1:n_3, 1:n_1, 1:n3))
 
-    case(FFTLIB_OPENCL)
+    case(FFTLIB_ACCEL)
       call fftw_get_dims(fft_array(jj)%rs_n_global, (type == FFT_REAL), fft_array(jj)%fs_n_global)
       fft_array(jj)%rs_n = fft_array(jj)%rs_n_global
       fft_array(jj)%fs_n = fft_array(jj)%fs_n_global
@@ -551,14 +572,31 @@ contains
       
 #endif
 
-    case(FFTLIB_OPENCL)
+    case(FFTLIB_ACCEL)
+
+      fft_array(jj)%stride_rs(1) = 1
+      fft_array(jj)%stride_fs(1) = 1
+      do ii = 2, fft_dim
+        fft_array(jj)%stride_rs(ii) = fft_array(jj)%stride_rs(ii - 1)*fft_array(jj)%rs_n(ii - 1)
+        fft_array(jj)%stride_fs(ii) = fft_array(jj)%stride_fs(ii - 1)*fft_array(jj)%fs_n(ii - 1)
+      end do
+
+#ifdef HAVE_CUDA
+      call cuda_fft_plan3d(fft_array(jj)%cuda_plan_fw, &
+        fft_array(jj)%rs_n_global(3), fft_array(jj)%rs_n_global(2), fft_array(jj)%rs_n_global(1), CUFFT_D2Z)
+      call cuda_fft_plan3d(fft_array(jj)%cuda_plan_bw, &
+        fft_array(jj)%rs_n_global(3), fft_array(jj)%rs_n_global(2), fft_array(jj)%rs_n_global(1), CUFFT_Z2D)
+#endif
+      
 #ifdef HAVE_CLFFT
 
       ! create the plans
-      call clfftCreateDefaultPlan(fft_array(jj)%cl_plan_fw, opencl%context, fft_dim, int(fft_array(jj)%rs_n_global, 8), status)
+      call clfftCreateDefaultPlan(fft_array(jj)%cl_plan_fw, accel%context%cl_context, &
+        fft_dim, int(fft_array(jj)%rs_n_global, 8), status)
       if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftCreateDefaultPlan')
 
-      call clfftCreateDefaultPlan(fft_array(jj)%cl_plan_bw, opencl%context, fft_dim, int(fft_array(jj)%rs_n_global, 8), status)
+      call clfftCreateDefaultPlan(fft_array(jj)%cl_plan_bw, accel%context%cl_context, &
+        fft_dim, int(fft_array(jj)%rs_n_global, 8), status)
       if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftCreateDefaultPlan')
 
       ! set precision
@@ -614,28 +652,6 @@ contains
       call clfftSetResultLocation(fft_array(jj)%cl_plan_bw, CLFFT_OUTOFPLACE, status)
       if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftSetResultLocation')
 
-      ! invert the stride for Fortran arrays
-
-!      call clfftGetPlanInStride(fft_array(jj)%cl_plan_bw, fft_dim, stride_rs, status)
-!      if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftGetPlanInStride')
-
-
-!      call clfftGetPlanInStride(fft_array(jj)%cl_plan_fw, fft_dim, stride_fs, status)
-!      if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftGetPlanInStride')
-
-!      print*, "STRIDE IN     ", stride_rs
-!      print*, "STRIDE OUT    ", stride_fs
-
-      fft_array(jj)%stride_rs(1) = 1
-      fft_array(jj)%stride_fs(1) = 1
-      do ii = 2, fft_dim
-        fft_array(jj)%stride_rs(ii) = fft_array(jj)%stride_rs(ii - 1)*fft_array(jj)%rs_n(ii - 1)
-        fft_array(jj)%stride_fs(ii) = fft_array(jj)%stride_fs(ii - 1)*fft_array(jj)%fs_n(ii - 1)
-      end do
-
-!      print*, "STRIDE NEW IN ", stride_rs
-!      print*, "STRIDE NEW OUT", stride_fs
-
       ! the strides
       
       call clfftSetPlanInStride(fft_array(jj)%cl_plan_fw, fft_dim, int(fft_array(jj)%stride_rs, 8), status)
@@ -680,10 +696,10 @@ contains
 
       ! now 'bake' the plans, this signals that the plans are ready to use
 
-      call clfftBakePlan(fft_array(jj)%cl_plan_fw, opencl%command_queue, status)
+      call clfftBakePlan(fft_array(jj)%cl_plan_fw, accel%command_queue, status)
       if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftBakePlan')
 
-      call clfftBakePlan(fft_array(jj)%cl_plan_bw, opencl%command_queue, status)
+      call clfftBakePlan(fft_array(jj)%cl_plan_bw, accel%command_queue, status)
       if(status /= CLFFT_SUCCESS) call clfft_print_error(status, 'clfftBakePlan')
 
 #endif
@@ -777,7 +793,7 @@ contains
 #endif
     case (FFTLIB_PFFT)
     !Do nothing 
-    case(FFTLIB_OPENCL)
+    case(FFTLIB_ACCEL)
     !Do nothing 
     case(FFTLIB_PNFFT)
 #ifdef HAVE_PNFFT
@@ -820,8 +836,13 @@ contains
           SAFE_DEALLOCATE_P(fft_array(ii)%drs_data)
           SAFE_DEALLOCATE_P(fft_array(ii)%zrs_data)
           SAFE_DEALLOCATE_P(fft_array(ii)%fs_data)
+
+        case(FFTLIB_ACCEL)
+#ifdef HAVE_CUDA
+          call cuda_fft_destroy(fft_array(ii)%cuda_plan_fw)
+          call cuda_fft_destroy(fft_array(ii)%cuda_plan_bw)
+#endif
 #ifdef HAVE_CLFFT
-        case(FFTLIB_OPENCL)
           call clfftDestroyPlan(fft_array(ii)%cl_plan_fw, status)
           call clfftDestroyPlan(fft_array(ii)%cl_plan_bw, status)
 #endif
@@ -980,6 +1001,26 @@ contains
     POP_SUB(fft_operation_count)
   end subroutine fft_operation_count
 
+
+  ! ----------------------------------------------------------
+  
+  !> This function returns the factor required to normalize a function
+  !> after a forward and backward transform.  
+  FLOAT pure function fft_scaling_factor(fft) result(scaling_factor)
+    type(fft_t), intent(in)  :: fft
+
+    ! for the moment this factor is handled by the backwards transform for most libraries
+    scaling_factor = M_ONE
+    
+    select case (fft_array(fft%slot)%library)
+    case(FFTLIB_ACCEL)
+#ifdef HAVE_CUDA
+      scaling_factor = &
+        M_ONE/(fft_array(fft%slot)%rs_n_global(1)*fft_array(fft%slot)%rs_n_global(2)*fft_array(fft%slot)%rs_n_global(3))
+#endif
+    end select
+  
+  end function fft_scaling_factor
 
 #include "undef.F90"
 #include "real.F90"

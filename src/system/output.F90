@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: output.F90 15343 2016-05-06 03:55:32Z xavier $
+!! $Id: output.F90 15374 2016-05-19 19:09:02Z nicolastd $
 
 #include "global.h"
 
@@ -1273,7 +1273,7 @@ contains
       call write_binary_header(iunit, sheader, 2, st%d%nspin, shell_density%ngvectors, &
         symmetries_number(gr%sb%symm), 0, geo%natoms, &
         gr%sb%kpoints%reduced%npoints, st%nst, ngkmax, ecutrho * M_TWO,  &
-        ecutwfc * M_TWO, FFTgrid, gr%sb%kpoints%nik_axis, gr%sb%kpoints%shifts, &
+        ecutwfc * M_TWO, FFTgrid, gr%sb%kpoints%nik_axis, gr%sb%kpoints%full%shifts, &
         gr%sb%rcell_volume, M_ONE, gr%sb%rlattice, adot, recvol, &
         M_ONE, gr%sb%klattice, bdot, mtrx, tnp, atyp, &
         apos, ngk, gr%sb%kpoints%reduced%weight, gr%sb%kpoints%reduced%red_point, &

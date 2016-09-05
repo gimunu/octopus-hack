@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: splines.F90 15311 2016-04-29 23:39:30Z xavier $
+!! $Id: splines.F90 15369 2016-05-18 09:18:23Z micael $
 
 #include "global.h"
 
@@ -416,7 +416,7 @@ contains
     !%Description
     !% Selects the implementation of the spline interpolation.
     !%Option gsl 1
-    !% The GNU standard library. 
+    !% The GNU scientific library. 
     !%Option native 2
     !% (experimental) Octopus own implementation. New, untested, and
     !% hopefully faster.

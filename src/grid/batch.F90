@@ -15,17 +15,14 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: batch.F90 15257 2016-04-07 15:23:21Z xavier $
+!! $Id: batch.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module batch_oct_m
+  use accel_oct_m
   use blas_oct_m
   use iso_c_binding
-#ifdef HAVE_OPENCL
-  use cl
-#endif
-  use octcl_kernel_oct_m
   use global_oct_m
   use hardware_oct_m
   use lalg_adv_oct_m
@@ -34,7 +31,6 @@ module batch_oct_m
   use math_oct_m
   use messages_oct_m
   use mpi_oct_m
-  use opencl_oct_m
   use profiling_oct_m
   use types_oct_m
   use varinfo_oct_m
@@ -97,7 +93,7 @@ module batch_oct_m
     CMPLX,      allocatable        :: zpsi(:, :)
     real(4),    allocatable        :: spsi(:, :)
     complex(4), allocatable        :: cpsi(:, :)
-    type(opencl_mem_t)             :: buffer
+    type(accel_mem_t)             :: buffer
   end type batch_pack_t
   
   type batch_t
@@ -458,7 +454,7 @@ contains
     type(batch_t),      intent(inout) :: this
 
     size = batch_max_size(this)
-    if(opencl_is_enabled()) size = opencl_padded_size(size)
+    if(accel_is_enabled()) size = accel_padded_size(size)
     size = size*pad_pow2(this%nst_linear)*types_get_size(batch_type(this))
 
   end function batch_pack_size
@@ -484,17 +480,14 @@ contains
       this%pack%size(1) = pad_pow2(this%nst_linear)
       this%pack%size(2) = batch_max_size(this)
 
-      if(opencl_is_enabled()) this%pack%size(2) = opencl_padded_size(this%pack%size(2))
+      if(accel_is_enabled()) this%pack%size(2) = accel_padded_size(this%pack%size(2))
 
       this%pack%size_real = this%pack%size
       if(type_is_complex(batch_type(this))) this%pack%size_real(1) = 2*this%pack%size_real(1)
 
-      if(opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
+      if(accel_is_enabled()) then
         this%status = BATCH_CL_PACKED
-
-        call opencl_create_buffer(this%pack%buffer, CL_MEM_READ_WRITE, batch_type(this), product(this%pack%size))
-#endif
+        call accel_create_buffer(this%pack%buffer, ACCEL_MEM_READ_WRITE, batch_type(this), product(this%pack%size))
       else
         this%status = BATCH_PACKED
         if(batch_type(this) == TYPE_FLOAT) then
@@ -512,7 +505,7 @@ contains
         call profiling_in(prof_copy, "BATCH_PACK_COPY")
 
         this%dirty = .false.
-        if(opencl_is_enabled()) then
+        if(accel_is_enabled()) then
 
           call batch_write_to_opencl_buffer(this)
 
@@ -626,10 +619,8 @@ contains
         this%status = BATCH_NOT_PACKED
         this%in_buffer_count = 1
 
-        if(opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-          call opencl_release_buffer(this%pack%buffer)
-#endif
+        if(accel_is_enabled()) then
+          call accel_release_buffer(this%pack%buffer)
         else
           SAFE_DEALLOCATE_A(this%pack%dpsi)
           SAFE_DEALLOCATE_A(this%pack%zpsi)
@@ -659,7 +650,7 @@ contains
     if(batch_is_packed(this) .and. this%dirty) then
       call profiling_in(prof, "BATCH_UNPACK_COPY")
       
-      if(opencl_is_enabled()) then
+      if(accel_is_enabled()) then
         call batch_read_from_opencl_buffer(this)
       else
         call unpack_copy()
@@ -724,12 +715,10 @@ contains
 
   subroutine batch_write_to_opencl_buffer(this)
     type(batch_t),      intent(inout)  :: this
-
-#ifdef HAVE_OPENCL
     integer :: ist, ist2, unroll
-    type(opencl_mem_t) :: tmp
+    type(accel_mem_t) :: tmp
     type(profile_t), save :: prof_pack
-    type(cl_kernel) :: kernel
+    type(accel_kernel_t), pointer :: kernel
 
     PUSH_SUB(batch_write_to_opencl_buffer)
 
@@ -738,9 +727,9 @@ contains
     if(this%nst_linear == 1) then
       ! we can copy directly
       if(batch_type(this) == TYPE_FLOAT) then
-        call opencl_write_buffer(this%pack%buffer, ubound(this%states_linear(1)%dpsi, dim = 1), this%states_linear(1)%dpsi)
+        call accel_write_buffer(this%pack%buffer, ubound(this%states_linear(1)%dpsi, dim = 1), this%states_linear(1)%dpsi)
       else if(batch_type(this) == TYPE_CMPLX) then
-        call opencl_write_buffer(this%pack%buffer, ubound(this%states_linear(1)%zpsi, dim = 1), this%states_linear(1)%zpsi)
+        call accel_write_buffer(this%pack%buffer, ubound(this%states_linear(1)%zpsi, dim = 1), this%states_linear(1)%zpsi)
       else
         ASSERT(.false.)
       end if
@@ -749,14 +738,14 @@ contains
       ! we copy to a temporary array and then we re-arrange data
 
       if(batch_type(this) == TYPE_FLOAT) then
-        kernel = dpack
+        kernel => dpack
       else
-        kernel = zpack
+        kernel => zpack
       end if
       
       unroll = min(CL_PACK_MAX_BUFFER_SIZE, this%pack%size(1))
 
-      call opencl_create_buffer(tmp, CL_MEM_READ_ONLY, batch_type(this), unroll*this%pack%size(2))
+      call accel_create_buffer(tmp, ACCEL_MEM_READ_ONLY, batch_type(this), unroll*this%pack%size(2))
       
       do ist = 1, this%nst_linear, unroll
         
@@ -764,22 +753,22 @@ contains
         do ist2 = ist, min(ist + unroll - 1, this%nst_linear)
 
           if(batch_type(this) == TYPE_FLOAT) then
-            call opencl_write_buffer(tmp, ubound(this%states_linear(ist2)%dpsi, dim = 1), this%states_linear(ist2)%dpsi, &
+            call accel_write_buffer(tmp, ubound(this%states_linear(ist2)%dpsi, dim = 1), this%states_linear(ist2)%dpsi, &
               offset = (ist2 - ist)*this%pack%size(2))
           else
-            call opencl_write_buffer(tmp, ubound(this%states_linear(ist2)%zpsi, dim = 1), this%states_linear(ist2)%zpsi, &
+            call accel_write_buffer(tmp, ubound(this%states_linear(ist2)%zpsi, dim = 1), this%states_linear(ist2)%zpsi, &
               offset = (ist2 - ist)*this%pack%size(2))
           end if
         end do
 
         ! now call an opencl kernel to rearrange the data
-        call opencl_set_kernel_arg(kernel, 0, this%pack%size(1))
-        call opencl_set_kernel_arg(kernel, 1, ist - 1)
-        call opencl_set_kernel_arg(kernel, 2, tmp)
-        call opencl_set_kernel_arg(kernel, 3, this%pack%buffer)
+        call accel_set_kernel_arg(kernel, 0, this%pack%size(1))
+        call accel_set_kernel_arg(kernel, 1, ist - 1)
+        call accel_set_kernel_arg(kernel, 2, tmp)
+        call accel_set_kernel_arg(kernel, 3, this%pack%buffer)
 
         call profiling_in(prof_pack, "CL_PACK")
-        call opencl_kernel_run(kernel, (/this%pack%size(2), unroll/), (/opencl_max_workgroup_size()/unroll, unroll/))
+        call accel_kernel_run(kernel, (/this%pack%size(2), unroll/), (/accel_max_workgroup_size()/unroll, unroll/))
 
         if(batch_type(this) == TYPE_FLOAT) then
           call profiling_count_transfers(unroll*this%pack%size(2), M_ONE)
@@ -787,17 +776,16 @@ contains
           call profiling_count_transfers(unroll*this%pack%size(2), M_ZI)
         end if
 
-        call opencl_finish()
+        call accel_finish()
         call profiling_out(prof_pack)
 
       end do
 
-      call opencl_release_buffer(tmp)
+      call accel_release_buffer(tmp)
 
     end if
 
     POP_SUB(batch_write_to_opencl_buffer)
-#endif
   end subroutine batch_write_to_opencl_buffer
 
   ! ------------------------------------------------------------------
@@ -805,10 +793,9 @@ contains
   subroutine batch_read_from_opencl_buffer(this)
     type(batch_t),      intent(inout) :: this
 
-#ifdef HAVE_OPENCL
     integer :: ist, ist2, unroll
-    type(opencl_mem_t) :: tmp
-    type(cl_kernel) :: kernel
+    type(accel_mem_t) :: tmp
+    type(accel_kernel_t), pointer :: kernel
     type(profile_t), save :: prof_unpack
 
     PUSH_SUB(batch_read_from_opencl_buffer)
@@ -818,31 +805,31 @@ contains
     if(this%nst_linear == 1) then
       ! we can copy directly
       if(batch_type(this) == TYPE_FLOAT) then
-        call opencl_read_buffer(this%pack%buffer, ubound(this%states_linear(1)%dpsi, dim = 1), this%states_linear(1)%dpsi)
+        call accel_read_buffer(this%pack%buffer, ubound(this%states_linear(1)%dpsi, dim = 1), this%states_linear(1)%dpsi)
       else
-        call opencl_read_buffer(this%pack%buffer, ubound(this%states_linear(1)%zpsi, dim = 1), this%states_linear(1)%zpsi)
+        call accel_read_buffer(this%pack%buffer, ubound(this%states_linear(1)%zpsi, dim = 1), this%states_linear(1)%zpsi)
       end if
     else
 
       unroll = min(CL_PACK_MAX_BUFFER_SIZE, this%pack%size(1))
 
       ! we use a kernel to move to a temporary array and then we read
-      call opencl_create_buffer(tmp, CL_MEM_WRITE_ONLY, batch_type(this), unroll*this%pack%size(2))
+      call accel_create_buffer(tmp, ACCEL_MEM_WRITE_ONLY, batch_type(this), unroll*this%pack%size(2))
 
       if(batch_type(this) == TYPE_FLOAT) then
-        kernel = dunpack
+        kernel => dunpack
       else
-        kernel = zunpack
+        kernel => zunpack
       end if
 
       do ist = 1, this%nst_linear, unroll
-        call opencl_set_kernel_arg(kernel, 0, this%pack%size(1))
-        call opencl_set_kernel_arg(kernel, 1, ist - 1)
-        call opencl_set_kernel_arg(kernel, 2, this%pack%buffer)
-        call opencl_set_kernel_arg(kernel, 3, tmp)
+        call accel_set_kernel_arg(kernel, 0, this%pack%size(1))
+        call accel_set_kernel_arg(kernel, 1, ist - 1)
+        call accel_set_kernel_arg(kernel, 2, this%pack%buffer)
+        call accel_set_kernel_arg(kernel, 3, tmp)
 
         call profiling_in(prof_unpack, "CL_UNPACK")
-        call opencl_kernel_run(kernel, (/unroll, this%pack%size(2)/), (/unroll, opencl_max_workgroup_size()/unroll/))
+        call accel_kernel_run(kernel, (/unroll, this%pack%size(2)/), (/unroll, accel_max_workgroup_size()/unroll/))
 
         if(batch_type(this) == TYPE_FLOAT) then
           call profiling_count_transfers(unroll*this%pack%size(2), M_ONE)
@@ -850,28 +837,27 @@ contains
           call profiling_count_transfers(unroll*this%pack%size(2), M_ZI)
         end if
 
-        call opencl_finish()
+        call accel_finish()
         call profiling_out(prof_unpack)
 
         ! copy a number 'unroll' of states from the buffer
         do ist2 = ist, min(ist + unroll - 1, this%nst_linear)
           
           if(batch_type(this) == TYPE_FLOAT) then
-            call opencl_read_buffer(tmp, ubound(this%states_linear(ist2)%dpsi, dim = 1), this%states_linear(ist2)%dpsi, &
+            call accel_read_buffer(tmp, ubound(this%states_linear(ist2)%dpsi, dim = 1), this%states_linear(ist2)%dpsi, &
               offset = (ist2 - ist)*this%pack%size(2))
           else
-            call opencl_read_buffer(tmp, ubound(this%states_linear(ist2)%zpsi, dim = 1), this%states_linear(ist2)%zpsi, &
+            call accel_read_buffer(tmp, ubound(this%states_linear(ist2)%zpsi, dim = 1), this%states_linear(ist2)%zpsi, &
               offset = (ist2 - ist)*this%pack%size(2))
           end if
         end do
 
       end do
 
-      call opencl_release_buffer(tmp)
+      call accel_release_buffer(tmp)
     end if
 
     POP_SUB(batch_read_from_opencl_buffer)
-#endif
   end subroutine batch_read_from_opencl_buffer
 
 ! ------------------------------------------------------
@@ -1004,9 +990,7 @@ subroutine batch_copy_data(np, xx, yy)
 
   integer :: ist
   type(profile_t), save :: prof
-#ifdef HAVE_OPENCL
   integer :: localsize
-#endif
 
   PUSH_SUB(batch_copy_data)
   call profiling_in(prof, "BATCH_COPY_DATA")
@@ -1017,18 +1001,15 @@ subroutine batch_copy_data(np, xx, yy)
 
   select case(batch_status(xx))
   case(BATCH_CL_PACKED)
-
-#ifdef HAVE_OPENCL
-    call opencl_set_kernel_arg(kernel_copy, 0, xx%pack%buffer)
-    call opencl_set_kernel_arg(kernel_copy, 1, log2(xx%pack%size_real(1)))
-    call opencl_set_kernel_arg(kernel_copy, 2, yy%pack%buffer)
-    call opencl_set_kernel_arg(kernel_copy, 3, log2(yy%pack%size_real(1)))
+    call accel_set_kernel_arg(kernel_copy, 0, xx%pack%buffer)
+    call accel_set_kernel_arg(kernel_copy, 1, log2(xx%pack%size_real(1)))
+    call accel_set_kernel_arg(kernel_copy, 2, yy%pack%buffer)
+    call accel_set_kernel_arg(kernel_copy, 3, log2(yy%pack%size_real(1)))
     
-    localsize = opencl_max_workgroup_size()/yy%pack%size_real(1)
-    call opencl_kernel_run(kernel_copy, (/yy%pack%size_real(1), pad(np, localsize)/), (/yy%pack%size_real(1), localsize/))
+    localsize = accel_max_workgroup_size()/yy%pack%size_real(1)
+    call accel_kernel_run(kernel_copy, (/yy%pack%size_real(1), pad(np, localsize)/), (/yy%pack%size_real(1), localsize/))
     
-    call opencl_finish()
-#endif
+    call accel_finish()
 
   case(BATCH_PACKED)
     if(batch_type(yy) == TYPE_FLOAT) then

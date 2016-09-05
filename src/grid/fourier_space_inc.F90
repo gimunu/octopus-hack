@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: fourier_space_inc.F90 15016 2016-01-08 21:44:30Z xavier $
+!! $Id: fourier_space_inc.F90 15567 2016-08-03 18:10:30Z xavier $
 
 ! ---------------------------------------------------------
 !> The following routines convert the function between real space and Fourier space
@@ -82,7 +82,7 @@ subroutine X(fourier_space_op_init)(this, cube, op, in_device)
   nullify(this%dop)
   nullify(this%zop)
 
-  if(cube%fft%library /= FFTLIB_OPENCL .or. .not. optional_default(in_device, .true.)) then
+  if(cube%fft%library /= FFTLIB_ACCEL .or. .not. optional_default(in_device, .true.)) then
     this%in_device_memory = .false.
     SAFE_ALLOCATE(this%X(op)(1:cube%fs_n(1), 1:cube%fs_n(2), 1:cube%fs_n(3)))
     forall (kk = 1:cube%fs_n(3), jj = 1:cube%fs_n(2), ii = 1:cube%fs_n(1)) 
@@ -101,15 +101,13 @@ subroutine X(fourier_space_op_init)(this, cube, op, in_device)
       do jj = 1, cube%fs_n(2)
         do ii = 1, cube%fs_n(1)
           ii_linear = 1 + (ii - 1)*cube%fft%stride_fs(1) + (jj - 1)*cube%fft%stride_fs(2) + (kk - 1)*cube%fft%stride_fs(3)
-          op_linear(ii_linear) = op(ii, jj, kk)
+          op_linear(ii_linear) = fft_scaling_factor(cube%fft)*op(ii, jj, kk)
         end do
       end do
     end do
 
-#ifdef HAVE_OPENCL
-    call opencl_create_buffer(this%op_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, size)
-    call opencl_write_buffer(this%op_buffer, size, op_linear)
-#endif
+    call accel_create_buffer(this%op_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, size)
+    call accel_write_buffer(this%op_buffer, size, op_linear)
     
     SAFE_DEALLOCATE_A(op_linear)
   end if
@@ -126,9 +124,7 @@ subroutine X(fourier_space_op_apply)(this, cube, cf)
   type(cube_function_t),    intent(inout)  :: cf
   
   integer :: ii, jj, kk
-#ifdef HAVE_OPENCL
   integer :: bsize
-#endif
 
   type(profile_t), save :: prof_g, prof
 
@@ -168,15 +164,13 @@ subroutine X(fourier_space_op_apply)(this, cube, cf)
       end do
     end do
     !$omp end parallel do
-  else if(cube%fft%library == FFTLIB_OPENCL) then
-#ifdef HAVE_OPENCL
-    call opencl_set_kernel_arg(X(zmul), 0, product(cube%fs_n(1:3)))
-    call opencl_set_kernel_arg(X(zmul), 1, this%op_buffer)
-    call opencl_set_kernel_arg(X(zmul), 2, cf%fourier_space_buffer)
-    bsize = opencl_kernel_workgroup_size(X(zmul))
-    call opencl_kernel_run(X(zmul), (/pad(product(cube%fs_n(1:3)), bsize)/), (/bsize/))
-    call opencl_finish()
-#endif
+  else if(cube%fft%library == FFTLIB_ACCEL) then
+    call accel_set_kernel_arg(X(zmul), 0, product(cube%fs_n(1:3)))
+    call accel_set_kernel_arg(X(zmul), 1, this%op_buffer)
+    call accel_set_kernel_arg(X(zmul), 2, cf%fourier_space_buffer)
+    bsize = accel_kernel_workgroup_size(X(zmul))
+    call accel_kernel_run(X(zmul), (/pad(product(cube%fs_n(1:3)), bsize)/), (/bsize/))
+    call accel_finish()
   end if
 
 #ifdef R_TREAL

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: species.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: species.F90 15430 2016-06-21 19:01:40Z dstrubbe $
 #include "global.h"
 
 module species_oct_m
@@ -211,30 +211,21 @@ contains
     !% in the PSF format for some elements: H, Li, C, N, O, Na, Si, S, Ti, Se, Cd.
     !%Option sg15 2
     !% (experimental) The set of Optimized Norm-Conserving Vanderbilt
-    !% PBE pseudopotentials (<a
-    !% href="http://dx.doi.org/10.1016/j.cpc.2015.05.011">M. Schlipf
-    !% and F. Gygi, Comp. Phys. Commun. doi:10.1016/j.cpc.2015.05.011
-    !% (2015)</a>).
-    !%
+    !% PBE pseudopotentials. Ref: M. Schlipf and F. Gygi, <i>Comp. Phys. Commun.</i> <b>196</b>, 36 (2015).
     !% This set provides pseudopotentials for elements up to Z = 83
-    !% (Bi) excluding Lanthanides.
+    !% (Bi), excluding Lanthanides.
     !%Option hgh_lda 3
     !% The set of Hartwigsen-Goedecker-Hutter LDA pseudopotentials
     !% for elements from H to Rn. For many species a semi-core variant
-    !% is available, it can be obtained by appending <tt>_sc</tt> to the
+    !% is available, obtained by appending <tt>_sc</tt> to the
     !% element name.
     !% Ref: C. Hartwigsen, S. Goedecker, and J. Hutter, <i>Phys. Rev. B</i> <b>58</b>, 3641 (1998).
     !%Option hscv_lda 4
     !% (experimental) The set of Hamann-Schlueter-Chiang-Vanderbilt (HSCV) potentials
-    !% for LDA exchange and correlation downloaded from
-    !%
-    !%  http://fpmd.ucdavis.edu/potentials/index.htm .
-    !%
+    !% for LDA exchange and correlation downloaded from http://fpmd.ucdavis.edu/potentials/index.htm.
     !% These pseudopotentials were originally intended for the QBox
     !% code. They were generated using the method of Hamann, Schluter
-    !% and Chiang, as modified by Vanderbilt (Phys. Rev. B32, 8412
-    !% (1985))
-    !%
+    !% and Chiang. Ref: D. Vanderbilt, <i>Phys. Rev. B</i> <b>32</b>, 8412 (1985).
     !% Warning from the original site: The potentials provided in this
     !% site are distributed without warranty. In most cases,
     !% potentials were not tested. Potentials should be thoroughly
@@ -586,7 +577,7 @@ contains
       ! allocate structure
       SAFE_ALLOCATE(spec%ps)
       if(spec%type == SPECIES_PSPIO) then
-        call ps_pspio_init(spec%ps, spec%Z, spec%lmax, spec%lloc, ispin, spec%filename)
+        call ps_pspio_init(spec%ps, spec%label, spec%Z, spec%lmax, spec%lloc, ispin, spec%filename)
       else
         call ps_init(spec%ps, spec%label, spec%Z, spec%lmax, spec%lloc, ispin, spec%filename)
       end if

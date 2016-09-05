@@ -15,15 +15,13 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: cube_function.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: cube_function.F90 15474 2016-07-12 04:33:08Z xavier $
 
 #include "global.h"
 
 module cube_function_oct_m
+  use accel_oct_m
   use cube_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif
   use fft_oct_m
   use global_oct_m
   use index_oct_m
@@ -34,8 +32,6 @@ module cube_function_oct_m
   use messages_oct_m
   use mpi_oct_m
   use mpi_debug_oct_m
-  use octcl_kernel_oct_m
-  use opencl_oct_m
   use parser_oct_m
   use partition_transfer_oct_m
   use par_vec_oct_m
@@ -71,8 +67,8 @@ module cube_function_oct_m
     CMPLX, pointer :: FS(:, :, :)   !< Fourier-space grid
     logical            :: forced_alloc !< Forced to be allocated even when PFFT is associated with the cube
     logical            :: in_device_memory
-    type(opencl_mem_t) :: real_space_buffer
-    type(opencl_mem_t) :: fourier_space_buffer
+    type(accel_mem_t) :: real_space_buffer
+    type(accel_mem_t) :: fourier_space_buffer
   end type cube_function_t
 
   type(profile_t), save :: prof_m2c, prof_c2m

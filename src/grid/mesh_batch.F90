@@ -15,21 +15,16 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: mesh_batch.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: mesh_batch.F90 15548 2016-07-31 01:34:41Z xavier $
 
 #include "global.h"
 
 module mesh_batch_oct_m
+  use accel_oct_m
+  use accel_blas_oct_m
   use batch_oct_m
   use blas_oct_m
   use iso_c_binding
-#ifdef HAVE_OPENCL
-  use cl
-#ifdef HAVE_CLBLAS
-  use clblas
-#endif
-#endif
-  use octcl_kernel_oct_m
   use comm_oct_m
   use global_oct_m
   use hardware_oct_m
@@ -42,7 +37,6 @@ module mesh_batch_oct_m
   use messages_oct_m
   use mpi_oct_m
   use mpi_debug_oct_m
-  use opencl_oct_m
   use par_vec_oct_m
   use partition_oct_m
   use profiling_oct_m

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: functionals.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: functionals.F90 15504 2016-07-20 17:24:08Z askhl $
 
 #include "global.h"
 
@@ -162,7 +162,7 @@ contains
       functl%type = XC_F90(info_kind)(functl%info)
       functl%flags = XC_F90(info_flags)(functl%info)
       ! Convert Octopus code for functional into corresponding libvdwxc code:
-      call libvdwxc_init(functl%libvdwxc, (functl%id - XC_VDW_C_VDWDF) / 1000 + 1)
+      call libvdwxc_init(functl%libvdwxc, functl%id - XC_VDW_C_VDWDF + 1)
     else if(functl%id == XC_LDA_XC_CMPLX &
       .or. functl%id == XC_PBE_XC_CMPLX &
       .or. functl%id == XC_LB94_XC_CMPLX) then

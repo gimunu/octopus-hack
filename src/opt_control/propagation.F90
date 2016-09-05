@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagation.F90 15262 2016-04-08 21:13:28Z xavier $
+!! $Id: propagation.F90 15376 2016-05-21 12:42:39Z huebener $
 
 #include "global.h"
 
@@ -236,7 +236,7 @@ contains
 
       ! only write in final run
       if(write_iter_) then
-        call td_write_iter(write_handler, gr, psi, hm, sys%geo, hm%ep%kick, td%dt, istep)
+        call td_write_iter(write_handler, gr, psi, hm, sys%geo, hm%ep%kick, td%dt, sys%ks, istep)
         ii = ii + 1 
         if(ii == sys%outp%output_interval+1 .or. istep == td%max_iter) then ! output
           if(istep == td%max_iter) sys%outp%output_interval = ii - 1

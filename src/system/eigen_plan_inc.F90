@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: eigen_plan_inc.F90 14976 2016-01-05 14:27:54Z xavier $
+!! $Id: eigen_plan_inc.F90 15427 2016-06-20 22:29:38Z xavier $
 
 !> This subroutine implements the preconditioned Lanczos eigensolver as
 !! described in the paper:

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: symmetries.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: symmetries.F90 15415 2016-06-16 13:09:58Z xavier $
 
 #include "global.h"
 
@@ -49,7 +49,7 @@ module symmetries_oct_m
     symmetries_identity_index
 
   type symmetries_t
-    type(symm_op_t), pointer :: ops(:)
+    type(symm_op_t), allocatable :: ops(:)
     integer                  :: nops
     FLOAT                    :: breakdir(1:3)
     integer                  :: space_group
@@ -86,7 +86,6 @@ contains
   elemental subroutine symmetries_nullify(this)
     type(symmetries_t), intent(out) :: this
 
-    nullify(this%ops)
     this%nops = 0
     this%breakdir = M_ZERO
     this%space_group = 0
@@ -220,6 +219,9 @@ contains
         typs(iatom) = species_index(geo%atom(iatom)%species)
       end do
       lattice = transpose(lattice)
+      ! transpose the lattice vectors for use in spglib as row-major matrix
+      lattice(:,:) = transpose(lattice(:,:))
+
       this%space_group = spglib_get_international(symbol, lattice(1, 1), position(1, 1), typs(1), geo%natoms, symprec)
 
       if(this%space_group == 0) then
@@ -308,6 +310,11 @@ contains
 
       SAFE_ALLOCATE(this%ops(1:fullnops))
 
+      ! NOTE: HH 21/05/2016
+      ! The below search for fractional translations doesnt seem to work for non-orthogonal cells,
+      ! but not critical as it just returns less useable symmetries...
+      ! FIXME
+
       ! check all operations and leave those that kept the symmetry-breaking
       ! direction invariant and (for the moment) that do not have a translation
       this%nops = 0
@@ -391,11 +398,14 @@ contains
 
     PUSH_SUB(symmetries_end)
 
-    do iop = 1, this%nops
-      call symm_op_end(this%ops(iop))
-    end do
+    if(allocated(this%ops)) then
+      do iop = 1, this%nops
+        call symm_op_end(this%ops(iop))
+      end do
 
-    SAFE_DEALLOCATE_P(this%ops)
+      SAFE_DEALLOCATE_A(this%ops)
+    end if
+    
     POP_SUB(symmetries_end)
   end subroutine symmetries_end
 

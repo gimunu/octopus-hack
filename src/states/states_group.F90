@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states_group.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: states_group.F90 15357 2016-05-11 16:53:13Z huebener $
 
 #include "global.h"
 
@@ -27,6 +27,7 @@ module states_group_oct_m
   use messages_oct_m
   use mpi_oct_m
   use profiling_oct_m
+  use states_dim_oct_m
 
   implicit none
 
@@ -72,7 +73,8 @@ contains
 
   !---------------------------------------------------------
 
-  subroutine states_group_copy(group_in, group_out)
+  subroutine states_group_copy(d,group_in, group_out)
+    type(states_dim_t) :: d
     type(states_group_t), intent(in)    :: group_in
     type(states_group_t), intent(out)   :: group_out
 
@@ -92,8 +94,8 @@ contains
 
       ASSERT(associated(group_in%psib))
 
-      qn_start = lbound(group_in%psib, dim = 2)
-      qn_end   = ubound(group_in%psib, dim = 2)
+      qn_start = d%kpt%start 
+      qn_end   = d%kpt%end 
 
       SAFE_ALLOCATE(group_out%psib(1:group_out%nblocks, qn_start:qn_end))
 

@@ -15,23 +15,19 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states_calc.F90 15204 2016-03-19 13:17:02Z xavier $
+!! $Id: states_calc.F90 15583 2016-08-15 13:45:41Z nicolastd $
 
 #include "global.h"
 
 module states_calc_oct_m
+  use accel_oct_m
+  use accel_blas_oct_m
   use batch_oct_m
   use batch_ops_oct_m
   use blas_oct_m
   use blacs_oct_m
   use blacs_proc_grid_oct_m
   use iso_c_binding
-#ifdef HAVE_OPENCL
-  use cl
-#ifdef HAVE_CLBLAS
-  use clblas
-#endif
-#endif
   use cmplxscl_oct_m
   use comm_oct_m
   use derivatives_oct_m
@@ -52,8 +48,6 @@ module states_calc_oct_m
   use mpi_oct_m
   use mpi_lib_oct_m
   use multicomm_oct_m
-  use octcl_kernel_oct_m
-  use opencl_oct_m
   use parser_oct_m
   use pblas_oct_m
   use physics_op_oct_m
@@ -100,7 +94,9 @@ module states_calc_oct_m
     dstates_calc_overlap,           &
     zstates_calc_overlap,           &
     states_orthogonalize_cproduct,  &
-    states_sort_complex
+    states_sort_complex,            &
+    dstates_calc_projections,       &
+    zstates_calc_projections
 
   interface states_rotate
     module procedure dstates_rotate, zstates_rotate
@@ -313,8 +309,8 @@ contains
     !%Default 1e-5
     !%Section States
     !%Description
-    !% A state j with energy E_j will be considered degenerate with a state
-    !% with energy E_i, if  E_i - threshold < E_j < E_i + threshold.
+    !% States with energy <math>E_i</math> and <math>E_j</math> will be considered degenerate
+    !% if <math> \left| E_i - E_j \right| < </math><tt>DegeneracyThreshold</tt>.
     !%End
     call parse_variable('DegeneracyThreshold', units_from_atomic(units_inp%energy, CNST(1e-5)), degen_thres)
     degen_thres = units_to_atomic(units_inp%energy, degen_thres)

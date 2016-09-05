@@ -225,8 +225,8 @@ contains
 
     ! TODO implement.  Should dump quantities to files.
 
-    blocksize = mesh%idx%ll(1) / mesh%mpi_grp%size
-    if(mod(mesh%idx%ll(1), mesh%mpi_grp%size) /= 0) then
+    blocksize = mesh%idx%ll(3) / mesh%mpi_grp%size
+    if(mod(mesh%idx%ll(3), mesh%mpi_grp%size) /= 0) then
       blocksize = blocksize + 1
     end if
 
@@ -288,6 +288,8 @@ contains
     ! for rho, sigma, dedrho and dedsigma.
     !
     ! But since the cube has PFFT associated, any attempt to use it
+    ! (update: We do not actually use PFFT anymore, so maybe this will
+    !  not be that broken now)
     ! results in some kind of behind-the-scenes use of a possibly
     ! global FFT-related buffer.
     ! (Note: actually we now use cubes without FFT lib)

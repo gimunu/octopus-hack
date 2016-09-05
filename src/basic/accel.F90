@@ -1,4 +1,4 @@
-!! Copyright (C) 2010 X. Andrade
+!! Copyright (C) 2010-2016 X. Andrade
 !!
 !! This program is free software; you can redistribute it and/or modify
 !! it under the terms of the GNU General Public License as published by
@@ -15,11 +15,19 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: opencl.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: accel.F90 15575 2016-08-04 06:24:39Z xavier $
 
 #include "global.h"
 
-module opencl_oct_m
+#if defined(HAVE_OPENCL) && defined(HAVE_CUDA)
+#error "Cannot compile with OpenCL and Cuda support at the same time"
+#endif
+
+#if defined(HAVE_OPENCL) || defined(HAVE_CUDA)
+#define HAVE_ACCEL 1
+#endif
+
+module accel_oct_m
 #ifdef HAVE_OPENCL
   use cl
 #endif
@@ -31,6 +39,7 @@ module opencl_oct_m
 #endif
   use global_oct_m
   use io_oct_m
+  use iso_c_binding
   use loct_oct_m
   use messages_oct_m
   use mpi_oct_m
@@ -42,117 +51,166 @@ module opencl_oct_m
   implicit none 
 
   private
-
+  
   public ::                       &
-    opencl_is_enabled,            &
-    opencl_t,                     &
-    opencl_init,                  &
-    opencl_end,                   &
-    opencl_padded_size,           &
-    opencl_mem_t,                 &
-    opencl_mem_nullify
-
-#ifdef HAVE_OPENCL
-  public ::                       &
-    opencl_create_buffer,         &
-    opencl_write_buffer,          &
-    opencl_read_buffer,           &
-    opencl_release_buffer,        &
-    opencl_finish,                &
-    opencl_set_kernel_arg,        &
-    opencl_max_workgroup_size,    &
-    opencl_kernel_workgroup_size, &
-    opencl_kernel_run,            &
-    opencl_build_program,         &
-    opencl_release_program,       &
-    opencl_release_kernel,        &
-    opencl_create_kernel,         &
-    opencl_print_error,           &
+    accel_context_t,              &
+    accel_device_t,               &
+    accel_mem_t,                  &
+    accel_kernel_t,               &
+    accel_t,                      &
+    accel_is_enabled,             &
+    accel_init,                   &
+    accel_end,                    &
+    accel_padded_size,            &
+    accel_mem_nullify,            &
+    accel_kernel_start_call,      &
+    accel_kernel_build,           &
+    accel_create_buffer,          &
+    accel_write_buffer,           &
+    accel_read_buffer,            &
+    accel_release_buffer,         &
+    accel_finish,                 &
+    accel_set_kernel_arg,         &
+    accel_max_workgroup_size,     &
+    accel_kernel_workgroup_size,  &
+    accel_kernel_run,             &
+    accel_set_buffer_to_zero,     &
+    accel_use_shared_mem,         &
     clblas_print_error,           &
     clfft_print_error,            &
-    opencl_set_buffer_to_zero,    &
-    opencl_use_shared_mem
-#endif
-
-  type opencl_t 
+    accel_local_memory_size,      &
+    accel_global_memory_size
+  
 #ifdef HAVE_OPENCL
-    type(cl_platform_id)   :: platform_id
-    type(cl_context)       :: context
-    type(cl_command_queue) :: command_queue
-    type(cl_device_id)     :: device
+  integer, public, parameter ::                 &
+    ACCEL_MEM_READ_ONLY  = CL_MEM_READ_ONLY,    &
+    ACCEL_MEM_READ_WRITE = CL_MEM_READ_WRITE,   &
+    ACCEL_MEM_WRITE_ONLY = CL_MEM_WRITE_ONLY
+#else
+  integer, public, parameter ::                 &
+    ACCEL_MEM_READ_ONLY  = 0,                   &
+    ACCEL_MEM_READ_WRITE = 1,                   &
+    ACCEL_MEM_WRITE_ONLY = 2
 #endif
-    integer                :: max_workgroup_size
-    integer                :: local_memory_size
-    logical                :: enabled
-  end type opencl_t
 
-  type opencl_mem_t
+  type accel_context_t
+#ifdef HAVE_OPENCL
+    type(cl_context) :: cl_context
+#elif defined(HAVE_CUDA)
+    type(c_ptr)      :: cuda_context
+#else
+    integer          :: dummy
+#endif
+  end type accel_context_t
+
+  type accel_device_t
+#ifdef HAVE_OPENCL
+    type(cl_device_id) :: cl_device
+#elif defined(HAVE_CUDA)
+    type(c_ptr)      :: cuda_device
+#else
+    integer         :: dummy
+#endif
+  end type accel_device_t
+
+  type accel_t 
+    type(accel_context_t)  :: context
+    type(accel_device_t)   :: device
+#ifdef HAVE_OPENCL
+    type(cl_command_queue) :: command_queue
+#endif
+    type(c_ptr)            :: cublas_handle
+    type(c_ptr)            :: module_map
+    integer                :: max_workgroup_size
+    integer(8)             :: local_memory_size
+    integer(8)             :: global_memory_size
+    logical                :: enabled
+    logical                :: shared_mem
+  end type accel_t
+
+  type accel_mem_t
 #ifdef HAVE_OPENCL
     type(cl_mem)           :: mem
+#endif
+#ifdef HAVE_CUDA
+    type(c_ptr)            :: cuda_ptr
 #endif
     integer(SIZEOF_SIZE_T) :: size
     type(type_t)           :: type
     integer                :: flags
-  end type opencl_mem_t
+  end type accel_mem_t
 
-  type(opencl_t), public :: opencl
-
+  type accel_kernel_t
 #ifdef HAVE_OPENCL
+    type(cl_kernel)               :: kernel
+#endif
+#ifdef HAVE_CUDA
+    type(c_ptr)                   :: cuda_kernel
+    type(c_ptr)                   :: cuda_module
+    type(c_ptr)                   :: arguments
+#endif
+    integer(8)                    :: cuda_shared_mem
+    logical                       :: initialized = .false.
+    type(accel_kernel_t), pointer :: next
+    integer                       :: arg_count
+  end type accel_kernel_t
+
+  type(accel_t), public :: accel
+
   ! the kernels
-  type(cl_kernel), public :: kernel_vpsi
-  type(cl_kernel), public :: kernel_vpsi_spinors
-  type(cl_kernel), public :: kernel_daxpy
-  type(cl_kernel), public :: kernel_zaxpy
-  type(cl_kernel), public :: kernel_copy
-  type(cl_kernel), public :: dpack
-  type(cl_kernel), public :: zpack
-  type(cl_kernel), public :: dunpack
-  type(cl_kernel), public :: zunpack
-  type(cl_kernel), public :: kernel_subarray_gather
-  type(cl_kernel), public :: kernel_density_real
-  type(cl_kernel), public :: kernel_density_complex
-  type(cl_kernel), public :: kernel_phase
-  type(cl_kernel), public :: dkernel_dot_matrix
-  type(cl_kernel), public :: zkernel_dot_matrix
-  type(cl_kernel), public :: zkernel_dot_matrix_spinors
-  type(cl_kernel), public :: dzmul
-  type(cl_kernel), public :: zzmul
+  type(accel_kernel_t), public, target, save :: kernel_vpsi
+  type(accel_kernel_t), public, target, save :: kernel_vpsi_spinors
+  type(accel_kernel_t), public, target, save :: kernel_daxpy
+  type(accel_kernel_t), public, target, save :: kernel_zaxpy
+  type(accel_kernel_t), public, target, save :: kernel_copy
+  type(accel_kernel_t), public, target, save :: dpack
+  type(accel_kernel_t), public, target, save :: zpack
+  type(accel_kernel_t), public, target, save :: dunpack
+  type(accel_kernel_t), public, target, save :: zunpack
+  type(accel_kernel_t), public, target, save :: kernel_subarray_gather
+  type(accel_kernel_t), public, target, save :: kernel_density_real
+  type(accel_kernel_t), public, target, save :: kernel_density_complex
+  type(accel_kernel_t), public, target, save :: kernel_phase
+  type(accel_kernel_t), public, target, save :: dkernel_dot_matrix
+  type(accel_kernel_t), public, target, save :: zkernel_dot_matrix
+  type(accel_kernel_t), public, target, save :: zkernel_dot_matrix_spinors
+  type(accel_kernel_t), public, target, save :: dzmul
+  type(accel_kernel_t), public, target, save :: zzmul
 
   ! kernels used locally
-  type(cl_kernel)         :: set_zero
+  type(accel_kernel_t), save :: set_zero
 
-  interface opencl_create_buffer
-    module procedure opencl_create_buffer_4
-  end interface opencl_create_buffer
+  interface accel_create_buffer
+    module procedure accel_create_buffer_4, accel_create_buffer_8
+  end interface accel_create_buffer
 
-  interface opencl_write_buffer
-    module procedure iopencl_write_buffer_1, dopencl_write_buffer_1, zopencl_write_buffer_1
-    module procedure iopencl_write_buffer_2, dopencl_write_buffer_2, zopencl_write_buffer_2
-    module procedure iopencl_write_buffer_3, dopencl_write_buffer_3, zopencl_write_buffer_3
-    module procedure sopencl_write_buffer_1, copencl_write_buffer_1
-    module procedure sopencl_write_buffer_2, copencl_write_buffer_2
-    module procedure sopencl_write_buffer_3, copencl_write_buffer_3
-  end interface opencl_write_buffer
+  interface accel_write_buffer
+    module procedure iaccel_write_buffer_0, daccel_write_buffer_0, zaccel_write_buffer_0
+    module procedure iaccel_write_buffer_1, daccel_write_buffer_1, zaccel_write_buffer_1
+    module procedure iaccel_write_buffer_2, daccel_write_buffer_2, zaccel_write_buffer_2
+    module procedure iaccel_write_buffer_3, daccel_write_buffer_3, zaccel_write_buffer_3
+    module procedure saccel_write_buffer_1, caccel_write_buffer_1
+    module procedure saccel_write_buffer_2, caccel_write_buffer_2
+    module procedure saccel_write_buffer_3, caccel_write_buffer_3
+  end interface accel_write_buffer
 
-  interface opencl_read_buffer
-    module procedure iopencl_read_buffer_1, dopencl_read_buffer_1, zopencl_read_buffer_1
-    module procedure iopencl_read_buffer_2, dopencl_read_buffer_2, zopencl_read_buffer_2
-    module procedure iopencl_read_buffer_3, dopencl_read_buffer_3, zopencl_read_buffer_3
-    module procedure sopencl_read_buffer_1, copencl_read_buffer_1
-    module procedure sopencl_read_buffer_2, copencl_read_buffer_2
-    module procedure sopencl_read_buffer_3, copencl_read_buffer_3
-  end interface opencl_read_buffer
+  interface accel_read_buffer
+    module procedure iaccel_read_buffer_1, daccel_read_buffer_1, zaccel_read_buffer_1
+    module procedure iaccel_read_buffer_2, daccel_read_buffer_2, zaccel_read_buffer_2
+    module procedure iaccel_read_buffer_3, daccel_read_buffer_3, zaccel_read_buffer_3
+    module procedure saccel_read_buffer_1, caccel_read_buffer_1
+    module procedure saccel_read_buffer_2, caccel_read_buffer_2
+    module procedure saccel_read_buffer_3, caccel_read_buffer_3
+  end interface accel_read_buffer
 
-  interface opencl_set_kernel_arg
-    module procedure                 &
-      opencl_set_kernel_arg_buffer,  &
-      iopencl_set_kernel_arg_data,   &
-      dopencl_set_kernel_arg_data,   &
-      zopencl_set_kernel_arg_data,   &
-      opencl_set_kernel_arg_local
-  end interface opencl_set_kernel_arg
-
-#endif
+  interface accel_set_kernel_arg
+    module procedure                       &
+      accel_set_kernel_arg_buffer,  &
+      iaccel_set_kernel_arg_data,   &
+      daccel_set_kernel_arg_data,   &
+      zaccel_set_kernel_arg_data,   &
+      accel_set_kernel_arg_local
+  end interface accel_set_kernel_arg
 
   type(profile_t), save :: prof_read, prof_write
 
@@ -173,25 +231,23 @@ module opencl_oct_m
   ! a "convenience" public variable
   integer, public :: cl_status
 
-  integer, parameter :: OPENCL_MAX_FILE_LENGTH = 10000
-
   integer :: buffer_alloc_count
   integer(8) :: allocated_mem
-  logical :: shared_mem
-
+  type(accel_kernel_t), pointer :: head
+  
 contains
 
-  pure logical function opencl_is_enabled() result(enabled)
-#ifdef HAVE_OPENCL
-    enabled = opencl%enabled
+  pure logical function accel_is_enabled() result(enabled)
+#ifdef HAVE_ACCEL
+    enabled = accel%enabled
 #else
     enabled = .false.
 #endif
-  end function opencl_is_enabled
+  end function accel_is_enabled
 
   ! ------------------------------------------
 
-  subroutine opencl_init(base_grp)
+  subroutine accel_init(base_grp)
     type(mpi_grp_t),  intent(inout) :: base_grp
 
     logical  :: disable, default, run_benchmark
@@ -199,13 +255,14 @@ contains
     integer  :: idevice, iplatform, ndevices, idev, cl_status, ret_devices, nplatforms, iplat
     character(len=256) :: device_name
 #ifdef HAVE_OPENCL
+    type(cl_platform_id) :: platform_id
     type(cl_program) :: prog
     type(cl_platform_id), allocatable :: allplatforms(:)
     type(cl_device_id), allocatable :: alldevices(:)
     type(profile_t), save :: prof_init
 #endif
 
-    PUSH_SUB(opencl_init)
+    PUSH_SUB(accel_init)
 
     buffer_alloc_count = 0
 
@@ -219,23 +276,23 @@ contains
     !% to <tt>yes</tt> you tell Octopus not to use OpenCL.
     !%End
 
-#ifndef HAVE_OPENCL
-    default = .true.
-#else
+#ifdef HAVE_ACCEL
     default = .false.
+#else
+    default = .true.
 #endif
     call parse_variable('DisableOpenCL', default, disable)
-    opencl%enabled = .not. disable
+    accel%enabled = .not. disable
 
-#ifndef HAVE_OPENCL
-    if(opencl%enabled) then
-      message(1) = 'Octopus was compiled without OpenCL support.'
+#ifndef HAVE_ACCEL
+    if(accel%enabled) then
+      message(1) = 'Octopus was compiled without OpenCL or Cuda support.'
       call messages_fatal(1)
     end if
 #endif
 
-    if(.not. opencl_is_enabled()) then
-      POP_SUB(opencl_init)
+    if(.not. accel_is_enabled()) then
+      POP_SUB(accel_init)
       return
     end if
 
@@ -284,8 +341,17 @@ contains
       call messages_fatal(1)
     end if
 
-    call messages_print_stress(stdout, "OpenCL")
+    call messages_print_stress(stdout, "GPU acceleration")
 
+#ifdef HAVE_CUDA
+    call cuda_init(accel%context%cuda_context, accel%device%cuda_device)
+
+    ! no shared mem support in our cuda interface (for the moment)
+    accel%shared_mem = .true.
+
+    call cublas_init(accel%cublas_handle)
+#endif
+    
 #ifdef HAVE_OPENCL
     call profiling_in(prof_init, 'CL_INIT')
 
@@ -334,11 +400,11 @@ contains
       call messages_fatal()
     end if
 
-    opencl%platform_id = allplatforms(iplatform + 1)
+    platform_id = allplatforms(iplatform + 1)
 
     SAFE_DEALLOCATE_A(allplatforms)
 
-    call clGetDeviceIDs(opencl%platform_id, CL_DEVICE_TYPE_ALL, ndevices, cl_status)
+    call clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, ndevices, cl_status)
 
     call messages_write('Info: Available CL devices: ')
     call messages_write(ndevices)
@@ -348,7 +414,7 @@ contains
 
     ! list all devices
 
-    call clGetDeviceIDs(opencl%platform_id, CL_DEVICE_TYPE_ALL, alldevices, ret_devices, cl_status)
+    call clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, alldevices, ret_devices, cl_status)
 
     do idev = 1, ndevices
       call messages_write('      Device ')
@@ -372,15 +438,15 @@ contains
     end select
 
     ! now get a list of the selected type
-    call clGetDeviceIDs(opencl%platform_id, device_type, alldevices, ret_devices, cl_status)
+    call clGetDeviceIDs(platform_id, device_type, alldevices, ret_devices, cl_status)
 
     if(ret_devices < 1) then
       ! we didnt find a device of the selected type, we ask for the default device
-      call clGetDeviceIDs(opencl%platform_id, CL_DEVICE_TYPE_DEFAULT, alldevices, ret_devices, cl_status)
+      call clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, alldevices, ret_devices, cl_status)
 
       if(ret_devices < 1) then
         ! if this does not work, we ask for all devices
-        call clGetDeviceIDs(opencl%platform_id, CL_DEVICE_TYPE_ALL, alldevices, ret_devices, cl_status)
+        call clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, alldevices, ret_devices, cl_status)
       end if
 
       if(ret_devices < 1) then
@@ -411,88 +477,28 @@ contains
       call messages_fatal()
     end if
 
-    opencl%device = alldevices(idevice + 1)
-
-    if(mpi_grp_is_root(base_grp)) call device_info()
+    accel%device%cl_device = alldevices(idevice + 1)
 
     ! create the context
-    opencl%context = clCreateContext(opencl%platform_id, opencl%device, cl_status)
+    accel%context%cl_context = clCreateContext(platform_id, accel%device%cl_device, cl_status)
     if(cl_status /= CL_SUCCESS) call opencl_print_error(cl_status, "CreateContext")
 
     SAFE_DEALLOCATE_A(alldevices)
 
-    opencl%command_queue = clCreateCommandQueue(opencl%context, opencl%device, CL_QUEUE_PROFILING_ENABLE, cl_status)
+    accel%command_queue = clCreateCommandQueue(accel%context%cl_context, accel%device%cl_device, &
+      CL_QUEUE_PROFILING_ENABLE, cl_status)
     if(cl_status /= CL_SUCCESS) call opencl_print_error(cl_status, "CreateCommandQueue")
 
-    call clGetDeviceInfo(opencl%device, CL_DEVICE_MAX_WORK_GROUP_SIZE, opencl%max_workgroup_size, cl_status)
-    call clGetDeviceInfo(opencl%device, CL_DEVICE_LOCAL_MEM_SIZE, opencl%local_memory_size, cl_status)
-
-    call clGetDeviceInfo(opencl%device, CL_DEVICE_TYPE, device_type, cl_status)
+    call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_TYPE, device_type, cl_status)
 
     select case(device_type)
     case(CL_DEVICE_TYPE_GPU)
-      shared_mem = .true.
+      accel%shared_mem = .true.
     case(CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_ACCELERATOR)
-      shared_mem = .false.
+      accel%shared_mem = .false.
     case default
-      shared_mem = .false.
+      accel%shared_mem = .false.
     end select
-
-    ! now initialize the kernels
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/set_zero.cl')
-    call opencl_create_kernel(set_zero, prog, "set_zero")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/vpsi.cl')
-    call opencl_create_kernel(kernel_vpsi, prog, "vpsi")
-    call opencl_create_kernel(kernel_vpsi_spinors, prog, "vpsi_spinors")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/axpy.cl', flags = '-DRTYPE_DOUBLE')
-    call opencl_create_kernel(kernel_daxpy, prog, "daxpy")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/axpy.cl', flags = '-DRTYPE_COMPLEX')
-    call opencl_create_kernel(kernel_zaxpy, prog, "zaxpy")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/pack.cl')
-    call opencl_create_kernel(dpack, prog, "dpack")
-    call opencl_create_kernel(zpack, prog, "zpack")
-    call opencl_create_kernel(dunpack, prog, "dunpack")
-    call opencl_create_kernel(zunpack, prog, "zunpack")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/copy.cl')
-    call opencl_create_kernel(kernel_copy, prog, "copy")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/subarray.cl')
-    call opencl_create_kernel(kernel_subarray_gather, prog, "subarray_gather")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/density.cl')
-    call opencl_create_kernel(kernel_density_real, prog, "density_real")
-    call opencl_create_kernel(kernel_density_complex, prog, "density_complex")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/phase.cl')
-    call opencl_create_kernel(kernel_phase, prog, "phase")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/mesh_batch.cl')
-    call opencl_create_kernel(dkernel_dot_matrix, prog, "ddot_matrix")
-    call opencl_create_kernel(zkernel_dot_matrix, prog, "zdot_matrix")
-    call opencl_create_kernel(zkernel_dot_matrix_spinors, prog, "zdot_matrix_spinors")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/mul.cl', flags = '-DRTYPE_DOUBLE')
-    call opencl_create_kernel(dzmul, prog, "dzmul")
-    call opencl_release_program(prog)
-
-    call opencl_build_program(prog, trim(conf%share)//'/opencl/mul.cl', flags = '-DRTYPE_COMPLEX')
-    call opencl_create_kernel(zzmul, prog, "zzmul")
-    call opencl_release_program(prog)
 
 #ifdef HAVE_CLBLAS
     call clblasSetup(cl_status)
@@ -506,6 +512,32 @@ contains
 
     call profiling_out(prof_init)
 #endif
+
+    if(mpi_grp_is_root(base_grp)) call device_info()
+
+    ! now initialize the kernels
+    call accel_kernel_global_init()
+
+    call accel_kernel_start_call(set_zero, 'set_zero.cl', "set_zero")
+    call accel_kernel_start_call(kernel_vpsi, 'vpsi.cl', "vpsi")
+    call accel_kernel_start_call(kernel_vpsi_spinors, 'vpsi.cl', "vpsi_spinors")
+    call accel_kernel_start_call(kernel_daxpy, 'axpy.cl', "daxpy", flags = '-DRTYPE_DOUBLE')
+    call accel_kernel_start_call(kernel_zaxpy, 'axpy.cl', "zaxpy", flags = '-DRTYPE_COMPLEX')
+    call accel_kernel_start_call(dpack, 'pack.cl', "dpack")
+    call accel_kernel_start_call(zpack, 'pack.cl', "zpack")
+    call accel_kernel_start_call(dunpack, 'pack.cl', "dunpack")
+    call accel_kernel_start_call(zunpack, 'pack.cl', "zunpack")
+    call accel_kernel_start_call(kernel_copy, 'copy.cl', "copy")
+    call accel_kernel_start_call(kernel_subarray_gather, 'subarray.cl', "subarray_gather")
+    call accel_kernel_start_call(kernel_density_real, 'density.cl', "density_real")
+    call accel_kernel_start_call(kernel_density_complex, 'density.cl', "density_complex")
+    call accel_kernel_start_call(kernel_phase, 'phase.cl', "phase")
+    call accel_kernel_start_call(dkernel_dot_matrix, 'mesh_batch.cl', "ddot_matrix")
+    call accel_kernel_start_call(zkernel_dot_matrix, 'mesh_batch.cl', "zdot_matrix")
+    call accel_kernel_start_call(zkernel_dot_matrix_spinors, 'mesh_batch.cl', "zdot_matrix_spinors")
+    call accel_kernel_start_call(dzmul, 'mul.cl', "dzmul", flags = '-DRTYPE_DOUBLE')
+    call accel_kernel_start_call(zzmul, 'mul.cl', "zzmul", flags = '-DRTYPE_COMPLEX')
+
     !%Variable OpenCLBenchmark
     !%Type logical
     !%Default no
@@ -518,14 +550,12 @@ contains
     call parse_variable('OpenCLBenchmark', .false., run_benchmark)
 
     if(run_benchmark) then
-#ifdef HAVE_OPENCL
       call opencl_check_bandwidth()
-#endif
     end if
 
     call messages_print_stress(stdout)
 
-    POP_SUB(opencl_init)
+    POP_SUB(accel_init)
 
   contains
 
@@ -535,7 +565,7 @@ contains
       integer :: irank
       character(len=256) :: device_name
 
-      PUSH_SUB(opencl_init.select_device)
+      PUSH_SUB(accel_init.select_device)
 
       idevice = mod(base_grp%rank, ndevices)
 
@@ -556,22 +586,34 @@ contains
       end do
 #endif
 
-      POP_SUB(opencl_init.select_device)
+      POP_SUB(accel_init.select_device)
     end subroutine select_device
 
     subroutine device_info()
+      integer(8) :: val, val2
+      character(len=256) :: val_str
+      
+      PUSH_SUB(accel_init.device_info)
+
+      call messages_new_line()
+      call messages_write('Selected device:')
+      call messages_new_line()
 
 #ifdef HAVE_OPENCL
-      integer(8) :: val 
-      character(len=256) :: val_str
+      call messages_write('      Framework              : OpenCL')
+#endif
+#ifdef HAVE_CUDA
+      call messages_write('      Framework              : CUDA')
+#endif
+      call messages_info()
 
-      PUSH_SUB(opencl_init.device_info)
+#ifdef HAVE_CUDA
+      call messages_write('      Device type            : GPU', new_line = .true.)
+      call messages_write('      Device vendor          : NVIDIA Corporation', new_line = .true.)
+#endif
 
-      call messages_new_line()
-      call messages_write('Selected CL device:')
-      call messages_new_line()
-
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_TYPE, val, cl_status)
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_TYPE, val, cl_status)
       call messages_write('      Device type            :')
       select case(int(val, 4))
       case(CL_DEVICE_TYPE_GPU)
@@ -583,74 +625,125 @@ contains
       end select
       call messages_new_line()
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_VENDOR, val_str, cl_status)
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_VENDOR, val_str, cl_status)
       call messages_write('      Device vendor          : '//trim(val_str))
       call messages_new_line()
-
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_NAME, val_str, cl_status)
+#endif
+      
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_NAME, val_str, cl_status)
+#endif
+#ifdef HAVE_CUDA
+      call cuda_device_name(accel%device%cuda_device, val_str)
+#endif
       call messages_write('      Device name            : '//trim(val_str))
       call messages_new_line()
-
-      call clGetDeviceInfo(opencl%device, CL_DRIVER_VERSION, val_str, cl_status)
-      call messages_write('      Driver version         : '//trim(val_str))
+      
+#ifdef HAVE_CUDA
+      call cuda_device_capability(accel%device%cuda_device, val, val2)
+#endif
+      call messages_write('      Cuda capabilities      :')
+      call messages_write(val, fmt = '(i2)')
+      call messages_write('.')
+      call messages_write(val2, fmt = '(i1)')
       call messages_new_line()
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_MAX_COMPUTE_UNITS, val, cl_status)
+      ! VERSION
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DRIVER_VERSION, val_str, cl_status)
+      call messages_write('      Driver version         : '//trim(val_str))
+#endif
+#ifdef HAVE_CUDA
+      call cuda_driver_version(val)
+      call messages_write('      Driver version         : ')
+      call messages_write(val)
+#endif
+      call messages_new_line()
+
+      
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_MAX_COMPUTE_UNITS, val, cl_status)
       call messages_write('      Compute units          :')
       call messages_write(val)
       call messages_new_line()
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_MAX_CLOCK_FREQUENCY, val, cl_status)
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_MAX_CLOCK_FREQUENCY, val, cl_status)
       call messages_write('      Clock frequency        :')
       call messages_write(val)
       call messages_write(' GHz')
       call messages_new_line()
+#endif
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_GLOBAL_MEM_SIZE, val, cl_status)
+      ! TOTAL MEMORY
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_GLOBAL_MEM_SIZE, accel%global_memory_size, cl_status)
+#endif
+#ifdef HAVE_CUDA
+      call cuda_device_total_memory(accel%device%cuda_device, accel%global_memory_size)
+#endif
       call messages_write('      Device memory          :')
-      call messages_write(val, units = unit_megabytes)
+      call messages_write(accel%global_memory_size, units = unit_megabytes)
       call messages_new_line()
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_MAX_MEM_ALLOC_SIZE, val, cl_status)
+
+      ! SHARED/LOCAL MEMORY
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_LOCAL_MEM_SIZE, accel%local_memory_size, cl_status)
+#endif
+#ifdef HAVE_CUDA
+      call cuda_device_shared_memory(accel%device%cuda_device, accel%local_memory_size)
+#endif
+      call messages_write('      Local/shared memory    :')
+      call messages_write(accel%local_memory_size, units = unit_kilobytes)
+      call messages_new_line()
+      
+    
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_MAX_MEM_ALLOC_SIZE, val, cl_status)
       call messages_write('      Max alloc size         :')
       call messages_write(val, units = unit_megabytes)
       call messages_new_line()
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, val, cl_status)
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, val, cl_status)
       call messages_write('      Device cache           :')
       call messages_write(val, units = unit_kilobytes)
       call messages_new_line()
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_LOCAL_MEM_SIZE, val, cl_status)
-      call messages_write('      Local memory           :')
-      call messages_write(val, units = unit_kilobytes)
-      call messages_new_line()
-
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, val, cl_status)
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, val, cl_status)
       call messages_write('      Constant memory        :')
       call messages_write(val, units = unit_kilobytes)
       call messages_new_line()
+#endif
 
-      call clGetDeviceInfo(opencl%device, CL_DEVICE_MAX_WORK_GROUP_SIZE, val, cl_status)
-      call messages_write('      Max. workgroup size    :')
-      call messages_write(val)
+      ! Workgroup/block size
+#ifdef HAVE_OPENCL
+      call clGetDeviceInfo(accel%device%cl_device, CL_DEVICE_MAX_WORK_GROUP_SIZE, accel%max_workgroup_size, cl_status)
+#endif
+#ifdef HAVE_CUDA
+      call cuda_device_max_threads_per_block(accel%device%cuda_device, accel%max_workgroup_size)
+#endif
+      call messages_write('      Max. group/block size  :')
+      call messages_write(accel%max_workgroup_size)
       call messages_new_line()
+      
 
+#ifdef HAVE_OPENCL
       call messages_write('      Extension cl_khr_fp64  :')
-      call messages_write(f90_cl_device_has_extension(opencl%device, "cl_khr_fp64"))
+      call messages_write(f90_cl_device_has_extension(accel%device%cl_device, "cl_khr_fp64"))
       call messages_new_line()
 
       call messages_write('      Extension cl_amd_fp64  :')
-      call messages_write(f90_cl_device_has_extension(opencl%device, "cl_amd_fp64"))
+      call messages_write(f90_cl_device_has_extension(accel%device%cl_device, "cl_amd_fp64"))
       call messages_new_line()
-
+#endif
+      
       call messages_info()
 
-      POP_SUB(opencl_init.device_info)
-#endif
+
+      POP_SUB(accel_init.device_info)
     end subroutine device_info
 
-  end subroutine opencl_init
+  end subroutine accel_init
 
   ! ------------------------------------------
 
@@ -666,12 +759,14 @@ contains
 
   ! ------------------------------------------
 
-  subroutine opencl_end()
+  subroutine accel_end()
 #ifdef HAVE_OPENCL
     integer :: ierr
 #endif
 
-    PUSH_SUB(opencl_end)
+    PUSH_SUB(accel_end)
+
+    call accel_kernel_global_end()
 
 #ifdef HAVE_CLBLAS
     call clblasTearDown()
@@ -681,31 +776,17 @@ contains
     call clfftTearDown()
 #endif
 
-    if(opencl_is_enabled()) then
+    if(accel_is_enabled()) then
+#ifdef HAVE_CUDA
+      call cublas_end(accel%cublas_handle)
+      call cuda_end(accel%context%cuda_context, accel%device%cuda_device)
+#endif
+
 #ifdef HAVE_OPENCL
-      call opencl_release_kernel(kernel_vpsi)
-      call opencl_release_kernel(kernel_vpsi_spinors)
-      call opencl_release_kernel(set_zero)
-      call opencl_release_kernel(kernel_daxpy)
-      call opencl_release_kernel(kernel_zaxpy)
-      call opencl_release_kernel(kernel_copy)
-      call opencl_release_kernel(dpack)
-      call opencl_release_kernel(zpack)
-      call opencl_release_kernel(dunpack)
-      call opencl_release_kernel(zunpack)
-      call opencl_release_kernel(kernel_subarray_gather)
-      call opencl_release_kernel(kernel_density_real)
-      call opencl_release_kernel(kernel_density_complex)
-      call opencl_release_kernel(kernel_phase)
-      call opencl_release_kernel(dkernel_dot_matrix)
-      call opencl_release_kernel(zkernel_dot_matrix)
-      call opencl_release_kernel(zkernel_dot_matrix_spinors)
-
-
-      call clReleaseCommandQueue(opencl%command_queue, ierr)
+      call clReleaseCommandQueue(accel%command_queue, ierr)
 
       if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "ReleaseCommandQueue")
-      call clReleaseContext(opencl%context, cl_status)
+      call clReleaseContext(accel%context%cl_context, cl_status)
 
       if(buffer_alloc_count /= 0) then
         call messages_write('OpenCL:')
@@ -718,43 +799,45 @@ contains
 #endif
     end if
 
-    POP_SUB(opencl_end)
-  end subroutine opencl_end
+    POP_SUB(accel_end)
+  end subroutine accel_end
 
   ! ------------------------------------------
 
-  elemental subroutine opencl_mem_nullify(this)
-    type(opencl_mem_t), intent(out) :: this
+  elemental subroutine accel_mem_nullify(this)
+    type(accel_mem_t), intent(out) :: this
 
     !> To be implemented.
-    This%size = 0
+    this%size = 0
     this%flags = 0
 
-  end subroutine opencl_mem_nullify
+  end subroutine accel_mem_nullify
 
   ! ------------------------------------------
 
-  integer function opencl_padded_size(nn) result(psize)
+  integer function accel_padded_size(nn) result(psize)
     integer,        intent(in) :: nn
 
-#ifdef HAVE_OPENCL
     integer :: modnn, bsize
-
-    bsize = opencl_max_workgroup_size()
-
+    
     psize = nn
-    modnn = mod(nn, bsize)
-    if(modnn /= 0) psize = psize + bsize - modnn
-#else
-    psize = nn
-#endif
-  end function opencl_padded_size
 
-#ifdef HAVE_OPENCL
+    if(accel_is_enabled()) then
+
+      bsize = accel_max_workgroup_size()
+      
+      psize = nn
+      modnn = mod(nn, bsize)
+      if(modnn /= 0) psize = psize + bsize - modnn
+
+    end if
+    
+  end function accel_padded_size
+
   ! ------------------------------------------
 
-  subroutine opencl_create_buffer_4(this, flags, type, size)
-    type(opencl_mem_t), intent(inout) :: this
+  subroutine accel_create_buffer_4(this, flags, type, size)
+    type(accel_mem_t),  intent(inout) :: this
     integer,            intent(in)    :: flags
     type(type_t),       intent(in)    :: type
     integer,            intent(in)    :: size
@@ -762,7 +845,7 @@ contains
     integer(8) :: fsize
     integer :: ierr
 
-    PUSH_SUB(opencl_create_buffer_4)
+    PUSH_SUB(accel_create_buffer_4)
 
     this%type = type
     this%size = size
@@ -771,40 +854,84 @@ contains
 
     ASSERT(fsize >= 0)
 
-    this%mem = clCreateBuffer(opencl%context, flags, fsize, ierr)
+#ifdef HAVE_OPENCL
+    this%mem = clCreateBuffer(accel%context%cl_context, flags, fsize, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clCreateBuffer")
-
+#endif
+#ifdef HAVE_CUDA
+    call cuda_mem_alloc(this%cuda_ptr, fsize)
+#endif
+    
     INCR(buffer_alloc_count, 1)
     INCR(allocated_mem, fsize)
 
-    POP_SUB(opencl_create_buffer_4)
-  end subroutine opencl_create_buffer_4
+    POP_SUB(accel_create_buffer_4)
+  end subroutine accel_create_buffer_4
 
   ! ------------------------------------------
 
-  subroutine opencl_release_buffer(this)
-    type(opencl_mem_t), intent(inout) :: this
+  subroutine accel_create_buffer_8(this, flags, type, size)
+    type(accel_mem_t),  intent(inout) :: this
+    integer,            intent(in)    :: flags
+    type(type_t),       intent(in)    :: type
+    integer(8),            intent(in)    :: size
+
+    integer(8) :: fsize
+    integer :: ierr
+
+    PUSH_SUB(accel_create_buffer_8)
+
+    this%type = type
+    this%size = size
+    this%flags = flags
+    fsize = int(size, 8)*types_get_size(type)
+
+    ASSERT(fsize >= 0)
+
+#ifdef HAVE_OPENCL
+    this%mem = clCreateBuffer(accel%context%cl_context, flags, fsize, ierr)
+    if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clCreateBuffer")
+#endif
+#ifdef HAVE_CUDA
+    call cuda_mem_alloc(this%cuda_ptr, fsize)
+#endif
+    
+    INCR(buffer_alloc_count, 1)
+    INCR(allocated_mem, fsize)
+
+    POP_SUB(accel_create_buffer_8)
+  end subroutine accel_create_buffer_8
+  
+  ! ------------------------------------------
+
+  subroutine accel_release_buffer(this)
+    type(accel_mem_t), intent(inout) :: this
 
     integer :: ierr
 
-    PUSH_SUB(opencl_release_buffer)
+    PUSH_SUB(accel_release_buffer)
 
+#ifdef HAVE_OPENCL
     call clReleaseMemObject(this%mem, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clReleaseMemObject")
-
+#endif
+#ifdef HAVE_CUDA
+    call cuda_mem_free(this%cuda_ptr)
+#endif
+    
     INCR(buffer_alloc_count, -1)
     INCR(allocated_mem, -int(this%size, 8)*types_get_size(this%type))
 
     this%size = 0
     this%flags = 0
 
-    POP_SUB(opencl_release_buffer)
-  end subroutine opencl_release_buffer
+    POP_SUB(accel_release_buffer)
+  end subroutine accel_release_buffer
 
   ! ------------------------------------------
 
   integer(SIZEOF_SIZE_T) pure function opencl_get_buffer_size(this) result(size)
-    type(opencl_mem_t), intent(in) :: this
+    type(accel_mem_t), intent(in) :: this
 
     size = this%size
   end function opencl_get_buffer_size
@@ -812,76 +939,91 @@ contains
   ! -----------------------------------------
 
   type(type_t) pure function opencl_get_buffer_type(this) result(type)
-    type(opencl_mem_t), intent(in) :: this
+    type(accel_mem_t), intent(in) :: this
 
     type = this%type
   end function opencl_get_buffer_type
 
   ! -----------------------------------------
 
-  subroutine opencl_finish()
+  subroutine accel_finish()
     integer :: ierr
 
     ! no push_sub, called too frequently
-
-    call clFinish(opencl%command_queue, ierr)
+    
+#ifdef HAVE_OPENCL
+    call clFinish(accel%command_queue, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, 'clFinish') 
-
-  end subroutine opencl_finish
+#endif
+#ifdef HAVE_CUDA
+    call cuda_context_synchronize()
+#endif
+  end subroutine accel_finish
 
   ! ------------------------------------------
 
-  subroutine opencl_set_kernel_arg_buffer(kernel, narg, buffer)
-    type(cl_kernel),    intent(inout) :: kernel
-    integer,            intent(in)    :: narg
-    type(opencl_mem_t), intent(in)    :: buffer
+  subroutine accel_set_kernel_arg_buffer(kernel, narg, buffer)
+    type(accel_kernel_t), intent(inout) :: kernel
+    integer,              intent(in)    :: narg
+    type(accel_mem_t),    intent(in)    :: buffer
 
     integer :: ierr
 
     ! no push_sub, called too frequently
-
-    call clSetKernelArg(kernel, narg, buffer%mem, ierr)
+#ifdef HAVE_OPENCL
+    call clSetKernelArg(kernel%kernel, narg, buffer%mem, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clSetKernelArg_buf")
+#endif
 
-  end subroutine opencl_set_kernel_arg_buffer
-
+#ifdef HAVE_CUDA
+    call cuda_kernel_set_arg_buffer(kernel%arguments, buffer%cuda_ptr, narg)
+#endif
+   
+  end subroutine accel_set_kernel_arg_buffer
+  
   ! ------------------------------------------
 
-  subroutine opencl_set_kernel_arg_local(kernel, narg, type, size)
-    type(cl_kernel),    intent(inout) :: kernel
-    integer,            intent(in)    :: narg
-    type(type_t),       intent(in)    :: type
-    integer,            intent(in)    :: size
+  subroutine accel_set_kernel_arg_local(kernel, narg, type, size)
+    type(accel_kernel_t), intent(inout) :: kernel
+    integer,              intent(in)    :: narg
+    type(type_t),         intent(in)    :: type
+    integer,              intent(in)    :: size
 
     integer :: ierr
     integer(8) :: size_in_bytes
 
-    PUSH_SUB(opencl_set_kernel_arg_local)
+    PUSH_SUB(accel_set_kernel_arg_local)
 
+    
     size_in_bytes = int(size, 8)*types_get_size(type)
 
-    if(size_in_bytes > opencl%local_memory_size) then
+    if(size_in_bytes > accel%local_memory_size) then
       write(message(1), '(a,f12.6,a)') "CL Error: requested local memory: ", dble(size_in_bytes)/1024.0, " Kb"
-      write(message(2), '(a,f12.6,a)') "          available local memory: ", dble(opencl%local_memory_size)/1024.0, " Kb"
+      write(message(2), '(a,f12.6,a)') "          available local memory: ", dble(accel%local_memory_size)/1024.0, " Kb"
       call messages_fatal(2)
     else if(size_in_bytes <= 0) then
       write(message(1), '(a,i10)') "CL Error: invalid local memory size: ", size_in_bytes
       call messages_fatal(1)
     end if
 
-    call clSetKernelArgLocal(kernel, narg, size_in_bytes, ierr)
+#ifdef HAVE_CUDA
+    kernel%cuda_shared_mem = size_in_bytes
+#endif
+
+#ifdef HAVE_OPENCL
+    call clSetKernelArgLocal(kernel%kernel, narg, size_in_bytes, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "set_kernel_arg_local")
+#endif
 
-    POP_SUB(opencl_set_kernel_arg_local)
-
-  end subroutine opencl_set_kernel_arg_local
+    POP_SUB(accel_set_kernel_arg_local)
+  end subroutine accel_set_kernel_arg_local
 
   ! ------------------------------------------
 
-  subroutine opencl_kernel_run(kernel, globalsizes, localsizes)
-    type(cl_kernel),    intent(inout) :: kernel
-    integer,            intent(in)    :: globalsizes(:)
-    integer,            intent(in)    :: localsizes(:)
+  subroutine accel_kernel_run(kernel, globalsizes, localsizes)
+    type(accel_kernel_t), intent(inout) :: kernel
+    integer,              intent(in)    :: globalsizes(:)
+    integer,              intent(in)    :: localsizes(:)
 
     integer :: dim, ierr
     integer(8) :: gsizes(1:3)
@@ -889,80 +1031,82 @@ contains
 
     ! no push_sub, called too frequently
 
+    ! cuda needs all dimensions
+    gsizes = 1
+    lsizes = 1
+    
     dim = ubound(globalsizes, dim = 1)
 
     ASSERT(dim == ubound(localsizes, dim = 1))
-    ASSERT(all(localsizes <= opencl_max_workgroup_size()))
+    ASSERT(all(localsizes <= accel_max_workgroup_size()))
     ASSERT(all(mod(globalsizes, localsizes) == 0))
 
     gsizes(1:dim) = int(globalsizes(1:dim), 8)
     lsizes(1:dim) = int(localsizes(1:dim), 8)
 
-    call clEnqueueNDRangeKernel(opencl%command_queue, kernel, gsizes(1:dim), lsizes(1:dim), ierr)
+#ifdef HAVE_OPENCL
+    call clEnqueueNDRangeKernel(accel%command_queue, kernel%kernel, gsizes(1:dim), lsizes(1:dim), ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueNDRangeKernel")
+#endif
 
-  end subroutine opencl_kernel_run
+#ifdef HAVE_CUDA
+    gsizes(1:3) = gsizes(1:3)/lsizes(1:3)
+    
+    ASSERT(all(gsizes <= 65535))
+    
+    call cuda_launch_kernel(kernel%cuda_kernel, gsizes(1), lsizes(1), kernel%cuda_shared_mem, kernel%arguments)
 
+    kernel%cuda_shared_mem = 0    
+#endif
+    
+  end subroutine accel_kernel_run
 
   ! -----------------------------------------------
 
-  integer pure function opencl_max_workgroup_size() result(max_workgroup_size)
-    max_workgroup_size = opencl%max_workgroup_size
-  end function opencl_max_workgroup_size
+  integer pure function accel_max_workgroup_size() result(max_workgroup_size)
+    max_workgroup_size = accel%max_workgroup_size
+  end function accel_max_workgroup_size
 
   ! -----------------------------------------------
 
-  integer function opencl_kernel_workgroup_size(kernel) result(workgroup_size)
-    type(cl_kernel), intent(inout) :: kernel
+  integer function accel_kernel_workgroup_size(kernel) result(workgroup_size)
+    type(accel_kernel_t), intent(inout) :: kernel
 
     integer(8) :: workgroup_size8
     integer    :: ierr
 
-    call clGetKernelWorkGroupInfo(kernel, opencl%device, CL_KERNEL_WORK_GROUP_SIZE, workgroup_size8, ierr)
+#ifdef HAVE_OPENCL
+    call clGetKernelWorkGroupInfo(kernel%kernel, accel%device%cl_device, CL_KERNEL_WORK_GROUP_SIZE, workgroup_size8, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueNDRangeKernel")
+#endif
     workgroup_size = workgroup_size8
 
-  end function opencl_kernel_workgroup_size
+#ifdef HAVE_CUDA
+    workgroup_size = accel%max_workgroup_size
+#endif
+
+  end function accel_kernel_workgroup_size
 
   ! -----------------------------------------------
 
+#ifdef HAVE_OPENCL
   subroutine opencl_build_program(prog, filename, flags)
     type(cl_program),           intent(inout) :: prog
     character(len=*),           intent(in)    :: filename
     character(len=*), optional, intent(in)    :: flags
 
-    character(len = OPENCL_MAX_FILE_LENGTH) :: string
+    character(len = 1000) :: string
     character(len = 256) :: share_string
     integer :: ierr, ierrlog, iunit, irec, newlen
-    type(profile_t), save :: prof
-
+    
     PUSH_SUB(opencl_build_program)
-    call profiling_in(prof, "CL_COMPILE", exclude = .true.)
 
-    string = ''
-
-    call io_assign(iunit)
-    open(unit = iunit, file = trim(filename), access='direct', status = 'old', action = 'read', iostat = ierr, recl = 1)
-    irec = 1
-    do
-      read(unit = iunit, rec = irec, iostat = ierr) string(irec:irec) 
-      if (ierr /= 0) exit
-      if(irec == OPENCL_MAX_FILE_LENGTH) then
-        call messages_write('CL source file is too big: '//trim(filename)//'.')
-        call messages_new_line()
-        call messages_write("       Increase 'OPENCL_MAX_FILE_LENGTH'.")
-        call messages_fatal()
-      end if
-      irec = irec + 1
-    end do
-
-    close(unit = iunit)
-    call io_free(iunit)
+    string = '#include "'//trim(filename)//'"'
 
     call messages_write("Building CL program '"//trim(filename)//"'.")
     call messages_info()
 
-    prog = clCreateProgramWithSource(opencl%context, string, ierr)
+    prog = clCreateProgramWithSource(accel%context%cl_context, trim(string), ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clCreateProgramWithSource")
 
     ! build the compilation flags
@@ -978,16 +1122,16 @@ contains
 
     share_string='-I'//trim(conf%share)//'/opencl/'
 
-    if (f90_cl_device_has_extension(opencl%device, "cl_khr_fp64")) then
+    if (f90_cl_device_has_extension(accel%device%cl_device, "cl_khr_fp64")) then
       string = trim(string)//' -DEXT_KHR_FP64'
-    else if(f90_cl_device_has_extension(opencl%device, "cl_amd_fp64")) then
+    else if(f90_cl_device_has_extension(accel%device%cl_device, "cl_amd_fp64")) then
       string = trim(string)//' -DEXT_AMD_FP64'
     else
       call messages_write('Octopus requires an OpenCL device with double-precision support.')
       call messages_fatal()
     end if
 
-    if(opencl_use_shared_mem()) then
+    if(accel_use_shared_mem()) then
       string = trim(string)//' -DSHARED_MEM'
     end if
 
@@ -1005,7 +1149,7 @@ contains
 
     call clBuildProgram(prog, trim(string), ierr)
 
-    call clGetProgramBuildInfo(prog, opencl%device, CL_PROGRAM_BUILD_LOG, string, ierrlog)
+    call clGetProgramBuildInfo(prog, accel%device%cl_device, CL_PROGRAM_BUILD_LOG, string, ierrlog)
     if(ierrlog /= CL_SUCCESS) call opencl_print_error(ierrlog, "clGetProgramBuildInfo")
 
     ! CL_PROGRAM_BUILD_LOG seems to have a useless '\n' in it
@@ -1015,13 +1159,13 @@ contains
     if(len(trim(string)) > 0) write(stderr, '(a)') trim(string)
 
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clBuildProgram")
-
-    call profiling_out(prof)
+    
     POP_SUB(opencl_build_program)
   end subroutine opencl_build_program
+#endif
 
   ! -----------------------------------------------
-
+#ifdef HAVE_OPENCL
   subroutine opencl_release_program(prog)
     type(cl_program),    intent(inout) :: prog
 
@@ -1034,9 +1178,11 @@ contains
 
     POP_SUB(opencl_release_program)
   end subroutine opencl_release_program
+#endif
 
   ! -----------------------------------------------
 
+#ifdef HAVE_OPENCL
   subroutine opencl_release_kernel(prog)
     type(cl_kernel),      intent(inout) :: prog
 
@@ -1044,12 +1190,16 @@ contains
 
     PUSH_SUB(opencl_release_kernel)
 
+#ifdef HAVE_OPENCL
     call clReleaseKernel(prog, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clReleaseKernel")
+#endif
 
     POP_SUB(opencl_release_kernel)
   end subroutine opencl_release_kernel
+#endif
 
+#ifdef HAVE_OPENCL
   ! -----------------------------------------------
   subroutine opencl_create_kernel(kernel, prog, name)
     type(cl_kernel),  intent(inout) :: kernel
@@ -1061,14 +1211,17 @@ contains
 
     PUSH_SUB(opencl_create_kernel)
     call profiling_in(prof, "CL_BUILD_KERNEL", exclude = .true.)
-
+    
+#ifdef HAVE_OPENCL
     kernel = clCreateKernel(prog, name, ierr)
     if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "clCreateKernel")
+#endif
 
     call profiling_out(prof)
     POP_SUB(opencl_create_kernel)
   end subroutine opencl_create_kernel
-
+#endif
+  
   ! ------------------------------------------------
 
   subroutine opencl_print_error(ierr, name)
@@ -1079,6 +1232,7 @@ contains
 
     PUSH_SUB(opencl_print_error)
 
+#ifdef HAVE_OPENCL
     select case(ierr)
     case(CL_SUCCESS); errcode = 'CL_SUCCESS '
     case(CL_DEVICE_NOT_FOUND); errcode = 'CL_DEVICE_NOT_FOUND '
@@ -1132,7 +1286,8 @@ contains
       write(errcode, '(i10)') ierr
       errcode = 'UNKNOWN ERROR CODE ('//trim(adjustl(errcode))//')'
     end select
-
+#endif
+    
     message(1) = 'OpenCL '//trim(name)//' '//trim(errcode)
     call messages_fatal(1)
 
@@ -1271,6 +1426,7 @@ contains
 
   ! ----------------------------------------------------
 
+#ifdef HAVE_OPENCL
   logical function f90_cl_device_has_extension(device, extension) result(has)
     type(cl_device_id), intent(inout) :: device
     character(len=*),   intent(in)    :: extension
@@ -1278,12 +1434,15 @@ contains
     integer :: cl_status
     character(len=2048) :: all_extensions
 
+#ifdef HAVE_OPENCL
     call clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, all_extensions, cl_status)
-
+#endif
+    
     has = index(all_extensions, extension) /= 0
 
   end function f90_cl_device_has_extension
-
+#endif
+  
   ! ---------------------------------------------------------
 
   integer pure function opencl_pad(size, blk) result(pad)
@@ -1302,31 +1461,32 @@ contains
 
   ! ----------------------------------------------------
 
-  subroutine opencl_set_buffer_to_zero(buffer, type, nval, offset)
-    type(opencl_mem_t), intent(inout) :: buffer
+  subroutine accel_set_buffer_to_zero(buffer, type, nval, offset)
+    type(accel_mem_t),  intent(inout) :: buffer
     type(type_t),       intent(in)    :: type
     integer,            intent(in)    :: nval
     integer, optional,  intent(in)    :: offset
 
-    integer :: nval_real, bsize
+    integer :: nval_real, bsize, offset_real
 
-    PUSH_SUB(opencl_set_buffer_to_zero)
+    PUSH_SUB(accel_set_buffer_to_zero)
 
     ASSERT(type == TYPE_CMPLX .or. type == TYPE_FLOAT)
 
     nval_real = nval*types_get_size(type)/8
+    offset_real = optional_default(offset, 0)*types_get_size(type)/8
+    
+    call accel_set_kernel_arg(set_zero, 0, nval_real)
+    call accel_set_kernel_arg(set_zero, 1, offset_real)
+    call accel_set_kernel_arg(set_zero, 2, buffer)
 
-    call opencl_set_kernel_arg(set_zero, 0, nval_real)
-    call opencl_set_kernel_arg(set_zero, 1, optional_default(offset, 0)*types_get_size(type)/8)
-    call opencl_set_kernel_arg(set_zero, 2, buffer)
+    bsize = accel_kernel_workgroup_size(set_zero)
 
-    bsize = opencl_kernel_workgroup_size(set_zero)
+    call accel_kernel_run(set_zero, (/ opencl_pad(nval_real, bsize) /), (/ bsize /))
+    call accel_finish()
 
-    call opencl_kernel_run(set_zero, (/ opencl_pad(nval_real, bsize) /), (/ bsize /))
-    call opencl_finish()
-
-    POP_SUB(opencl_set_buffer_to_zero)
-  end subroutine opencl_set_buffer_to_zero
+    POP_SUB(accel_set_buffer_to_zero)
+  end subroutine accel_set_buffer_to_zero
 
   ! ----------------------------------------------------
 
@@ -1336,7 +1496,7 @@ contains
     integer :: size
     real(8) :: time, stime
     real(8) :: read_bw, write_bw
-    type(opencl_mem_t) :: buff
+    type(accel_mem_t) :: buff
     FLOAT, allocatable :: data(:)
 
     call messages_new_line()
@@ -1352,12 +1512,12 @@ contains
     size = 15000
     do 
       SAFE_ALLOCATE(data(1:size))
-      call opencl_create_buffer(buff, CL_MEM_READ_WRITE, TYPE_FLOAT, size)
+      call accel_create_buffer(buff, ACCEL_MEM_READ_WRITE, TYPE_FLOAT, size)
 
       stime = loct_clock()
       do itime = 1, times
-        call opencl_write_buffer(buff, size, data)
-        call opencl_finish()
+        call accel_write_buffer(buff, size, data)
+        call accel_finish()
       end do
       time = (loct_clock() - stime)/dble(times)
 
@@ -1365,9 +1525,9 @@ contains
 
       stime = loct_clock()
       do itime = 1, times
-        call opencl_read_buffer(buff, size, data)
+        call accel_read_buffer(buff, size, data)
       end do
-      call opencl_finish()
+      call accel_finish()
 
       time = (loct_clock() - stime)/dble(times)
       read_bw = dble(size)*8.0_8/time
@@ -1377,7 +1537,7 @@ contains
       call messages_write(read_bw/1024.0**2, fmt = '(f10.1)')
       call messages_info()
 
-      call opencl_release_buffer(buff)
+      call accel_release_buffer(buff)
 
       SAFE_DEALLOCATE_A(data)
 
@@ -1389,35 +1549,182 @@ contains
 
   ! ----------------------------------------------------
 
-  logical pure function opencl_use_shared_mem() result(use_shared_mem)
+  logical pure function accel_use_shared_mem() result(use_shared_mem)
     
-    use_shared_mem = shared_mem
+    use_shared_mem = accel%shared_mem
 
-  end function opencl_use_shared_mem
+  end function accel_use_shared_mem
+
+  !------------------------------------------------------------
+
+  subroutine accel_kernel_global_init()
+    
+    PUSH_SUB(accel_kernel_global_init)
+
+    nullify(head)
+
+    call cuda_module_map_init(accel%module_map)
+    
+    POP_SUB(accel_kernel_global_init)
+  end subroutine accel_kernel_global_init
+
+  !------------------------------------------------------------
+  
+  subroutine accel_kernel_global_end()
+    type(accel_kernel_t), pointer :: next_head
+
+    PUSH_SUB(accel_kernel_global_end)
+
+    do
+      if(.not. associated(head)) exit
+      next_head => head%next
+      call accel_kernel_end(head)
+      head => next_head
+    end do
+
+    if(accel_is_enabled()) then
+      call cuda_module_map_end(accel%module_map)
+    end if
+    
+    POP_SUB(accel_kernel_global_end)
+  end subroutine accel_kernel_global_end
+
+  !------------------------------------------------------------
+
+  subroutine accel_kernel_build(this, file_name, kernel_name, flags)
+    type(accel_kernel_t),        intent(inout) :: this
+    character(len=*),            intent(in)    :: file_name
+    character(len=*),            intent(in)    :: kernel_name
+    character(len=*), optional,  intent(in)    :: flags
+
+    character(len=1000) :: all_flags
+    type(profile_t), save :: prof
+#ifdef HAVE_OPENCL
+    type(cl_program) :: prog
+#endif
+#ifdef HAVE_CUDA
+    type(c_ptr) :: cuda_module
+#endif
+    
+    PUSH_SUB(accel_kernel_build)
+
+    call profiling_in(prof, "ACCEL_COMPILE", exclude = .true.)
+
+#ifdef HAVE_CUDA
+    all_flags = '-I'//trim(conf%share)//'/opencl/'
+
+    if(accel_use_shared_mem()) then
+      all_flags = trim(all_flags)//' -DSHARED_MEM'
+    end if
+    
+    if(present(flags)) then
+      all_flags = trim(all_flags)//' '//trim(flags)
+    end if
+    
+    call cuda_build_program(accel%module_map, this%cuda_module, accel%device%cuda_device, trim(file_name), trim(all_flags))
+    
+    call cuda_create_kernel(this%cuda_kernel, this%cuda_module, trim(kernel_name))
+    call cuda_alloc_arg_array(this%arguments)
+
+    this%cuda_shared_mem = 0
+#endif
+
+#ifdef HAVE_OPENCL
+    call opencl_build_program(prog, trim(conf%share)//'/opencl/'//trim(file_name), flags = flags)
+    call opencl_create_kernel(this%kernel, prog, trim(kernel_name))
+    call opencl_release_program(prog)
+#endif
+
+    this%initialized = .true.
+
+    call profiling_out(prof)
+    
+    POP_SUB(accel_kernel_build)
+  end subroutine accel_kernel_build
+
+  !------------------------------------------------------------
+
+  subroutine accel_kernel_end(this)
+    type(accel_kernel_t), intent(inout) :: this
+#ifdef HAVE_OPENCL
+    integer :: ierr
+#endif
+
+      PUSH_SUB(accel_kernel_end)
+
+#ifdef HAVE_CUDA
+      call cuda_free_arg_array(this%arguments)
+      call cuda_release_kernel(this%cuda_kernel)
+      ! modules are not released here, since they are not associated to a kernel
+#endif
+      
+#ifdef HAVE_OPENCL
+      call clReleaseKernel(this%kernel, ierr)
+      if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "release_kernel")
+#endif
+      this%initialized = .false.
+
+      POP_SUB(accel_kernel_end)
+  end subroutine accel_kernel_end
+
+  !------------------------------------------------------------
+
+  subroutine accel_kernel_start_call(this, file_name, kernel_name, flags)
+    type(accel_kernel_t), target, intent(inout) :: this
+    character(len=*),             intent(in)    :: file_name
+    character(len=*),             intent(in)    :: kernel_name
+    character(len=*), optional,   intent(in)    :: flags
+
+    PUSH_SUB(accel_kernel_start_call)
+
+    if(.not. this%initialized) then
+      call accel_kernel_build(this, file_name, kernel_name, flags)
+      this%next => head
+      head => this
+    end if
+
+    POP_SUB(accel_kernel_start_call)
+  end subroutine accel_kernel_start_call
+
+  !--------------------------------------------------------------
+
+  integer(8) pure function accel_global_memory_size() result(size)
+
+    size = accel%global_memory_size
+    
+  end function accel_global_memory_size
+
+  !--------------------------------------------------------------
+  
+  integer(8) pure function accel_local_memory_size() result(size)
+
+    size = accel%local_memory_size
+    
+  end function accel_local_memory_size
+
+  !--------------------------------------------------------------
   
 #include "undef.F90"
 #include "real.F90"
-#include "opencl_inc.F90"
+#include "accel_inc.F90"
 
 #include "undef.F90"
 #include "complex.F90"
-#include "opencl_inc.F90"
+#include "accel_inc.F90"
 
 #include "undef.F90"
 #include "real_single.F90"
-#include "opencl_inc.F90"
+#include "accel_inc.F90"
 
 #include "undef.F90"
 #include "complex_single.F90"
-#include "opencl_inc.F90"
+#include "accel_inc.F90"
 
 #include "undef.F90"
 #include "integer.F90"
-#include "opencl_inc.F90"
+#include "accel_inc.F90"
 
-#endif
-
-end module opencl_oct_m
+end module accel_oct_m
 
 !! Local Variables:
 !! mode: f90

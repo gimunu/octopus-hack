@@ -15,11 +15,31 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: opencl_inc.F90 11591 2013-12-17 09:10:32Z joseba $
+!! $Id: accel_inc.F90 15532 2016-07-29 05:17:23Z xavier $
 
+subroutine X(accel_write_buffer_0)(this, data)
+  type(accel_mem_t),               intent(inout) :: this
+  R_TYPE,                          intent(in)    :: data
 
-subroutine X(opencl_write_buffer_1)(this, size, data, offset)
-  type(opencl_mem_t),               intent(inout) :: this
+  R_TYPE, allocatable :: data_vec(:)
+  
+  PUSH_SUB(X(accel_write_buffer_0))
+
+  SAFE_ALLOCATE(data_vec(1:1))
+
+  data_vec(1:1) = data
+
+  call X(accel_write_buffer_1)(this, 1, data_vec)
+  
+  SAFE_DEALLOCATE_A(data_vec)
+  
+  POP_SUB(X(accel_write_buffer_0))
+end subroutine X(accel_write_buffer_0)
+
+! -----------------------------------------------------------------------------
+
+subroutine X(accel_write_buffer_1)(this, size, data, offset)
+  type(accel_mem_t),               intent(inout) :: this
   integer,                          intent(in)    :: size
   R_TYPE,                           intent(in)    :: data(:)
   integer,                optional, intent(in)    :: offset
@@ -27,11 +47,11 @@ subroutine X(opencl_write_buffer_1)(this, size, data, offset)
   integer(8) :: fsize, offset_
   integer :: ierr
 
-  PUSH_SUB(X(opencl_write_buffer_1))
+  PUSH_SUB(X(accel_write_buffer_1))
   call profiling_in(prof_write, "CL_WRITE_BUFFER")
 
   ! it does not make sense to write a buffer that the kernels cannot read
-  ASSERT(this%flags /= CL_MEM_WRITE_ONLY)
+  ASSERT(this%flags /= ACCEL_MEM_WRITE_ONLY)
 
   fsize = int(size,8)*R_SIZEOF
   offset_ = 0
@@ -40,22 +60,24 @@ subroutine X(opencl_write_buffer_1)(this, size, data, offset)
   ASSERT(fsize >= 0)
 
 #ifdef HAVE_OPENCL
-  call clEnqueueWriteBuffer(opencl%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1), ierr)
-#endif
-
+  call clEnqueueWriteBuffer(accel%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1), ierr)
   if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueWriteBuffer")
-
+#endif
+#ifdef HAVE_CUDA
+  call cuda_memcpy_htod(this%cuda_ptr, data(1), fsize, offset_)
+#endif
+  
   call profiling_count_transfers(size, data(1))
-  call opencl_finish()
+  call accel_finish()
   call profiling_out(prof_write)
-  POP_SUB(X(opencl_write_buffer_1))
+  POP_SUB(X(accel_write_buffer_1))
 
-end subroutine X(opencl_write_buffer_1)
+end subroutine X(accel_write_buffer_1)
 
 ! -----------------------------------------------------------------------------
 
-subroutine X(opencl_write_buffer_2)(this, size, data, offset)
-  type(opencl_mem_t),               intent(inout) :: this
+subroutine X(accel_write_buffer_2)(this, size, data, offset)
+  type(accel_mem_t),               intent(inout) :: this
   integer,                          intent(in)    :: size
   R_TYPE,                           intent(in)    :: data(:, :)
   integer,                optional, intent(in)    :: offset
@@ -63,33 +85,35 @@ subroutine X(opencl_write_buffer_2)(this, size, data, offset)
   integer(8) :: fsize, offset_
   integer :: ierr
 
-  PUSH_SUB(X(opencl_write_buffer_2))
+  PUSH_SUB(X(accel_write_buffer_2))
   call profiling_in(prof_write, "CL_WRITE_BUFFER")
 
   ! it does not make sense to write a buffer that the kernels cannot read
-  ASSERT(this%flags /= CL_MEM_WRITE_ONLY)
+  ASSERT(this%flags /= ACCEL_MEM_WRITE_ONLY)
 
   fsize = int(size, 8)*R_SIZEOF
   offset_ = 0
   if(present(offset)) offset_ = int(offset, 8)*R_SIZEOF
 
 #ifdef HAVE_OPENCL
-  call clEnqueueWriteBuffer(opencl%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1), ierr)
+  call clEnqueueWriteBuffer(accel%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1), ierr)
+  if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueWriteBuffer")
+#endif
+#ifdef HAVE_CUDA
+  call cuda_memcpy_htod(this%cuda_ptr, data(1, 1), fsize, offset_)
 #endif
 
-  if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueWriteBuffer")
-
   call profiling_count_transfers(size, data(1, 1))
-  call opencl_finish()
+  call accel_finish()
   call profiling_out(prof_write)
-  POP_SUB(X(opencl_write_buffer_2))
+  POP_SUB(X(accel_write_buffer_2))
 
-end subroutine X(opencl_write_buffer_2)
+end subroutine X(accel_write_buffer_2)
 
 ! -----------------------------------------------------------------------------
 
-subroutine X(opencl_write_buffer_3)(this, size, data, offset)
-  type(opencl_mem_t),               intent(inout) :: this
+subroutine X(accel_write_buffer_3)(this, size, data, offset)
+  type(accel_mem_t),               intent(inout) :: this
   integer,                          intent(in)    :: size
   R_TYPE,                           intent(in)    :: data(:, :, :)
   integer,                optional, intent(in)    :: offset
@@ -97,33 +121,35 @@ subroutine X(opencl_write_buffer_3)(this, size, data, offset)
   integer(8) :: fsize, offset_
   integer :: ierr
 
-  PUSH_SUB(X(opencl_write_buffer_3))
+  PUSH_SUB(X(accel_write_buffer_3))
   call profiling_in(prof_write, "CL_WRITE_BUFFER")
 
   ! it does not make sense to write a buffer that the kernels cannot read
-  ASSERT(this%flags /= CL_MEM_WRITE_ONLY)
+  ASSERT(this%flags /= ACCEL_MEM_WRITE_ONLY)
 
   fsize = int(size, 8)*R_SIZEOF
   offset_ = 0
   if(present(offset)) offset_ = int(offset, 8)*R_SIZEOF
 
 #ifdef HAVE_OPENCL
-  call clEnqueueWriteBuffer(opencl%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1, 1), ierr)
+  call clEnqueueWriteBuffer(accel%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1, 1), ierr)
+  if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueWriteBuffer")
+#endif
+#ifdef HAVE_CUDA
+  call cuda_memcpy_htod(this%cuda_ptr, data(1, 1, 1), fsize, offset_)
 #endif
 
-  if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueWriteBuffer")
-  
   call profiling_count_transfers(size, data(1, 1, 1))
-  call opencl_finish()
+  call accel_finish()
   call profiling_out(prof_write)
-  POP_SUB(X(opencl_write_buffer_3))
+  POP_SUB(X(accel_write_buffer_3))
 
-end subroutine X(opencl_write_buffer_3)
+end subroutine X(accel_write_buffer_3)
 
 ! -----------------------------------------------------------------------------
 
-subroutine X(opencl_read_buffer_1)(this, size, data, offset)
-  type(opencl_mem_t),               intent(in)    :: this
+subroutine X(accel_read_buffer_1)(this, size, data, offset)
+  type(accel_mem_t),               intent(in)    :: this
   integer,                          intent(in)    :: size
   R_TYPE,                           intent(out)   :: data(:)
   integer,                optional, intent(in)    :: offset
@@ -131,32 +157,35 @@ subroutine X(opencl_read_buffer_1)(this, size, data, offset)
   integer(8) :: fsize, offset_
   integer :: ierr
 
-  PUSH_SUB(X(opencl_read_buffer_1))
+  PUSH_SUB(X(accel_read_buffer_1))
   call profiling_in(prof_read, "CL_READ_BUFFER")
 
   ! it does not make sense to read a buffer that the kernels cannot write
-  ASSERT(this%flags /= CL_MEM_READ_ONLY)
+  ASSERT(this%flags /= ACCEL_MEM_READ_ONLY)
 
   fsize = size*R_SIZEOF
   offset_ = 0
   if(present(offset)) offset_ = offset*R_SIZEOF
 
 #ifdef HAVE_OPENCL
-  call clEnqueueReadBuffer(opencl%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1), ierr)
-#endif
+  call clEnqueueReadBuffer(accel%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1), ierr)
   if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueReadBuffer")
-
+#endif
+#ifdef HAVE_CUDA
+  call cuda_memcpy_dtoh(this%cuda_ptr, data(1), fsize, offset_)
+#endif
+  
   call profiling_count_transfers(size, data(1))
-  call opencl_finish()
+  call accel_finish()
   call profiling_out(prof_read)
-  POP_SUB(X(opencl_read_buffer_1))
+  POP_SUB(X(accel_read_buffer_1))
 
-end subroutine X(opencl_read_buffer_1)
+end subroutine X(accel_read_buffer_1)
 
 ! ---------------------------------------------------------------------------
 
-subroutine X(opencl_read_buffer_2)(this, size, data, offset)
-  type(opencl_mem_t),               intent(in)    :: this
+subroutine X(accel_read_buffer_2)(this, size, data, offset)
+  type(accel_mem_t),               intent(in)    :: this
   integer,                          intent(in)    :: size
   R_TYPE,                           intent(out)   :: data(:, :)
   integer,                optional, intent(in)    :: offset
@@ -164,33 +193,36 @@ subroutine X(opencl_read_buffer_2)(this, size, data, offset)
   integer(8) :: fsize, offset_
   integer :: ierr
   
-  PUSH_SUB(X(opencl_read_buffer_2))
+  PUSH_SUB(X(accel_read_buffer_2))
   call profiling_in(prof_read, "CL_READ_BUFFER")
 
   ! it does not make sense to read a buffer that the kernels cannot write
-  ASSERT(this%flags /= CL_MEM_READ_ONLY)
+  ASSERT(this%flags /= ACCEL_MEM_READ_ONLY)
 
   fsize = size*R_SIZEOF
   offset_ = 0
   if(present(offset)) offset_ = offset*R_SIZEOF
 
 #ifdef HAVE_OPENCL
-  call clEnqueueReadBuffer(opencl%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1), ierr)
-#endif
+  call clEnqueueReadBuffer(accel%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1), ierr)
   if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueReadBuffer")
-
+#endif
+#ifdef HAVE_CUDA
+  call cuda_memcpy_dtoh(this%cuda_ptr, data(1, 1), fsize, offset_)
+#endif
+  
   call profiling_count_transfers(size, data(1, 1))
-  call opencl_finish()
+  call accel_finish()
   
   call profiling_out(prof_read)
-  POP_SUB(X(opencl_read_buffer_2))
+  POP_SUB(X(accel_read_buffer_2))
   
-end subroutine X(opencl_read_buffer_2)
+end subroutine X(accel_read_buffer_2)
 
 ! ---------------------------------------------------------------------------
 
-subroutine X(opencl_read_buffer_3)(this, size, data, offset)
-  type(opencl_mem_t),               intent(in)    :: this
+subroutine X(accel_read_buffer_3)(this, size, data, offset)
+  type(accel_mem_t),               intent(in)    :: this
   integer,                          intent(in)    :: size
   R_TYPE,                           intent(out)   :: data(:, :, :)
   integer,                optional, intent(in)    :: offset
@@ -198,45 +230,51 @@ subroutine X(opencl_read_buffer_3)(this, size, data, offset)
   integer(8) :: fsize, offset_
   integer :: ierr
   
-  PUSH_SUB(X(opencl_read_buffer_3))
+  PUSH_SUB(X(accel_read_buffer_3))
   call profiling_in(prof_read, "CL_READ_BUFFER")
 
   ! it does not make sense to read a buffer that the kernels cannot write
-  ASSERT(this%flags /= CL_MEM_READ_ONLY)
+  ASSERT(this%flags /= ACCEL_MEM_READ_ONLY)
 
   fsize = size*R_SIZEOF
   offset_ = 0
   if(present(offset)) offset_ = offset*R_SIZEOF
 
 #ifdef HAVE_OPENCL
-  call clEnqueueReadBuffer(opencl%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1, 1), ierr)
-#endif
+  call clEnqueueReadBuffer(accel%command_queue, this%mem, cl_bool(.true.), offset_, fsize, data(1, 1, 1), ierr)
   if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "EnqueueReadBuffer")
-
-  call profiling_count_transfers(size, data(1, 1, 1))
-  call opencl_finish()
-  call profiling_out(prof_read)
-  POP_SUB(X(opencl_read_buffer_3))
+#endif
+#ifdef HAVE_CUDA
+  call cuda_memcpy_dtoh(this%cuda_ptr, data(1, 1, 1), fsize, offset_)
+#endif
   
-end subroutine X(opencl_read_buffer_3)
+  call profiling_count_transfers(size, data(1, 1, 1))
+  call accel_finish()
+  call profiling_out(prof_read)
+  POP_SUB(X(accel_read_buffer_3))
+  
+end subroutine X(accel_read_buffer_3)
 
 ! ---------------------------------------------------------------------------
 
-subroutine X(opencl_set_kernel_arg_data)(kernel, narg, data)
-  type(cl_kernel),    intent(inout) :: kernel
-  integer,            intent(in)    :: narg
-  R_TYPE,             intent(in)    :: data
+subroutine X(accel_set_kernel_arg_data)(kernel, narg, data)
+  type(accel_kernel_t), intent(inout) :: kernel
+  integer,              intent(in)    :: narg
+  R_TYPE,               intent(in)    :: data
   
   integer :: ierr
 
   ! no push_sub, called too frequently
-
-#ifdef HAVE_OPENCL
-  call clSetKernelArg(kernel, narg, data, ierr)
+#ifdef HAVE_CUDA
+  call cuda_kernel_set_arg_value(kernel%arguments, data, narg, types_get_size(R_TYPE_VAL))
 #endif
+  
+#ifdef HAVE_OPENCL
+  call clSetKernelArg(kernel%kernel, narg, data, ierr)
   if(ierr /= CL_SUCCESS) call opencl_print_error(ierr, "set_kernel_arg_data")
-
-end subroutine X(opencl_set_kernel_arg_data)
+#endif
+  
+end subroutine X(accel_set_kernel_arg_data)
 
 
 !! Local Variables:

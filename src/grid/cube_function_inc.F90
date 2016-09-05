@@ -16,7 +16,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: cube_function_inc.F90 15016 2016-01-08 21:44:30Z xavier $
+!! $Id: cube_function_inc.F90 15567 2016-08-03 18:10:30Z xavier $
 
 
 ! ---------------------------------------------------------
@@ -48,13 +48,11 @@ subroutine X(cube_function_alloc_rs)(cube, cf, in_device, force_alloc)
         allocated = .true.
         cf%X(rs) => cube%fft%X(rs_data)(1:cube%rs_n(1), 1:cube%rs_n(2), 1:cube%rs_n(3))
       end if
-    case(FFTLIB_OPENCL)
+    case(FFTLIB_ACCEL)
       if(optional_default(in_device, .true.)) then
         allocated = .true.
         cf%in_device_memory = .true.
-#ifdef HAVE_OPENCL
-        call opencl_create_buffer(cf%real_space_buffer, CL_MEM_READ_WRITE, R_TYPE_VAL, product(cube%rs_n(1:3)))
-#endif
+        call accel_create_buffer(cf%real_space_buffer, ACCEL_MEM_READ_WRITE, R_TYPE_VAL, product(cube%rs_n(1:3)))
       end if
     end select
   end if
@@ -86,15 +84,13 @@ subroutine X(cube_function_free_rs)(cube, cf)
            deallocated = .true.
            nullify(cf%X(rs))
         end if
-     case(FFTLIB_OPENCL)
-#ifdef HAVE_OPENCL
+     case(FFTLIB_ACCEL)
         if(cf%in_device_memory) then
            deallocated = .true.
            ASSERT(cf%in_device_memory)
-           call opencl_release_buffer(cf%real_space_buffer)
+           call accel_release_buffer(cf%real_space_buffer)
            cf%in_device_memory = .false.
         end if
-#endif
      end select
   end if
 
@@ -205,11 +201,8 @@ subroutine X(mesh_to_cube)(mesh, mf, cube, cf, local)
   integer :: im, ii, nn, bsize
   logical :: local_
   R_TYPE, pointer :: gmf(:)
-#ifdef HAVE_OPENCL
-  type(opencl_mem_t)         :: mf_buffer
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)            :: kernel_ref
-#endif
+  type(accel_mem_t)         :: mf_buffer
+  type(accel_kernel_t), save :: kernel
 
   PUSH_SUB(X(mesh_to_cube))
   call profiling_in(prof_m2c, "MESH_TO_CUBE")
@@ -251,34 +244,31 @@ subroutine X(mesh_to_cube)(mesh, mf, cube, cf, local)
     !$omp end parallel do
 
   else
-#ifdef HAVE_OPENCL
 
-    call opencl_set_buffer_to_zero(cf%real_space_buffer, R_TYPE_VAL, product(cube%rs_n(1:3)))
+    call accel_set_buffer_to_zero(cf%real_space_buffer, R_TYPE_VAL, product(cube%rs_n(1:3)))
 
-    call opencl_create_buffer(mf_buffer, CL_MEM_READ_ONLY, R_TYPE_VAL, mesh%np_global)
-    call opencl_write_buffer(mf_buffer, mesh%np_global, gmf)
+    call accel_create_buffer(mf_buffer, ACCEL_MEM_READ_ONLY, R_TYPE_VAL, mesh%np_global)
+    call accel_write_buffer(mf_buffer, mesh%np_global, gmf)
 
-    call octcl_kernel_start_call(kernel, 'mesh_to_cube.cl', TOSTRING(X(mesh_to_cube)))
-    kernel_ref = octcl_kernel_get_ref(kernel)
+    call accel_kernel_start_call(kernel, 'mesh_to_cube.cl', TOSTRING(X(mesh_to_cube)))
     
-    call opencl_set_kernel_arg(kernel_ref, 0, mesh%cube_map%nmap)
-    call opencl_set_kernel_arg(kernel_ref, 1, cube%fft%stride_rs(1))
-    call opencl_set_kernel_arg(kernel_ref, 2, cube%fft%stride_rs(2))
-    call opencl_set_kernel_arg(kernel_ref, 3, cube%fft%stride_rs(3))
-    call opencl_set_kernel_arg(kernel_ref, 4, cube%center(1))
-    call opencl_set_kernel_arg(kernel_ref, 5, cube%center(2))
-    call opencl_set_kernel_arg(kernel_ref, 6, cube%center(3))
-    call opencl_set_kernel_arg(kernel_ref, 7, mesh%cube_map%map_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 8, mf_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 9, cf%real_space_buffer)
+    call accel_set_kernel_arg(kernel, 0, mesh%cube_map%nmap)
+    call accel_set_kernel_arg(kernel, 1, cube%fft%stride_rs(1))
+    call accel_set_kernel_arg(kernel, 2, cube%fft%stride_rs(2))
+    call accel_set_kernel_arg(kernel, 3, cube%fft%stride_rs(3))
+    call accel_set_kernel_arg(kernel, 4, cube%center(1))
+    call accel_set_kernel_arg(kernel, 5, cube%center(2))
+    call accel_set_kernel_arg(kernel, 6, cube%center(3))
+    call accel_set_kernel_arg(kernel, 7, mesh%cube_map%map_buffer)
+    call accel_set_kernel_arg(kernel, 8, mf_buffer)
+    call accel_set_kernel_arg(kernel, 9, cf%real_space_buffer)
 
-    bsize = opencl_kernel_workgroup_size(kernel_ref)
+    bsize = accel_kernel_workgroup_size(kernel)
 
-    call opencl_kernel_run(kernel_ref, (/pad(mesh%cube_map%nmap, bsize)/), (/bsize/))
-    call opencl_finish()
-    call opencl_release_buffer(mf_buffer)
+    call accel_kernel_run(kernel, (/pad(mesh%cube_map%nmap, bsize)/), (/bsize/))
+    call accel_finish()
+    call accel_release_buffer(mf_buffer)
 
-#endif
   end if
 
   if(local_) then
@@ -307,12 +297,9 @@ subroutine X(cube_to_mesh) (cube, cf, mesh, mf, local)
 #endif
   logical :: local_
   R_TYPE, pointer :: gmf(:)
-#ifdef HAVE_OPENCL
   integer                    :: bsize
-  type(opencl_mem_t)         :: mf_buffer
-  type(octcl_kernel_t), save :: kernel
-  type(cl_kernel)            :: kernel_ref
-#endif
+  type(accel_mem_t)         :: mf_buffer
+  type(accel_kernel_t), save :: kernel
 
   PUSH_SUB(X(cube_to_mesh))
 
@@ -348,31 +335,28 @@ subroutine X(cube_to_mesh) (cube, cf, mesh, mf, local)
 
   else
 
-#ifdef HAVE_OPENCL    
-    call opencl_create_buffer(mf_buffer, CL_MEM_WRITE_ONLY, R_TYPE_VAL, mesh%np_global)
+    call accel_create_buffer(mf_buffer, ACCEL_MEM_WRITE_ONLY, R_TYPE_VAL, mesh%np_global)
 
-    call octcl_kernel_start_call(kernel, 'mesh_to_cube.cl', TOSTRING(X(cube_to_mesh)))
-    kernel_ref = octcl_kernel_get_ref(kernel)
+    call accel_kernel_start_call(kernel, 'mesh_to_cube.cl', TOSTRING(X(cube_to_mesh)))
    
-    call opencl_set_kernel_arg(kernel_ref, 0, mesh%cube_map%nmap)
-    call opencl_set_kernel_arg(kernel_ref, 1, cube%fft%stride_rs(1))
-    call opencl_set_kernel_arg(kernel_ref, 2, cube%fft%stride_rs(2))
-    call opencl_set_kernel_arg(kernel_ref, 3, cube%fft%stride_rs(3))
-    call opencl_set_kernel_arg(kernel_ref, 4, cube%center(1))
-    call opencl_set_kernel_arg(kernel_ref, 5, cube%center(2))
-    call opencl_set_kernel_arg(kernel_ref, 6, cube%center(3))
-    call opencl_set_kernel_arg(kernel_ref, 7, mesh%cube_map%map_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 8, cf%real_space_buffer)
-    call opencl_set_kernel_arg(kernel_ref, 9, mf_buffer)
+    call accel_set_kernel_arg(kernel, 0, mesh%cube_map%nmap)
+    call accel_set_kernel_arg(kernel, 1, cube%fft%stride_rs(1))
+    call accel_set_kernel_arg(kernel, 2, cube%fft%stride_rs(2))
+    call accel_set_kernel_arg(kernel, 3, cube%fft%stride_rs(3))
+    call accel_set_kernel_arg(kernel, 4, cube%center(1))
+    call accel_set_kernel_arg(kernel, 5, cube%center(2))
+    call accel_set_kernel_arg(kernel, 6, cube%center(3))
+    call accel_set_kernel_arg(kernel, 7, mesh%cube_map%map_buffer)
+    call accel_set_kernel_arg(kernel, 8, cf%real_space_buffer)
+    call accel_set_kernel_arg(kernel, 9, mf_buffer)
 
-    bsize = opencl_kernel_workgroup_size(kernel_ref)
+    bsize = accel_kernel_workgroup_size(kernel)
 
-    call opencl_kernel_run(kernel_ref, (/pad(mesh%cube_map%nmap, bsize)/), (/bsize/))
-    call opencl_finish()
+    call accel_kernel_run(kernel, (/pad(mesh%cube_map%nmap, bsize)/), (/bsize/))
+    call accel_finish()
 
-    call opencl_read_buffer(mf_buffer, mesh%np_global, gmf)
-    call opencl_release_buffer(mf_buffer)
-#endif
+    call accel_read_buffer(mf_buffer, mesh%np_global, gmf)
+    call accel_release_buffer(mf_buffer)
 
   end if
 

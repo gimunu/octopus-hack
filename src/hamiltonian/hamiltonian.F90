@@ -15,11 +15,12 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: hamiltonian.F90 15352 2016-05-11 09:18:48Z umberto $
+!! $Id: hamiltonian.F90 15568 2016-08-03 18:53:48Z xavier $
 
 #include "global.h"
 
 module hamiltonian_oct_m
+  use accel_oct_m
   use base_hamiltonian_oct_m
   use base_potential_oct_m
   use batch_oct_m
@@ -27,9 +28,6 @@ module hamiltonian_oct_m
   use blas_oct_m
   use boundaries_oct_m
   use boundary_op_oct_m
-#ifdef HAVE_OPENCL
-  use cl
-#endif  
   use cmplxscl_oct_m
   use comm_oct_m
   use derivatives_oct_m
@@ -52,10 +50,7 @@ module hamiltonian_oct_m
   use messages_oct_m
   use mpi_oct_m
   use mpi_lib_oct_m
-  use opencl_oct_m
-  use octcl_kernel_oct_m
   use oct_exchange_oct_m
-  use opencl_oct_m
   use parser_oct_m
   use par_vec_oct_m
   use poisson_oct_m
@@ -439,7 +434,7 @@ contains
     !%End
     call parse_variable('StatesPack', .true., hm%apply_packed)
 
-    call pcm_init(hm%pcm, geo, gr)  !< initializes PCM 
+    call pcm_init(hm%pcm, geo, gr, st%qtot, st%val_charge)  !< initializes PCM  
     if(hm%pcm%run_pcm .and. hm%theory_level /= KOHN_SHAM_DFT) &
       call messages_not_implemented("PCM for TheoryLevel /= DFT")
     
@@ -505,12 +500,11 @@ contains
         end forall
       end do
 
-#ifdef HAVE_OPENCL
-      if(opencl_is_enabled()) then
-        call opencl_create_buffer(hm%hm_base%buff_phase, CL_MEM_READ_ONLY, TYPE_CMPLX, gr%mesh%np_part*hm%d%kpt%nlocal)
-        call opencl_write_buffer(hm%hm_base%buff_phase, gr%mesh%np_part*hm%d%kpt%nlocal, hm%hm_base%phase)
+      if(accel_is_enabled()) then
+        call accel_create_buffer(hm%hm_base%buff_phase, ACCEL_MEM_READ_ONLY, TYPE_CMPLX, gr%mesh%np_part*hm%d%kpt%nlocal)
+        call accel_write_buffer(hm%hm_base%buff_phase, gr%mesh%np_part*hm%d%kpt%nlocal, hm%hm_base%phase)
+        hm%hm_base%buff_phase_qn_start = hm%d%kpt%start
       end if
-#endif 
 
       POP_SUB(hamiltonian_init.init_phase)
     end subroutine init_phase
@@ -528,11 +522,9 @@ contains
 
     nullify(hm%subsys_hm)
     
-#ifdef HAVE_OPENCL
-    if(associated(hm%hm_base%phase) .and. opencl_is_enabled()) then
-      call opencl_release_buffer(hm%hm_base%buff_phase)
+    if(associated(hm%hm_base%phase) .and. accel_is_enabled()) then
+      call accel_release_buffer(hm%hm_base%buff_phase)
     end if
-#endif
 
     SAFE_DEALLOCATE_P(hm%hm_base%phase)
     SAFE_DEALLOCATE_P(hm%vhartree)
@@ -552,7 +544,7 @@ contains
       SAFE_DEALLOCATE_P(hm%vtau)
     end if
 
-    call epot_end(hm%ep, hm%geo)
+    call epot_end(hm%ep)
     nullify(hm%geo)
 
     call bc_end(hm%bc)
@@ -831,10 +823,8 @@ contains
       if(allocated(this%hm_base%uniform_vector_potential)) then
         if(.not. associated(this%hm_base%phase)) then
           SAFE_ALLOCATE(this%hm_base%phase(1:mesh%np_part, this%d%kpt%start:this%d%kpt%end))
-          if(opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-            call opencl_create_buffer(this%hm_base%buff_phase, CL_MEM_READ_ONLY, TYPE_CMPLX, mesh%np_part*this%d%kpt%nlocal)
-#endif
+          if(accel_is_enabled()) then
+            call accel_create_buffer(this%hm_base%buff_phase, ACCEL_MEM_READ_ONLY, TYPE_CMPLX, mesh%np_part*this%d%kpt%nlocal)
           end if
         end if
 
@@ -847,10 +837,8 @@ contains
               + this%hm_base%uniform_vector_potential(1:mesh%sb%dim))))
           end forall
         end do
-        if(opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-          call opencl_write_buffer(this%hm_base%buff_phase, mesh%np_part*this%d%kpt%nlocal, this%hm_base%phase)
-#endif
+        if(accel_is_enabled()) then
+          call accel_write_buffer(this%hm_base%buff_phase, mesh%np_part*this%d%kpt%nlocal, this%hm_base%phase)
         end if
       end if
 
@@ -862,11 +850,9 @@ contains
 
         if(.not. allocated(this%hm_base%projector_phases)) then
           SAFE_ALLOCATE(this%hm_base%projector_phases(1:max_npoints, nmat, this%d%kpt%start:this%d%kpt%end))
-          if(opencl_is_enabled()) then
-#ifdef HAVE_OPENCL
-            call opencl_create_buffer(this%hm_base%buff_projector_phases, CL_MEM_READ_ONLY, &
+          if(accel_is_enabled()) then
+            call accel_create_buffer(this%hm_base%buff_projector_phases, ACCEL_MEM_READ_ONLY, &
               TYPE_CMPLX, this%hm_base%total_points*this%d%kpt%nlocal)
-#endif
           end if
         end if
 
@@ -878,11 +864,9 @@ contains
               this%hm_base%projector_phases(ip, imat, ik) = this%ep%proj(iatom)%phase(ip, ik)
             end do
 
-            if(opencl_is_enabled() .and. this%hm_base%projector_matrices(imat)%npoints > 0) then
-#ifdef HAVE_OPENCL
-              call opencl_write_buffer(this%hm_base%buff_projector_phases, &
+            if(accel_is_enabled() .and. this%hm_base%projector_matrices(imat)%npoints > 0) then
+              call accel_write_buffer(this%hm_base%buff_projector_phases, &
                 this%hm_base%projector_matrices(imat)%npoints, this%hm_base%projector_phases(1:, imat, ik), offset = offset)
-#endif
             end if
             offset = offset + this%hm_base%projector_matrices(imat)%npoints
           end do
@@ -940,7 +924,9 @@ contains
     if(this%rashba_coupling**2 > M_ZERO) apply = .false.
     if(this%ep%non_local .and. .not. this%hm_base%apply_projector_matrices) apply = .false.
     if(iand(this%xc_family, XC_FAMILY_MGGA + XC_FAMILY_HYB_MGGA) /= 0)  apply = .false. 
-    if(this%bc%abtype == IMAGINARY_ABSORBING .and. opencl_is_enabled()) apply = .false.
+    if(this%bc%abtype == IMAGINARY_ABSORBING .and. accel_is_enabled()) apply = .false.
+    if(this%cmplxscl%space .and. accel_is_enabled()) apply = .false.
+    if(associated(this%hm_base%phase) .and. accel_is_enabled()) apply = .false.
     
   end function hamiltonian_apply_packed
 

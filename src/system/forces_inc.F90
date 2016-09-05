@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: forces_inc.F90 15345 2016-05-11 07:53:39Z xavier $
+!! $Id: forces_inc.F90 15590 2016-08-23 13:23:38Z ssato $
 
 subroutine X(forces_gather)(geo, force)
   type(geometry_t), intent(in)    :: geo
@@ -196,7 +196,7 @@ subroutine X(forces_from_potential)(gr, geo, hm, st, force)
       call X(density_accumulate_grad)(gr, st, iq, psib, grad_psib, grad_rho)
 
       ! the non-local potential contribution
-      if(hm%hm_base%apply_projector_matrices .and. .not. opencl_is_enabled() .and. &
+      if(hm%hm_base%apply_projector_matrices .and. .not. accel_is_enabled() .and. &
         .not. (st%symmetrize_density .and. gr%sb%kpoints%use_symmetries)) then
 
         call X(hamiltonian_base_nlocal_force)(hm%hm_base, gr%mesh, st, geo, iq, gr%mesh%sb%dim, psib, grad_psib, force)
@@ -325,6 +325,15 @@ subroutine X(forces_from_potential)(gr, geo, hm, st, force)
       force(idir, iatom) = force(idir, iatom) + force_loc(idir, iatom)
     end do
   end do
+
+
+  ! transformation from reduced coordinates to Cartesian coordinates
+  if (simul_box_is_periodic(gr%mesh%sb) .and. gr%mesh%sb%nonorthogonal ) then
+     forall (iatom = 1:geo%natoms)
+        force(1:gr%mesh%sb%dim,iatom) = &
+          matmul(gr%mesh%sb%klattice_primitive(1:gr%mesh%sb%dim, 1:gr%mesh%sb%dim),force(1:gr%mesh%sb%dim,iatom))
+     end forall
+  end if
 
   SAFE_DEALLOCATE_A(force_tmp)
   SAFE_DEALLOCATE_A(force_psi)

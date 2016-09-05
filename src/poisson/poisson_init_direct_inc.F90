@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: poisson_init_direct_inc.F90 14420 2015-07-02 15:43:09Z ravindra $
+!! $Id: poisson_init_direct_inc.F90 15418 2016-06-16 16:56:31Z xavier $
 
 ! ---------------------------------------------------------
 subroutine poisson_kernel_init(this, all_nodes_comm)
@@ -30,7 +30,7 @@ subroutine poisson_kernel_init(this, all_nodes_comm)
   select case(this%method)
   case(POISSON_DIRECT_SUM, POISSON_FMM, POISSON_FFT, POISSON_CG, POISSON_CG_CORRECTED)
     valid_solver = .true.
-  case(POISSON_MULTIGRID, POISSON_ISF, POISSON_LIBISF)
+  case(POISSON_MULTIGRID, POISSON_ISF, POISSON_LIBISF, POISSON_POKE)
     valid_solver = .true.
   case(POISSON_NO)
     write(message(1),'(a)')'Info: you have elected to not use a Poisson solver.'
