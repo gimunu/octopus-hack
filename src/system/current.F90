@@ -353,16 +353,6 @@ contains
       call symmetrizer_end(symmetrizer)
       SAFE_DEALLOCATE_A(symmcurrent)
     end if
-    
-    if (simul_box_is_periodic(der%mesh%sb) .and. der%mesh%sb%nonorthogonal ) then
-      do ispin = 1, st%d%nspin
-        forall (ip = 1:der%mesh%np)
-          current(ip, 1:der%mesh%sb%dim, ispin) = & 
-              matmul(der%mesh%sb%klattice_primitive(1:der%mesh%sb%dim, 1:der%mesh%sb%dim),current(ip, 1:der%mesh%sb%dim, ispin))
-        end forall
-      end do 
-    end if
-    
 
     SAFE_DEALLOCATE_A(gpsi)
 
