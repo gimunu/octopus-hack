@@ -15,7 +15,8 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: linear_response.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: linear_response.F90 15624 2016-09-28 10:01:51Z irina $
+
 
 #include "global.h"
 
@@ -64,8 +65,9 @@ module linear_response_oct_m
        zlr_load_rho
 
 
+
   type lr_t
-    logical :: is_allocated
+    logical :: is_allocated, is_allocated_rho
      
     !> the real quantities
     FLOAT, pointer :: ddl_rho(:,:)     !< response of the density
@@ -103,20 +105,25 @@ contains
   end subroutine lr_init
 
 
+
   ! ---------------------------------------------------------
-  subroutine lr_allocate(lr, st, mesh)
+  subroutine lr_allocate(lr, st, mesh, allocate_rho)
     type(lr_t),     intent(inout) :: lr
     type(states_t), intent(in)    :: st
     type(mesh_t),   intent(in)    :: mesh
+    logical, optional, intent(in) :: allocate_rho
 
     PUSH_SUB(lr_allocate)
 
+    lr%is_allocated_rho = .true.
+    if(present(allocate_rho)) lr%is_allocated_rho = allocate_rho
+
     if (states_are_complex(st)) then
-      SAFE_ALLOCATE(lr%zdl_psi(1:mesh%np_part, 1:st%d%dim, 1:st%nst, 1:st%d%nik))
-      SAFE_ALLOCATE(lr%zdl_rho(1:mesh%np, 1:st%d%nspin))
+      SAFE_ALLOCATE(lr%zdl_psi(1:mesh%np_part, 1:st%d%dim, 1:st%nst, st%d%kpt%start:st%d%kpt%end))
+      if(lr%is_allocated_rho) SAFE_ALLOCATE(lr%zdl_rho(1:mesh%np, 1:st%d%nspin))
     else
-      SAFE_ALLOCATE(lr%ddl_psi(1:mesh%np_part, 1:st%d%dim, 1:st%nst, 1:st%d%nik))
-      SAFE_ALLOCATE(lr%ddl_rho(1:mesh%np, 1:st%d%nspin))
+      SAFE_ALLOCATE(lr%ddl_psi(1:mesh%np_part, 1:st%d%dim, 1:st%nst, st%d%kpt%start:st%d%kpt%end))
+      if(lr%is_allocated_rho) SAFE_ALLOCATE(lr%ddl_rho(1:mesh%np, 1:st%d%nspin))
     end if
 
     lr%is_allocated = .true.
@@ -126,6 +133,7 @@ contains
     POP_SUB(lr_allocate)
 
   end subroutine lr_allocate
+
 
 
   ! ---------------------------------------------------------
@@ -139,10 +147,10 @@ contains
 
     if (states_are_complex(st)) then
       lr%zdl_psi = M_ZERO
-      lr%zdl_rho = M_ZERO
+      if(lr%is_allocated_rho) lr%zdl_rho = M_ZERO
     else
       lr%ddl_psi = M_ZERO
-      lr%ddl_rho = M_ZERO
+      if(lr%is_allocated_rho) lr%ddl_rho = M_ZERO
     end if
 
     POP_SUB(lr_zero)
@@ -184,15 +192,25 @@ contains
 
     PUSH_SUB(lr_copy)
 
-    do ik = 1, st%d%nspin
-      if(states_are_complex(st)) then
-        call lalg_copy(mesh%np, src%zdl_rho(:, ik), dest%zdl_rho(:, ik))
-      else
-        call lalg_copy(mesh%np, src%ddl_rho(:, ik), dest%ddl_rho(:, ik))
+    if(src%is_allocated_rho .and. dest%is_allocated_rho) then
+      do ik = 1, st%d%nspin
+        if(states_are_complex(st)) then
+          call lalg_copy(mesh%np, src%zdl_rho(:, ik), dest%zdl_rho(:, ik))
+        else
+          call lalg_copy(mesh%np, src%ddl_rho(:, ik), dest%ddl_rho(:, ik))
+        end if
+      end do
+    else
+      if(dest%is_allocated_rho) then
+        if(states_are_complex(st)) then
+          dest%zdl_rho(:, :) = M_ZERO
+        else
+          dest%ddl_rho(:, :) = M_ZERO
+        end if
       end if
-    end do
+    end if
 
-    do ik = 1, st%d%nik
+    do ik = st%d%kpt%start, st%d%kpt%end
       do ist = 1, st%nst
         do idim = 1, st%d%dim
           if(states_are_complex(st)) then
@@ -209,6 +227,7 @@ contains
   end subroutine lr_copy
 
 
+
   ! ---------------------------------------------------------
   logical function lr_is_allocated(this) 
     type(lr_t), intent(in) :: this
@@ -218,6 +237,7 @@ contains
 
     POP_SUB(lr_is_allocated)
   end function lr_is_allocated
+
 
 
   ! ---------------------------------------------------------

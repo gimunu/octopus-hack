@@ -15,11 +15,12 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: em_resp_calc.F90 15253 2016-04-06 14:20:07Z irina $
+!! $Id: em_resp_calc.F90 15621 2016-09-26 10:41:47Z irina $
 
 #include "global.h"
 
 module em_resp_calc_oct_m
+  use comm_oct_m
   use density_oct_m
   use derivatives_oct_m
   use elf_oct_m

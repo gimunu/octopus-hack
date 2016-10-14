@@ -15,7 +15,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: configure.ac 15552 2016-07-31 05:54:17Z xavier $
+## $Id: configure.ac 15615 2016-09-21 16:25:48Z dstrubbe $
 
 AC_PREREQ(2.59)
 # Note: the version string is written into ETSF_IO files, so when you update
@@ -403,6 +403,7 @@ AC_CONFIG_FILES([Makefile
   share/pseudopotentials/hscv/pbe/Makefile  
   share/recipes/Makefile
   share/recipes/da/Makefile
+  share/recipes/de/Makefile
   share/recipes/en/Makefile
   share/recipes/es/Makefile
   share/recipes/it/Makefile

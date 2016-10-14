@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: symmetries.F90 15415 2016-06-16 13:09:58Z xavier $
+!! $Id: symmetries.F90 15649 2016-10-14 10:35:36Z nicolastd $
 
 #include "global.h"
 
@@ -214,8 +214,10 @@ contains
       do iatom = 1, geo%natoms
         position(1:3, iatom) = M_HALF
         ! position here contains reduced coordinates
-        ! this should be matmul(klattice, geo atom x)
-        position(1:dim4syms, iatom) = matmul (klattice, geo%atom(iatom)%x(1:dim4syms)) + M_HALF
+        ! We thus convert geo%atom(iatom)%x to reduced coordinates.
+        ! Note that there M_TWO*M_PI here as this is not given by lalg_determinant. 
+        ! M_HALF is added to have reduced coordinates between 0 and 1, as used by spglib
+        position(1:dim4syms, iatom) = matmul (geo%atom(iatom)%x(1:dim4syms),klattice) + M_HALF
         typs(iatom) = species_index(geo%atom(iatom)%species)
       end do
       lattice = transpose(lattice)

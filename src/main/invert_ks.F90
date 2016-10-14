@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: invert_ks.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: invert_ks.F90 15620 2016-09-26 07:34:51Z mjv500 $
 
 #include "global.h"
 
@@ -104,9 +104,11 @@ contains
              sys%ks%ks_inversion%aux_st, sys%ks%ks_inversion%eigensolver, sys%ks%ks_inversion%asymp)
      
     else ! iterative case
-      if (sys%ks%ks_inversion%method == XC_INV_METHOD_VS_ITER) then ! iterative procedure for v_s 
+      if (sys%ks%ks_inversion%method >= XC_INV_METHOD_VS_ITER .and. &
+          sys%ks%ks_inversion%method <= XC_INV_METHOD_ITER_GODBY) then ! iterative procedure for v_s 
         call invertks_iter(target_rho, nspin, hm, sys%gr, &
-             sys%ks%ks_inversion%aux_st, sys%ks%ks_inversion%eigensolver, sys%ks%ks_inversion%asymp)
+             sys%ks%ks_inversion%aux_st, sys%ks%ks_inversion%eigensolver, sys%ks%ks_inversion%asymp,&
+             sys%ks%ks_inversion%method)
       end if
     end if
 

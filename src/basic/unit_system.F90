@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: unit_system.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: unit_system.F90 15644 2016-10-08 02:14:54Z xavier $
 
 
 
@@ -88,34 +88,50 @@ contains
     PUSH_SUB(unit_system_init)
 
     !%Variable Units
+    !%Type virtual
+    !%Default atomic
+    !%Section Execution::Units
+    !%Description
+    !% (Virtual) These are the units that can be used in the input file.
+    !%
+    !%Option angstrom        1.8897261328856432
+    !%Option pm              0.018897261328856432
+    !%Option picometer       0.018897261328856432
+    !%Option nm              18.897261328856432
+    !%Option nanometer       18.897261328856432
+    !%Option ry              0.5
+    !%Option rydberg         0.5
+    !%Option ev              0.03674932539796232
+    !%Option electronvolt    0.03674932539796232
+    !%Option invcm           4.5563353e-06
+    !%Option kelvin          3.1668105e-06
+    !%Option kjoule_mol      0.00038087988
+    !%Option kcal_mol        0.0015936014
+    !%Option as              0.0413413737896
+    !%Option attosecond      0.0413413737896
+    !%Option fs              41.3413737896
+    !%Option femtosecond     41.3413737896
+    !%Option ps              41341.3737896
+    !%Option picosecond      41341.3737896
+    !%Option c               137.035999139
+    !%End
+    
+    !%Variable UnitsOutput
     !%Type integer
     !%Default atomic
     !%Section Execution::Units
     !%Description
-    !% This variable selects the units that Octopus use for
-    !% input and output.
+    !% This variable selects the units that Octopus use for output.
     !%
     !% Atomic units seem to be the preferred system in the atomic and
     !% molecular physics community. Internally, the code works in
-    !% atomic units. However, for input or output, some people like
+    !% atomic units. However, for output, some people like
     !% to use a system based on electron-Volts (eV) for energies
     !% and Angstroms (&Aring;) for length.
     !%
     !% Normally time units are derived from energy and length units,
     !% so it is measured in <math>\hbar</math>/Hartree or
-    !% <math>\hbar</math>/eV. Alternatively you can tell
-    !% Octopus to use femtoseconds as the time unit by adding the
-    !% value <tt>femtoseconds</tt> (Note that no other unit will be 
-    !% based on femtoseconds). So for example you can use:
-    !%
-    !% <tt>Units = femtoseconds</tt>
-    !%
-    !% or
-    !%
-    !% <tt>Units = ev_angstrom + femtoseconds</tt>
-    !%
-    !% You can use different unit systems for input and output by
-    !% setting the <tt>UnitsInput</tt> and <tt>UnitsOutput</tt>.
+    !% <math>\hbar</math>/eV.
     !%
     !% Warning 1: All files read on input will also be treated using
     !% these units, including XYZ geometry files.
@@ -131,41 +147,23 @@ contains
     !%Option ev_angstrom   1
     !% Electronvolts for energy, Angstroms for length, the rest of the
     !% units are derived from these and <math>\hbar=1</math>.
-    !%Option femtoseconds  2
-    !% (Experimental) If you add this value to the other options,
-    !% Octopus will treat time in femtoseconds units.
     !%End
 
-    !%Variable UnitsInput
-    !%Type integer
-    !%Default atomic
-    !%Section Execution::Units
-    !%Description
-    !% Same as <tt>Units</tt>, but only refers to input values.
-    !%End
-
-    !%Variable UnitsOutput
-    !%Type integer
-    !%Default atomic
-    !%Section Execution::Units
-    !%Description
-    !% Same as <tt>Units</tt>, but only refers to output values.
-    !%End
-
-    if(parse_is_defined('Units')) then
-      call parse_variable('Units', UNITS_ATOMIC, cc)
-      if(.not.varinfo_valid_option('Units', cc, is_flag = .true.)) call messages_input_error('Units')
-      cinp = cc
-      cout = cc
-    else
-      ! note that we check the value is valid for the 'Units' variable
-      call parse_variable('UnitsInput', UNITS_ATOMIC, cc)
-      if(.not.varinfo_valid_option('Units', cc, is_flag = .true.)) call messages_input_error('UnitsInput')
-      cinp = cc
-      call parse_variable('UnitsOutput', UNITS_ATOMIC, cc)
-      if(.not.varinfo_valid_option('Units', cc, is_flag = .true.)) call messages_input_error('UnitsOutput')
-      cout = cc
+    if(parse_is_defined('Units') .or. parse_is_defined('Units')) then
+      call messages_write("The 'Units' variable is obsolete. Now Octopus always works in atomic", new_line = .true.)
+      call messages_write("units. For different units you can use values like 'angstrom', 'eV' ", new_line = .true.)
+      call messages_write("and others in the input file.")
+      call messages_fatal()
     end if
+
+    call messages_obsolete_variable('Units')
+    call messages_obsolete_variable('UnitsInput')
+
+    cinp = UNITS_ATOMIC
+    
+    call parse_variable('UnitsOutput', UNITS_ATOMIC, cc)
+    if(.not.varinfo_valid_option('Units', cc, is_flag = .true.)) call messages_input_error('UnitsOutput')
+    cout = cc
 
     unit_one%factor = M_ONE
     unit_one%abbrev = '1'
@@ -217,20 +215,12 @@ contains
     unit_gigabytes%abbrev = 'GiB'
     unit_gigabytes%name   = 'gibibytes'
 
-    call unit_system_get(units_inp, mod(cinp, 2))
-    call unit_system_get(units_out, mod(cout, 2))
-
-    if(cinp/2 == 1 .or. cout/2 == 1) then
-      call messages_experimental('Femtosecond units')
-    end if
-
-    if(cinp/2 == 1) units_inp%time = unit_femtosecond
-    if(cout/2 == 1) units_out%time = unit_femtosecond
-
+    call unit_system_get(units_inp, cinp)
+    call unit_system_get(units_out, cout)
 
     !%Variable UnitsXYZFiles
     !%Type integer
-    !%Default octopus_units
+    !%Default angstrom_units
     !%Section Execution::Units
     !%Description
     !% This variable selects in which units I/O of XYZ files should be
@@ -239,14 +229,14 @@ contains
     !% The XYZ will be assumed to be in the same units that Octopus is
     !% using for the input file based on the Units, UnitsInput, and
     !% UnitsOutput variables.
-    !%Option angstrom   1
+    !%Option angstrom_units   1
     !% XYZ files will be assumed to be always in Angstrom,
     !% independently of the units used by Octopus. This ensures
     !% compatibility with most programs, that assume XYZ files have
     !% coordinates in Angstrom.
     !%End
 
-    call parse_variable('UnitsXYZFiles', OPTION__UNITSXYZFILES__OCTOPUS_UNITS, xyz_units)
+    call parse_variable('UnitsXYZFiles', OPTION__UNITSXYZFILES__ANGSTROM_UNITS, xyz_units)
 
     if(.not.varinfo_valid_option('UnitsXYZFiles', xyz_units)) call messages_input_error('UnitsXYZFiles', 'Invalid option')
 
@@ -256,8 +246,7 @@ contains
       units_inp%length_xyz_file = units_inp%length
       units_out%length_xyz_file = units_out%length
 
-    case(OPTION__UNITSXYZFILES__ANGSTROM)
-      call messages_experimental('UnitsXYZFiles = angstrom')
+    case(OPTION__UNITSXYZFILES__ANGSTROM_UNITS)
       units_inp%length_xyz_file = unit_angstrom
       units_out%length_xyz_file = unit_angstrom
 

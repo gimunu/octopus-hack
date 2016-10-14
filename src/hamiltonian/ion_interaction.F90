@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: ion_interaction.F90 15593 2016-08-30 18:16:13Z ravindra $
+!! $Id: ion_interaction.F90 15612 2016-09-15 08:36:15Z nicolastd $
 
 #include "global.h"
 
@@ -647,7 +647,7 @@ contains
       end do
     end do
 
-    POP_SUB(ewald_long_2d)
+    POP_SUB(Ewald_long_2d)
 
 
   end subroutine Ewald_long_2D

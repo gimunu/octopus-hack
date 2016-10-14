@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: gauge_field.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: gauge_field.F90 15654 2016-10-14 14:40:15Z huebener $
 
 #include "global.h"
 
@@ -82,10 +82,12 @@ module gauge_field_oct_m
     FLOAT   :: vecpot(1:MAX_DIM)   
     FLOAT   :: vecpot_vel(1:MAX_DIM)
     FLOAT   :: vecpot_acc(1:MAX_DIM)    
+    FLOAT   :: vecpot_kick(1:MAX_DIM)
     FLOAT   :: wp2
     integer :: ndim
     logical :: with_gauge_field
     integer :: dynamics
+    FLOAT   :: kicktime 
   end type gauge_field_t
 
 contains
@@ -113,8 +115,36 @@ contains
     this%vecpot = M_ZERO
     this%vecpot_vel = M_ZERO
     this%vecpot_acc = M_ZERO
+    this%vecpot_kick = M_ZERO
     this%ndim = sb%dim
-    
+
+    !%Variable GaugeFieldDynamics
+    !%Type integer
+    !%Default polarization
+    !%Section Hamiltonian
+    !%Description
+    !% This variable select the dynamics of the gauge field used to
+    !% apply a finite electric field to periodic systems in
+    !% time-dependent runs.
+    !%Option none 0
+    !% The gauge field does not have dynamics. The induced polarization field is zero.
+    !%Option polarization 1
+    !% The gauge field follows the dynamic described in
+    !% Bertsch et al, Phys. Rev. B 62 7998 (2000).
+    !%End
+
+    call parse_variable('GaugeFieldDynamics', OPTION__GAUGEFIELDDYNAMICS__POLARIZATION, this%dynamics)
+
+    !%Variable GaugeFieldPropagate
+    !%Type logical
+    !%Default no
+    !%Section Hamiltonian
+    !%Description
+    !% Propagate the gauge field with initial condition set by GaugeVectorField or zero if not specified
+    !%End
+
+    call parse_variable('GaugeFieldPropagate', .false., this%with_gauge_field)
+
     !%Variable GaugeVectorField
     !%Type block
     !%Section Hamiltonian
@@ -130,19 +160,17 @@ contains
     !% according to GF Bertsch, J-I Iwata, A Rubio, and K Yabana,
     !% <i>Phys. Rev. B</i> <b>62</b>, 7998-8002 (2000).
     !%End
-    
     ! Read the initial gauge vector field
-    
+
     if(parse_block('GaugeVectorField', blk) == 0) then
-      
+
       this%with_gauge_field = .true.
-      
+
       do ii = 1, this%ndim
-        call parse_block_float(blk, 0, ii - 1, this%vecpot(ii))
+        call parse_block_float(blk, 0, ii - 1, this%vecpot_kick(ii))
       end do
-      
+
       call parse_block_end(blk)
-      
       if(.not. simul_box_is_periodic(sb)) then
         message(1) = "GaugeVectorField is intended for periodic systems."
         call messages_warning(1)
@@ -161,24 +189,18 @@ contains
         end do
       end if
 
-      !%Variable GaugeFieldDynamics
-      !%Type integer
-      !%Default polarization
-      !%Section Hamiltonian
-      !%Description
-      !% This variable select the dynamics of the gauge field used to
-      !% apply a finite electric field to periodic systems in
-      !% time-dependent runs.
-      !%Option none 0
-      !% The gauge field does not have dynamics. The induced polarization field is zero.
-      !%Option polarization 1
-      !% The gauge field follows the dynamic described in
-      !% Bertsch et al, Phys. Rev. B 62 7998 (2000).
-      !%End
-
-      call parse_variable('GaugeFieldDynamics', OPTION__GAUGEFIELDDYNAMICS__POLARIZATION, this%dynamics)
-
     end if
+
+    !%Variable GaugeFieldDelay
+    !%Type float
+    !%Default 0.
+    !%Section Hamiltonian
+    !%Description
+    !% The application of the gauge field acts as a probe of the system. For dynamical
+    !% systems one can apply this probe with a delay relative to the start of the simulation.
+    !%End
+
+    call parse_variable('GaugeFieldDelay', M_ZERO, this%kicktime)
 
     POP_SUB(gauge_field_init)
   end subroutine gauge_field_init
@@ -265,14 +287,24 @@ contains
 
 
   ! ---------------------------------------------------------
-  subroutine gauge_field_propagate(this, force, dt)
+  subroutine gauge_field_propagate(this, force, dt, time)
     type(gauge_field_t),  intent(inout) :: this
     type(gauge_force_t),  intent(in)    :: force
     FLOAT,                intent(in)    :: dt
+    FLOAT,                intent(in)    :: time
 
     PUSH_SUB(gauge_field_propagate)
 
     this%vecpot_acc(1:this%ndim) = force%vecpot(1:this%ndim)
+
+    ! apply kick (kick is zero unless given by GaugeVectorField)
+    if(time-dt <= this%kicktime .and. time >= this%kicktime )  then
+       this%vecpot(1:this%ndim) = this%vecpot(1:this%ndim) +  this%vecpot_kick(1:this%ndim)
+       if(this%kicktime > M_ZERO) then
+          call messages_write('     ----------------  Applying gauge kick  ----------------')
+          call messages_info()
+       endif
+    end if
 
     this%vecpot(1:this%ndim) = this%vecpot(1:this%ndim) + dt * this%vecpot_vel(1:this%ndim) + &
       M_HALF * dt**2 * force%vecpot(1:this%ndim)
@@ -414,19 +446,26 @@ contains
     type(states_t),       intent(in)    :: st
     type(gauge_force_t),  intent(out)   :: force
 
-    integer :: idir
+    integer :: idir,ispin,istot
 
     PUSH_SUB(gauge_field_get_force)
 
-    ASSERT(st%d%nspin == 1)
+
+    force%vecpot(1:gr%sb%dim) = M_ZERO 
 
     select case(this%dynamics)
     case(OPTION__GAUGEFIELDDYNAMICS__NONE)
-      force%vecpot(1:gr%sb%dim) = CNST(0.0)
+      force%vecpot(1:gr%sb%dim) = M_ZERO 
 
     case(OPTION__GAUGEFIELDDYNAMICS__POLARIZATION)
-      do idir = 1, gr%sb%dim
-        force%vecpot(idir) = CNST(4.0)*M_PI*P_c/gr%sb%rcell_volume*dmf_integrate(gr%mesh, st%current(:, idir, 1))
+      istot = 1
+      if (st%d%nspin > 1) istot = 2
+      do idir = 1, gr%sb%periodic_dim
+        do ispin = 1, istot
+          force%vecpot(idir) = M_ZERO            
+          force%vecpot(idir) = force%vecpot(idir) + &
+                               CNST(4.0)*M_PI*P_c/gr%sb%rcell_volume*dmf_integrate(gr%mesh, st%current(:, idir, ispin))
+        end do
       end do
 
     case default

@@ -16,7 +16,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: simul_box.F90 15528 2016-07-27 14:36:31Z nicolastd $
+!! $Id: simul_box.F90 15649 2016-10-14 10:35:36Z nicolastd $
 
 #include "global.h"
 
@@ -207,8 +207,8 @@ contains
         call messages_experimental('Support for mixed periodicity systems')
       end if
 
-      if(sb%periodic_dim == 1 .or. sb%periodic_dim == 2) then
-        call messages_write('For systems that  are periodic in 1D and  2D, interaction between', new_line = .true.)
+      if(sb%periodic_dim == 1) then
+        call messages_write('For systems that  are periodic in 1D, interaction between', new_line = .true.)
         call messages_write('ions is assumed to be periodic in 3D. This affects the calculation', new_line = .true.)
         call messages_write('of total energy and forces.')
         call messages_warning()
@@ -705,31 +705,16 @@ contains
       end forall
     end do
     
-    select case(sb%dim)
-    case(3)
-      cross = dcross_product(sb%rlattice(:,2), sb%rlattice(:,3))
-      sb%rcell_volume = sum(sb%rlattice(1:3, 1)*cross(1:3))
-    case(2)
-      sb%rcell_volume = abs(sb%rlattice(1, 1)*sb%rlattice(2, 2) - sb%rlattice(1, 2)*sb%rlattice(2, 1))
-    case(1)
-      sb%rcell_volume = abs(sb%rlattice(2, 1) - sb%rlattice(1, 1))
-    case default
-      sb%rcell_volume = M_ONE
-      do idim = 1, sb%dim
-        sb%rcell_volume = sb%rcell_volume*abs(sb%rlattice(idim, idim))
-      end do
-    end select
-
-    call reciprocal_lattice(sb%rlattice, sb%klattice, sb%volume_element, sb%dim)
+    call reciprocal_lattice(sb%rlattice, sb%klattice, sb%rcell_volume, sb%dim)
     sb%klattice = sb%klattice * M_TWO*M_PI
 
     call reciprocal_lattice(sb%rlattice_primitive, sb%klattice_primitive, sb%volume_element, sb%dim)
 
     sb%metric = M_ZERO
-    sb%metric = matmul(sb%klattice_primitive, transpose(sb%klattice_primitive))
+    sb%metric = matmul(transpose(sb%klattice_primitive), sb%klattice_primitive)
 
     ! rlattice_primitive is the A matrix from Chelikowski PRB 78 075109 (2008)
-    ! klattice_primitive is the B matrix, with no 2 pi factor included
+    ! klattice_primitive is the transpose (!) of the B matrix, with no 2 pi factor included
     ! klattice is the proper reciprocal lattice vectors, with 2 pi factor, and in units of 1/bohr
     ! metric is the F matrix of Chelikowski
 
@@ -805,11 +790,7 @@ contains
     if (simul_box_is_periodic(sb)) then
       if(.not. geo%reduced_coordinates) then
         !convert the position to reduced coordinates
-!         xx(1:pd) = matmul(ratom(1:pd), sb%klattice(1:pd, 1:pd))
-         xx(1:pd) = matmul(ratom(1:pd), sb%klattice_primitive(1:pd, 1:pd))
-!TODO: change previous line to klattice (not prim) and remove next line
-! (for some reason doing this breaks many tests UDG) 
-         xx(1:pd) = xx(1:pd)/(M_TWO*sb%lsize(1:pd))
+         xx(1:pd) = matmul(ratom(1:pd), sb%klattice(1:pd, 1:pd))/(M_TWO*M_PI)
       else
         ! in this case coordinates are already in reduced space
         xx(1:pd) = ratom(1:pd)
@@ -818,20 +799,15 @@ contains
 
       xx(1:pd) = xx(1:pd) + M_HALF
       do idir = 1, pd
-        if(xx(idir) >= M_ZERO) then
-          xx(idir) = xx(idir) - aint(xx(idir))
-        else
-          xx(idir) = xx(idir) - aint(xx(idir)) + M_ONE
-        end if
+        xx(idir) = xx(idir) - anint(xx(idir))
+        if(xx(idir) < -CNST(1.0e-6)) &
+          xx(idir) = xx(idir) + M_ONE
       end do
       ASSERT(all(xx(1:pd) >= M_ZERO))
       ASSERT(all(xx(1:pd) < CNST(1.0)))
 
-      xx(1:pd) = (xx(1:pd) - M_HALF)*M_TWO*sb%lsize(1:pd)
-!TODO: change next line to rlattice (not prim) and remove previous line
-! (for some reason doing this breaks many tests UDG) 
-      ratom(1:pd) = matmul(sb%rlattice_primitive(1:pd, 1:pd), xx(1:pd))
-
+      xx(1:pd) = (xx(1:pd) - M_HALF)
+      ratom(1:pd) = matmul(sb%rlattice(1:pd, 1:pd), xx(1:pd))
 
     end if
     

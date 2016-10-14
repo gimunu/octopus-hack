@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: eigen_plan_inc.F90 15427 2016-06-20 22:29:38Z xavier $
+!! $Id: eigen_plan_inc.F90 15646 2016-10-14 10:00:25Z nicolastd $
 
 !> This subroutine implements the preconditioned Lanczos eigensolver as
 !! described in the paper:
@@ -154,7 +154,11 @@ subroutine X(eigensolver_plan) (gr, st, hm, pre, tol, niter, converged, ik, diff
         end do
         xx = X(mf_nrm2)(gr%mesh, dim, vv(:, :, ist))
         if(xx  <=  M_EPSILON) then
-          call X(mf_random)(gr%mesh, vv(:, 1, ist))
+          if(st%randomization == PAR_INDEPENDENT) then
+            call X(mf_random)(gr%mesh, vv(:, 1, ist),gr%mesh%vp%xlocal-1)
+          else 
+            call X(mf_random)(gr%mesh, vv(:, 1, ist))
+          end if
         else
           do idim = 1, dim
             call lalg_scal(gr%mesh%np, R_TOTYPE(M_ONE/xx), vv(:, idim, ist))

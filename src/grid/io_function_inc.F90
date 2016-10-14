@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: io_function_inc.F90 15439 2016-06-28 20:45:09Z dstrubbe $
+!! $Id: io_function_inc.F90 15648 2016-10-14 10:34:30Z rozzi $
 
 ! ---------------------------------------------------------
 !
@@ -1509,11 +1509,11 @@ contains
         end do
       end do
       
-      call X(vtk_out_cf_structured)(filename, ierr, cf, cube, unit, points)     
+      call X(vtk_out_cf_structured)(filename, fname, ierr, cf, cube, unit, points)     
       SAFE_DEALLOCATE_A(points) 
     else  
       !Ordinary grid
-      call X(vtk_out_cf)(filename, ierr, cf, cube, dk(:), unit)
+      call X(vtk_out_cf)(filename, fname, ierr, cf, cube, dk(:), unit)
     end if  
 
     call X(cube_function_free_RS)(cube, cf)

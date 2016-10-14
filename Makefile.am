@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 13696 2015-03-31 16:19:10Z dstrubbe $
+## $Id: Makefile.am 15604 2016-09-05 08:32:26Z micael $
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -83,7 +83,7 @@ deb: dist
 .PHONY: ChangeLog
 
 ChangeLog:
-	(svn2cl -i -r {20130101}:BASE -o .changelog.tmp \$(top_srcdir) && \
+	(svn2cl -i -r {20160101}:BASE -o .changelog.tmp \$(top_srcdir) && \
 	mv .changelog.tmp ChangeLog) || (rm -f .changelog.tmp; touch ChangeLog; \
 	echo 'svn2cl command not found: installing possibly empty changelog.' >&2)
 

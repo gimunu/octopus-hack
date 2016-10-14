@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: dielectric_function.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: dielectric_function.F90 15651 2016-10-14 11:59:44Z huebener $
 
 #include "global.h"
 
@@ -142,12 +142,14 @@ program dielectric_function
     call batch_add_state(ftimagb, ftimag(0:,  ii))
   end do
 
-  call spectrum_signal_damp(spectrum%damp, spectrum%damp_factor, istart, iend, M_ZERO, dt, vecpotb)
+  call spectrum_signal_damp(spectrum%damp, spectrum%damp_factor, istart, iend, spectrum%start_time, dt, vecpotb)
 
   call spectrum_fourier_transform(spectrum%method, SPECTRUM_TRANSFORM_COS, spectrum%noise, &
-    istart, iend, M_ZERO, dt, vecpotb, 1, energy_steps + 1, spectrum%energy_step, ftrealb)
+    istart, iend, spectrum%start_time, dt, vecpotb, 1, energy_steps + 1, spectrum%energy_step, ftrealb)
+
   call spectrum_fourier_transform(spectrum%method, SPECTRUM_TRANSFORM_SIN, spectrum%noise, &
-    istart, iend, M_ZERO, dt, vecpotb, 1, energy_steps + 1, spectrum%energy_step, ftimagb)
+    istart, iend, spectrum%start_time, dt, vecpotb, 1, energy_steps + 1, spectrum%energy_step, ftimagb)
+
 
   call batch_end(vecpotb)
   call batch_end(ftrealb)

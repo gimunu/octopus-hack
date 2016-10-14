@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: pes_mask_out_inc.F90 15370 2016-05-18 10:43:13Z nicolastd $
+!! $Id: pes_mask_out_inc.F90 15648 2016-10-14 10:34:30Z rozzi $
 
 
 
@@ -834,10 +834,10 @@ subroutine pes_mask_output_full_mapM(pesK, file, Lk, ll, how, sb, pmesh)
     call messages_info(1)
     
     if (present(pmesh)) then          
-      call dvtk_out_cf_structured(filename, ierr, cf, cube,& 
+      call dvtk_out_cf_structured(filename, 'PES_mapM', ierr, cf, cube,& 
         sqrt(units_out%energy)**sb%dim, pmesh, ascii = .false.)
     else 
-      call dvtk_out_cf(filename, ierr, cf, cube, dk(:),& 
+      call dvtk_out_cf(filename, 'PES_mapM', ierr, cf, cube, dk(:),& 
         sqrt(units_out%energy)**sb%dim)
     end if        
       

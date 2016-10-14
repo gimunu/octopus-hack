@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: states.F90 15493 2016-07-18 21:01:02Z nicolastd $
+!! $Id: states.F90 15647 2016-10-14 10:03:28Z nicolastd $
 
 #include "global.h"
 
@@ -211,7 +211,15 @@ module states_oct_m
 
     logical                     :: symmetrize_density
     logical                     :: packed
+
+    integer                     :: randomization      !< Method used to generate random states
   end type states_t
+
+  !> Method used to generate random states
+  integer, public, parameter :: &
+    PAR_INDEPENDENT = 1,              &
+    PAR_DEPENDENT   = 2
+
 
   interface states_get_state
     module procedure dstates_get_state1, zstates_get_state1, dstates_get_state2, zstates_get_state2
@@ -526,6 +534,24 @@ contains
       nullify(st%spin)
     end if
 
+    !%Variable StatesRandomization
+    !%Type integer
+    !%Default par_independent
+    !%Section States
+    !%Description
+    !% The randomization of states can be done in two ways: 
+    !% i) a parallelisation independent way (default), where the random states are identical, 
+    !% irrespectively of the number of tasks and 
+    !% ii) a parallelisation dependent way, which can prevent linear dependency
+    !%  to occur for large systems.
+    !%Option par_independent 1
+    !% Parallelisation-independent randomization of states.
+    !%Option par_dependent 2
+    !% The randomization depends on the number of taks used in the calculation.
+    !%End
+    call parse_variable('StatesRandomization', PAR_INDEPENDENT, st%randomization)
+
+
     ! initially we mark all 'formulas' as undefined
     st%user_def_states(1:st%d%dim, 1:st%nst, 1:st%d%nik) = 'undefined'
 
@@ -562,7 +588,11 @@ contains
     !% When enabled the density is symmetrized. Currently, this can
     !% only be done for periodic systems. (Experimental.)
     !%End
-    call parse_variable('SymmetrizeDensity', .false., st%symmetrize_density)
+    if(gr%sb%kpoints%use_symmetries) then
+      call parse_variable('SymmetrizeDensity', .true., st%symmetrize_density)
+    else
+      call parse_variable('SymmetrizeDensity', .false., st%symmetrize_density)
+    end if
     call messages_print_var_value(stdout, 'SymmetrizeDensity', st%symmetrize_density)
 
     ! Why? Resulting discrepancies can be suspiciously large even at SCF convergence;
@@ -1585,7 +1615,11 @@ contains
     PUSH_SUB(states_generate_random)
  
     ist_start = optional_default(ist_start_, 1)
-    ist_end   = optional_default(ist_end_,   st%nst)
+    if(st%randomization == PAR_INDEPENDENT) then
+      ist_end = st%nst
+    else 
+      ist_end = optional_default(ist_end_,   st%nst)
+    end if
     ikpt_start = optional_default(ikpt_start_, 1)  
     ikpt_end = optional_default(ikpt_end_, st%d%nik)
     
@@ -1602,16 +1636,25 @@ contains
       do ik = ikpt_start, ikpt_end
         do ist = ist_start, ist_end
           if (states_are_real(st)) then
-            call dmf_random(mesh, dpsi(:, 1), normalized = normalized)
-            if(.not. state_kpt_is_local(st, ist, ik)) cycle
+            if(st%randomization == PAR_INDEPENDENT) then
+              call dmf_random(mesh, dpsi(:, 1), mesh%vp%xlocal-1, normalized = normalized)
+            else
+              call dmf_random(mesh, dpsi(:, 1), normalized = normalized)
+            end if
             call states_set_state(st, mesh, ist,  ik, dpsi)
           else
-            call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
-            if(.not. state_kpt_is_local(st, ist, ik)) cycle
+            if(st%randomization == PAR_INDEPENDENT) then
+              call zmf_random(mesh, zpsi(:, 1), mesh%vp%xlocal-1, normalized = normalized)
+            else
+              call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
+            end if
             call states_set_state(st, mesh, ist,  ik, zpsi)
             if(st%have_left_states) then
-              call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
-              if(.not. state_kpt_is_local(st, ist, ik)) cycle
+              if(st%randomization == PAR_INDEPENDENT) then
+                call zmf_random(mesh, zpsi(:, 1), mesh%vp%xlocal-1, normalized = normalized)
+              else
+                call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
+              end if
               call states_set_state(st, mesh, ist,  ik, zpsi, left = .true.)
             end if
           end if
@@ -1626,8 +1669,11 @@ contains
 
         do ik = ikpt_start, ikpt_end
           do ist = ist_start, ist_end
-            call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
-            if(.not. state_kpt_is_local(st, ist, ik)) cycle
+            if(st%randomization == PAR_INDEPENDENT) then
+              call zmf_random(mesh, zpsi(:, 1), mesh%vp%xlocal-1, normalized = normalized)
+            else
+              call zmf_random(mesh, zpsi(:, 1), normalized = normalized)
+            end if
             ! In this case, the spinors are made of a spatial part times a vector [alpha beta]^T in
             ! spin space (i.e., same spatial part for each spin component). So (alpha, beta)
             ! determines the spin values. The values of (alpha, beta) can be be obtained
@@ -1660,9 +1706,12 @@ contains
         do ik = ikpt_start, ikpt_end
           do ist = ist_start, ist_end
             do id = 1, st%d%dim
-              call zmf_random(mesh, zpsi(:, id), normalized = normalized)
+              if(st%randomization == PAR_INDEPENDENT) then
+                call zmf_random(mesh, zpsi(:, id), mesh%vp%xlocal-1, normalized = normalized)
+              else
+                call zmf_random(mesh, zpsi(:, id), normalized = normalized)
+              end if
             end do
-            if(.not. state_kpt_is_local(st, ist, ik)) cycle
             call states_set_state(st, mesh, ist,  ik, zpsi)
           end do
         end do

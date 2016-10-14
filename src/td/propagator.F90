@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagator.F90 15203 2016-03-19 13:15:05Z xavier $
+!! $Id: propagator.F90 15650 2016-10-14 11:55:36Z huebener $
 
 #include "global.h"
 
@@ -558,7 +558,7 @@ contains
     end if
 
     if(gauge_field_is_applied(hm%ep%gfield) .and. .not. propagator_ions_are_propagated(tr)) then
-      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt)
+      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt, time)
     end if
 
     if(generate .or. geometry_species_time_dependent(geo)) then
@@ -640,7 +640,7 @@ contains
       gs_run = .false., verbosity = VERB_COMPACT, iters_done = scsteps)
 
     if(gauge_field_is_applied(hm%ep%gfield)) then
-      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt)
+      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt, iter*dt)
     end if
 
     call hamiltonian_epot_generate(hm, gr, geo, st, time = iter*dt)

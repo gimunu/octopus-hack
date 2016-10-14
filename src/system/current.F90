@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: current.F90 15361 2016-05-12 04:16:28Z xavier $
+!! $Id: current.F90 15640 2016-10-04 22:53:20Z nicolastd $
 
 #include "global.h"
 
@@ -355,6 +355,12 @@ contains
     end if
 
     SAFE_DEALLOCATE_A(gpsi)
+    SAFE_DEALLOCATE_A(psi)
+    SAFE_DEALLOCATE_A(hpsi)
+    SAFE_DEALLOCATE_A(rhpsi)
+    SAFE_DEALLOCATE_A(rpsi)
+    SAFE_DEALLOCATE_A(hrpsi)
+    SAFE_DEALLOCATE_A(commpsib)
 
     call profiling_out(prof)
     POP_SUB(current_calculate)

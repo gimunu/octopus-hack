@@ -17,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 #
-# $Id: var2html.pl 13752 2015-04-06 21:06:14Z dstrubbe $
+# $Id: var2html.pl 15637 2016-09-29 17:55:18Z xavier $
 
 use Getopt::Std;
 
@@ -105,7 +105,7 @@ sub read_varinfo(){
     }elsif($key eq "type"){
       $vars{$thisvar}{"type"} = $arg;
       if($arg ne "float" && $arg ne "integer" && $arg ne "flag" &&
-	 $arg ne "string" && $arg ne "logical" && $arg ne "block") {
+	 $arg ne "string" && $arg ne "logical" && $arg ne "block" && $arg ne "virtual") {
 	  print STDERR "ERROR: Variable '$thisvar' has unknown type '$arg'.\n";
 	  exit(1);
       }

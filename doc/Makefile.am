@@ -17,7 +17,7 @@
 ## Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ## 02110-1301, USA.
 ##
-## $Id: Makefile.am 13949 2015-05-08 21:03:35Z dstrubbe $
+## $Id: Makefile.am 15604 2016-09-05 08:32:26Z micael $
 
 SUBDIRS = html
 
@@ -34,7 +34,14 @@ EXTRA_DIST = \
 	ChangeLog.2005.gz   \
 	ChangeLog.2006.gz   \
 	ChangeLog.2007.gz   \
-	ChangeLog.2008.gz
+	ChangeLog.2008.gz   \
+	ChangeLog.2009.gz   \
+	ChangeLog.2010.gz   \
+	ChangeLog.2011.gz   \
+	ChangeLog.2012.gz   \
+	ChangeLog.2013.gz   \
+	ChangeLog.2014.gz   \
+	ChangeLog.2015.gz
 
 CLEANFILES = *~ *.bak variables.texi $(man_MANS)
 

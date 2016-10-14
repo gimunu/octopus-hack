@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: propagator_etrs.F90 15474 2016-07-12 04:33:08Z xavier $
+!! $Id: propagator_etrs.F90 15650 2016-10-14 11:55:36Z huebener $
 
 #include "global.h"
 
@@ -132,7 +132,7 @@ contains
     end if
 
     if(gauge_field_is_applied(hm%ep%gfield)) then
-      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt)
+      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt, time)
     end if
 
     if(hm%theory_level /= INDEPENDENT_PARTICLES) then
@@ -236,7 +236,7 @@ contains
     end if
 
     if(gauge_field_is_applied(hm%ep%gfield)) then
-      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt)
+      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt, time)
     end if
 
     if(hm%theory_level /= INDEPENDENT_PARTICLES) then
@@ -398,7 +398,7 @@ contains
     end if
 
     if(gauge_field_is_applied(hm%ep%gfield)) then
-      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt)
+      call gauge_field_propagate(hm%ep%gfield, gauge_force, dt, time)
     end if
 
     call hamiltonian_update(hm, gr%mesh, time = time)

@@ -15,7 +15,7 @@
 !! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 !! 02110-1301, USA.
 !!
-!! $Id: species.F90 15430 2016-06-21 19:01:40Z dstrubbe $
+!! $Id: species.F90 15609 2016-09-14 15:24:25Z nicolastd $
 #include "global.h"
 
 module species_oct_m
@@ -1202,7 +1202,7 @@ contains
 
     if(species_is_ps(spec)) then
       ASSERT(ii <= spec%ps%conf%p)
-      radius = spline_cutoff_radius(spec%ps%ur(ii, is), threshold)
+      radius = spline_cutoff_radius(spec%ps%ur(ii, is), spec%ps%projectors_sphere_threshold)
     else if(species_represents_real_atom(spec)) then
       radius = -ii*log(threshold)/spec%Z_val
     else
